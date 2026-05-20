@@ -1,0 +1,34 @@
+# OS and editor noise
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
+
+# Logs and temporary files
+*.log
+logs/
+tmp/
+temp/
+
+# Future build outputs and dependencies
+dist/
+build/
+out/
+node_modules/
+
+# Local secrets, credentials, and real data
+.env
+.env.*
+data/
+secrets/
+credentials/
+tokens/
+oauth/
+*.token
+*.tokens
+*.oauth
+*token*.json
+*oauth*.json
+*credentials*.json
+

@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "x-true-block-mute",
+  "version": "0.0.1",
+  "description": "X/Twitterでブロック・ミュート済みアカウント由来の情報露出を減らすための準備用拡張です。",
+  "host_permissions": [
+    "https://x.com/*",
+    "https://twitter.com/*"
+  ]
+}
