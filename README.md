@@ -2,7 +2,7 @@
 
 X/Twitter でブロック・ミュート済みアカウント由来の情報露出を減らすことを目指す Chrome 拡張です。
 
-Phase 1 では、Chrome に「Load unpacked」で読み込める Manifest V3 拡張として、popup、`chrome.storage`、静的 content script、synthetic fixture による最小 DOM フィルタを用意します。X 実 DOM の user_id 安定取得と F1-A / F1-B / F1-C / F1-D の一覧取得処理は未実装です。
+Phase 1 では、Chrome に「Load unpacked」で読み込める Manifest V3 拡張として、popup、`chrome.storage`、静的 content script、synthetic fixture による最小 DOM フィルタを用意します。Phase 1.5 では、F1-A 採用判断のための研究用 `MAIN` world hook scaffold と docs を追加します。X 実 DOM の user_id 安定取得と本番用の F1-A / F1-B / F1-C / F1-D 一覧取得処理は未実装です。
 
 ## Phase 0 の範囲
 
@@ -33,10 +33,27 @@ Phase 1 では、Chrome に「Load unpacked」で読み込める Manifest V3 拡
 
 - F1-A / F1-B / F1-C / F1-D の一覧取得処理
 - X API 連携、OAuth、Cookie、CSRF token、実アカウントデータ取得
-- `MAIN` world の `fetch` / `XMLHttpRequest` hook
-- `webRequest`、`cookies`、`tabs`、`activeTab`、`scripting`、`<all_urls>`、`https://api.x.com/*`
-- background service worker
+- 本番用の `MAIN` world `fetch` / `XMLHttpRequest` hook
+- `webRequest`、`cookies`、`tabs`、`activeTab`、`<all_urls>`、`https://api.x.com/*`
 - import/export、options page
+
+## Phase 1.5 の範囲
+
+- F1-A feasibility investigation のため、`/settings/blocked/all` と `/settings/muted/all` に限定した研究用 bridge を追加する
+- `chrome.scripting.executeScript` の `world: "MAIN"` で `fetch` / `XMLHttpRequest` hook を入れる
+- hook は raw response、Cookie、CSRF token、token、raw user_id、raw handle、表示名、本文を保存しない
+- sanitized observation は `xtbmF1AResearch` に保存し、通常の `xtbmEntries` には混ぜない
+- popup に `Phase 1.5 research / 開発用` の有効化、masked 観測数、削除操作を追加する
+- F1-A 採用条件と fallback 方針を docs に残す
+
+## Phase 1.5 で実装しないこと
+
+- 本番用 block / mute list sync
+- captured response から `xtbmEntries` へ登録する処理
+- F1-B DOM extraction
+- F1-C X API / OAuth
+- F1-D import UI
+- raw X response、HAR、screenshot、Cookie、CSRF token、OAuth token、raw user_id、raw handle の保存
 
 ## ローカルで Chrome に読み込む手順
 
@@ -49,16 +66,19 @@ Phase 1 では、Chrome に「Load unpacked」で読み込める Manifest V3 拡
 
 ## 現在の manifest 権限
 
-Phase 1 で宣言している権限は次だけです。
+Phase 1.5 で宣言している権限は次だけです。
 
 - `permissions`
   - `storage`
+  - `scripting`
 
 - `host_permissions`
   - `https://x.com/*`
   - `https://twitter.com/*`
 
-`storage` は popup と content script が Phase 1 の設定と synthetic test data を共有するために使います。タブ操作、スクリプト注入、ネットワーク監視などは追加していません。
+`storage` は popup と content script が Phase 1 の設定、synthetic test data、Phase 1.5 の sanitized research observation を共有するために使います。`scripting` は設定ページ限定の研究用 `MAIN` world hook 注入に使います。
+
+`webRequest`、`cookies`、`tabs`、`activeTab`、`<all_urls>`、`https://api.x.com/*` は追加していません。
 
 ## Storage schema
 
@@ -74,6 +94,9 @@ Phase 1 で宣言している権限は次だけです。
 - `Entry.user_id` は存在する場合の primary key として扱う
 - `Entry.handle` は補助キーとして扱う
 - Phase 1 synthetic entries は `source: "phase1-synthetic"` と `idResolutionStatus` を持つ
+- key: `xtbmF1AResearch`
+- value: `{ schemaVersion: 1, enabled: boolean, observations: Observation[], updatedAt: string | null }`
+- `xtbmF1AResearch.observations` は endpoint class、top-level key、field presence、count だけを持つ masked research summary
 
 ## Synthetic fixture での手動確認
 
@@ -99,11 +122,16 @@ node tests/scripts/verify-phase1-static.mjs
 
 この検証では manifest の権限、必須ファイル、JavaScript 構文、Phase 1 禁止事項の一部を確認します。
 
+## Phase 1.5 research docs
+
+- `docs/research/f1-a-main-world-hook.md`
+- `docs/decisions/f1-source-selection.md`
+
 ## 未確認事項
 
 - Chrome UI の `Load unpacked` 手動確認は未確認です。
 - X 実 DOM から安定して `user_id` を取得できるかは未確認です。
-- 実 X 画面でのフィルタ挙動は Phase 1.5 以降で、実データを保存・ログ出力しない手順を別途決めて確認します。
+- 実 X 画面での F1-A endpoint、response shape、pagination、injection timing、SPA navigation 維持は未確認です。
 
 ## 関係性の表明
 

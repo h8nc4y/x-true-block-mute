@@ -31,8 +31,14 @@ h1 {
   line-height: 1.2;
 }
 
+h2 {
+  margin: 0;
+  font-size: 14px;
+}
+
 header p,
 .status-panel span,
+.research-panel p,
 .message {
   color: #536471;
   font-size: 12px;
@@ -73,6 +79,25 @@ label {
   display: grid;
   gap: 8px;
   padding: 10px 12px;
+}
+
+.research-panel {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid #eff3f4;
+  padding-top: 12px;
+}
+
+.compact {
+  font-size: 12px;
+}
+
+.toggle-row.compact {
+  padding: 8px 10px;
+}
+
+.status-panel.compact {
+  padding: 8px 10px;
 }
 
 .status-panel div {

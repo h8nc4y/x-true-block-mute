@@ -12,7 +12,14 @@
 
   namespace.STORAGE_KEYS = Object.freeze({
     SETTINGS: "xtbmSettings",
-    ENTRIES: "xtbmEntries"
+    ENTRIES: "xtbmEntries",
+    F1A_RESEARCH: "xtbmF1AResearch"
+  });
+
+  namespace.RESEARCH_F1A = Object.freeze({
+    MESSAGE_INJECT: "x-tbm:f1a:inject-main-hook",
+    PAGE_MESSAGE_SOURCE: "x-tbm:f1a:main-world-hook",
+    MAX_OBSERVATIONS: 60
   });
 
   namespace.DEFAULT_SETTINGS = Object.freeze({

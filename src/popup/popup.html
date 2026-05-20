@@ -41,6 +41,25 @@
         <button id="clear-synthetic" type="button" class="secondary">テストデータ削除</button>
       </div>
 
+      <section class="research-panel" aria-labelledby="research-title">
+        <h2 id="research-title">Phase 1.5 research / 開発用</h2>
+        <label class="toggle-row compact">
+          <span>F1-A 捕捉検証</span>
+          <input id="f1a-research-enabled" type="checkbox">
+        </label>
+        <div class="status-panel compact" aria-live="polite">
+          <div>
+            <span>masked 観測数</span>
+            <strong id="f1a-observation-count">0</strong>
+          </div>
+          <div>
+            <span>最終更新</span>
+            <strong id="f1a-updated-at">未確認</strong>
+          </div>
+        </div>
+        <button id="clear-f1a-research" type="button" class="secondary">研究用サマリを削除</button>
+      </section>
+
       <p id="message" class="message" role="status"></p>
     </main>
 

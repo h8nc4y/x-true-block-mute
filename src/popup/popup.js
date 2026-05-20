@@ -10,6 +10,10 @@
   const lastSyntheticUpdate = document.querySelector("#last-synthetic-update");
   const seedButton = document.querySelector("#seed-synthetic");
   const clearButton = document.querySelector("#clear-synthetic");
+  const researchEnabledInput = document.querySelector("#f1a-research-enabled");
+  const researchObservationCount = document.querySelector("#f1a-observation-count");
+  const researchUpdatedAt = document.querySelector("#f1a-updated-at");
+  const clearResearchButton = document.querySelector("#clear-f1a-research");
   const message = document.querySelector("#message");
 
   function formatDateTime(isoString) {
@@ -29,7 +33,9 @@
   function setBusy(isBusy) {
     seedButton.disabled = isBusy;
     clearButton.disabled = isBusy;
+    clearResearchButton.disabled = isBusy;
     enabledInput.disabled = isBusy;
+    researchEnabledInput.disabled = isBusy;
     for (const input of modeInputs) {
       input.disabled = isBusy;
     }
@@ -40,13 +46,20 @@
   }
 
   async function render() {
-    const [settings, entryStore] = await Promise.all([Storage.getSettings(), Storage.getEntryStore()]);
+    const [settings, entryStore, researchState] = await Promise.all([
+      Storage.getSettings(),
+      Storage.getEntryStore(),
+      Storage.getF1AResearchState()
+    ]);
     enabledInput.checked = settings.enabled;
     for (const input of modeInputs) {
       input.checked = input.value === settings.displayMode;
     }
     entryCount.textContent = String(entryStore.entries.length);
     lastSyntheticUpdate.textContent = formatDateTime(entryStore.lastSyntheticUpdatedAt);
+    researchEnabledInput.checked = researchState.enabled;
+    researchObservationCount.textContent = String(researchState.observations.length);
+    researchUpdatedAt.textContent = formatDateTime(researchState.updatedAt);
   }
 
   async function updateSettings(patch) {
@@ -91,6 +104,38 @@
       setMessage("Phase 1 テストデータを削除しました。");
     } catch (_error) {
       setMessage("テストデータ削除に失敗しました。");
+    } finally {
+      setBusy(false);
+    }
+  });
+
+  researchEnabledInput.addEventListener("change", async () => {
+    setBusy(true);
+    setMessage("");
+    try {
+      await Storage.setF1AResearchEnabled(researchEnabledInput.checked);
+      await render();
+      setMessage(
+        researchEnabledInput.checked
+          ? "F1-A 捕捉検証を有効にしました。対象ページを再読み込みしてください。"
+          : "F1-A 捕捉検証を無効にしました。"
+      );
+    } catch (_error) {
+      setMessage("F1-A 捕捉検証の設定保存に失敗しました。");
+    } finally {
+      setBusy(false);
+    }
+  });
+
+  clearResearchButton.addEventListener("click", async () => {
+    setBusy(true);
+    setMessage("");
+    try {
+      await Storage.clearF1AResearchObservations();
+      await render();
+      setMessage("研究用の masked サマリを削除しました。");
+    } catch (_error) {
+      setMessage("研究用サマリの削除に失敗しました。");
     } finally {
       setBusy(false);
     }
