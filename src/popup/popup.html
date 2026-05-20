@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>x-true-block-mute</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="popup-shell">
+      <header>
+        <h1>x-true-block-mute</h1>
+        <p>Phase 1 synthetic テスト</p>
+      </header>
+
+      <label class="toggle-row">
+        <span>フィルタ</span>
+        <input id="enabled" type="checkbox">
+      </label>
+
+      <fieldset>
+        <legend>表示モード</legend>
+        <label><input type="radio" name="display-mode" value="hidden"> 完全非表示</label>
+        <label><input type="radio" name="display-mode" value="placeholder"> プレースホルダ</label>
+        <label><input type="radio" name="display-mode" value="off"> オフ</label>
+      </fieldset>
+
+      <section class="status-panel" aria-live="polite">
+        <div>
+          <span>登録件数</span>
+          <strong id="entry-count">0</strong>
+        </div>
+        <div>
+          <span>テストデータ更新</span>
+          <strong id="last-synthetic-update">未投入</strong>
+        </div>
+      </section>
+
+      <div class="button-grid">
+        <button id="seed-synthetic" type="button">テストデータ投入</button>
+        <button id="clear-synthetic" type="button" class="secondary">テストデータ削除</button>
+      </div>
+
+      <p id="message" class="message" role="status"></p>
+    </main>
+
+    <script src="../shared/constants.js"></script>
+    <script src="../storage/storage.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>
