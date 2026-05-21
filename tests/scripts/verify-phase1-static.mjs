@@ -5,15 +5,22 @@ const root = new URL("../../", import.meta.url);
 const requiredFiles = [
   "manifest.json",
   "src/shared/constants.js",
+  "src/research/f1-a/observation-utils.js",
   "src/storage/storage.js",
   "src/background/research-background.js",
   "src/content/content-script.js",
   "src/content/content-script.css",
   "src/research/f1-a/content-bridge.js",
+  "src/research/f1-a/main-world-hook.js",
   "src/popup/popup.html",
   "src/popup/popup.css",
   "src/popup/popup.js",
-  "tests/fixtures/home-timeline.html"
+  "tests/fixtures/home-timeline.html",
+  "tests/fixtures/f1-a-local-simulator.html",
+  "tests/fixtures/f1-a-masked-summary.fixture.json",
+  "tests/scripts/evaluate-f1-observation.mjs",
+  "tests/scripts/verify-f1a-main-hook-simulator.mjs",
+  "tests/scripts/verify-f1a-observation-safety.mjs"
 ];
 const prohibitedValues = [
   "webRequest",
@@ -53,11 +60,13 @@ assert(
 );
 assert(
   manifest.content_scripts[0].run_at === "document_start" &&
+    manifest.content_scripts[0].js.includes("src/research/f1-a/observation-utils.js") &&
     manifest.content_scripts[0].js.includes("src/research/f1-a/content-bridge.js"),
   "research bridge must run at document_start"
 );
 assert(
   manifest.content_scripts[1].run_at === "document_idle" &&
+    manifest.content_scripts[1].js.includes("src/research/f1-a/observation-utils.js") &&
     manifest.content_scripts[1].js.includes("src/content/content-script.js"),
   "normal Phase 1 content script must remain document_idle"
 );
@@ -71,7 +80,7 @@ for (const file of requiredFiles) {
   await readText(file);
 }
 
-for (const file of requiredFiles.filter((file) => file.endsWith(".js") || file.endsWith(".mjs"))) {
+for (const file of requiredFiles.filter((file) => file.endsWith(".js"))) {
   new Script(await readText(file), { filename: file });
 }
 
@@ -84,14 +93,25 @@ assert(!contentScript.includes("XMLHttpRequest"), "production content script mus
 
 const backgroundScript = await readText("src/background/research-background.js");
 const bridgeScript = await readText("src/research/f1-a/content-bridge.js");
+const mainWorldHookScript = await readText("src/research/f1-a/main-world-hook.js");
+const observationUtilsScript = await readText("src/research/f1-a/observation-utils.js");
 const storageScript = await readText("src/storage/storage.js");
 assert(backgroundScript.includes('world: "MAIN"'), "research injection must target MAIN world");
-assert(backgroundScript.includes("window.fetch"), "research hook must wrap fetch");
-assert(backgroundScript.includes("XMLHttpRequest.prototype.open"), "research hook must wrap XMLHttpRequest");
-assert(backgroundScript.includes("window.postMessage"), "MAIN world hook must use page messaging instead of chrome APIs");
+assert(backgroundScript.includes("main-world-hook.js"), "background must import the tested main world hook");
+assert(mainWorldHookScript.includes("window.fetch"), "research hook must wrap fetch");
+assert(mainWorldHookScript.includes("XMLHttpRequest.prototype.open"), "research hook must wrap XMLHttpRequest");
+assert(mainWorldHookScript.includes("window.postMessage"), "MAIN world hook must use page messaging instead of chrome APIs");
+assert(mainWorldHookScript.includes("hookRunId"), "MAIN world hook must tag observations for continuity checks");
 assert(!backgroundScript.includes("chrome.storage"), "MAIN world hook path must not use chrome.storage");
 assert(bridgeScript.includes("appendF1AResearchObservation"), "bridge must persist only normalized research observations");
 assert(storageScript.includes("F1A_RESEARCH"), "research storage must be separate from xtbmEntries");
+assert(storageScript.includes("ResearchF1A.normalizeObservation"), "research storage must use the shared masked observation normalizer");
+assert(observationUtilsScript.includes("evaluateObservationSummary"), "observation evaluator must be available");
+assert(observationUtilsScript.includes("findUnsafeSummarySignals"), "unsafe summary detection must be available");
 assert(!storageScript.includes("xtbmEntries") || storageScript.includes("xtbmF1AResearch"), "research observations must not be mixed into xtbmEntries");
+
+const popupHtml = await readText("src/popup/popup.html");
+assert(popupHtml.includes("masked summary をコピー"), "popup must expose masked summary copy flow");
+assert(popupHtml.includes("本番同期ではありません"), "popup must label research flow as non-production sync");
 
 console.log("Phase 1.5 static verification passed");

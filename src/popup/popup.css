@@ -88,6 +88,10 @@ label {
   padding-top: 12px;
 }
 
+.research-note {
+  margin: 0;
+}
+
 .compact {
   font-size: 12px;
 }
@@ -132,6 +136,16 @@ button.secondary {
 button:disabled {
   cursor: wait;
   opacity: 0.7;
+}
+
+.summary-output {
+  min-height: 96px;
+  width: 100%;
+  resize: vertical;
+  border: 1px solid #d7dbdc;
+  border-radius: 8px;
+  padding: 8px;
+  font: 11px/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace;
 }
 
 .message {

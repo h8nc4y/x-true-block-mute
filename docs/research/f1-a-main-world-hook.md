@@ -36,6 +36,7 @@ Phase 1.5 では、`/settings/blocked/all` と `/settings/muted/all` で X/Twitt
 - JSON top-level key 名
 - JSON shape path 名
 - 配列 path と件数
+- hook continuity marker: `hookRunId`
 - `user_id` 風 field の有無
 - handle / screen name 風 field の有無
 - cursor 風 field の有無
@@ -54,6 +55,25 @@ Phase 1.5 では、`/settings/blocked/all` と `/settings/muted/all` で X/Twitt
 - 投稿本文
 - screenshot
 - HAR / network log
+
+## ローカルで潰した不確実性
+
+実 X ログインページに入らなくても、次はローカル検証できる。
+
+- `src/research/f1-a/main-world-hook.js` を Node VM simulator で読み込み、synthetic `fetch` / `XMLHttpRequest` の JSON shape を masked observation に丸めること。
+- `hookRunId` が同一 hook 内の blocked / muted observations に残り、SPA continuity 判定材料になること。
+- raw-looking user id、handle value、display name、cursor value が simulator output に残らないこと。
+- `src/research/f1-a/observation-utils.js` が storage 用 observation を再 sanitize し、raw-looking summary を `unsafe_summary` と判定すること。
+- `tests/fixtures/f1-a-masked-summary.fixture.json` が実測ではなく fixture として `fixture_pass` になること。
+
+ローカル検証コマンド:
+
+```powershell
+node tests/scripts/verify-phase1-static.mjs
+node tests/scripts/verify-f1a-observation-safety.mjs
+node tests/scripts/verify-f1a-main-hook-simulator.mjs
+node tests/scripts/evaluate-f1-observation.mjs tests/fixtures/f1-a-masked-summary.fixture.json
+```
 
 ## injection timing
 
@@ -113,10 +133,37 @@ SPA 遷移で `window` が維持される限り hook は残る想定だが、実
 6. ページを refresh する。
 7. 一覧を少し scroll し、追加読み込みが起きるかを見る。
 8. 拡張 popup を開き、`masked 観測数` が増えたかだけを見る。
-9. `https://x.com/settings/muted/all` に SPA 遷移または直接移動し、同じ確認をする。
-10. `twitter.com` equivalents が reachable なら同じ手順で確認する。
-11. 記録する場合は raw value を書かず、endpoint は `endpoint-1` などのラベル、shape は top-level key 名と field presence だけにする。
-12. 検証後、popup の `研究用サマリを削除` を押す。
+9. popup の `masked summary をコピー` を押す。コピー対象は masked summary だけで、raw response は含めない。
+10. `https://x.com/settings/muted/all` に SPA 遷移または直接移動し、同じ確認をする。
+11. `twitter.com` equivalents が reachable なら同じ手順で確認する。
+12. 記録する場合は raw value を書かず、endpoint は `endpoint-1` などのラベル、shape は top-level key 名と field presence だけにする。
+13. 検証後、popup の `研究用サマリを削除` を押す。
+
+## masked summary 判定手順
+
+popup の `masked summary をコピー` で得た JSON だけを使う。raw response、DevTools Network log、HAR、screenshot は使わない。
+
+fixture の確認:
+
+```powershell
+node tests/scripts/evaluate-f1-observation.mjs tests/fixtures/f1-a-masked-summary.fixture.json
+```
+
+この結果は `fixture_pass` であり、実 X での F1-A 採用根拠にはしない。
+
+実 X 由来の masked summary を評価する場合:
+
+```powershell
+node tests/scripts/evaluate-f1-observation.mjs --live path\to\masked-summary.json
+```
+
+判定:
+
+- `unsafe_summary`: raw-looking 値が混入している可能性がある。共有せず削除する。
+- `unknown`: observations がない。F1-A 捕捉検証を有効化し、blocked / muted を再確認する。
+- `f1a_insufficient`: 不足項目がある。F1-A primary には進めない。
+- `fixture_pass`: synthetic fixture としては通った。実測根拠ではない。
+- `f1a_viable`: `--live` 付きの masked 実測が機械条件を満たした。ただし Chrome Web Store review risk と保守性は別途判断する。
 
 ## privacy and review risks
 

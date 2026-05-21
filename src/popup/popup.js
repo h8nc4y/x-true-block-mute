@@ -2,7 +2,7 @@
   "use strict";
 
   const namespace = globalThis.XTrueBlockMute;
-  const { DISPLAY_MODES, Storage } = namespace;
+  const { DISPLAY_MODES, ResearchF1A, Storage } = namespace;
 
   const enabledInput = document.querySelector("#enabled");
   const modeInputs = Array.from(document.querySelectorAll("input[name='display-mode']"));
@@ -13,7 +13,9 @@
   const researchEnabledInput = document.querySelector("#f1a-research-enabled");
   const researchObservationCount = document.querySelector("#f1a-observation-count");
   const researchUpdatedAt = document.querySelector("#f1a-updated-at");
+  const copyResearchButton = document.querySelector("#copy-f1a-research");
   const clearResearchButton = document.querySelector("#clear-f1a-research");
+  const researchSummaryOutput = document.querySelector("#f1a-summary-output");
   const message = document.querySelector("#message");
 
   function formatDateTime(isoString) {
@@ -33,6 +35,7 @@
   function setBusy(isBusy) {
     seedButton.disabled = isBusy;
     clearButton.disabled = isBusy;
+    copyResearchButton.disabled = isBusy;
     clearResearchButton.disabled = isBusy;
     enabledInput.disabled = isBusy;
     researchEnabledInput.disabled = isBusy;
@@ -60,6 +63,7 @@
     researchEnabledInput.checked = researchState.enabled;
     researchObservationCount.textContent = String(researchState.observations.length);
     researchUpdatedAt.textContent = formatDateTime(researchState.updatedAt);
+    copyResearchButton.disabled = researchState.observations.length === 0;
   }
 
   async function updateSettings(patch) {
@@ -136,6 +140,28 @@
       setMessage("研究用の masked サマリを削除しました。");
     } catch (_error) {
       setMessage("研究用サマリの削除に失敗しました。");
+    } finally {
+      setBusy(false);
+    }
+  });
+
+  copyResearchButton.addEventListener("click", async () => {
+    setBusy(true);
+    setMessage("");
+    try {
+      const researchState = await Storage.getF1AResearchState();
+      const summaryText = JSON.stringify(ResearchF1A.createExportSummary(researchState), null, 2);
+      researchSummaryOutput.hidden = false;
+      researchSummaryOutput.value = summaryText;
+      researchSummaryOutput.select();
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(summaryText);
+      } else {
+        document.execCommand("copy");
+      }
+      setMessage("masked summary をコピーしました。raw response は含みません。");
+    } catch (_error) {
+      setMessage("masked summary のコピーに失敗しました。表示欄から手動でコピーしてください。");
     } finally {
       setBusy(false);
     }

@@ -88,3 +88,38 @@ F1-C は Phase 1.5 では out of scope のまま維持する。
 - blocked / muted 間の SPA navigation で hook が維持されるか。
 
 実測できない場合、Phase 2 は F1-B primary または F1-D primary に切り替える。
+
+## Mechanical evaluator gate
+
+masked summary は `tests/scripts/evaluate-f1-observation.mjs` で判定する。
+
+```powershell
+node tests/scripts/evaluate-f1-observation.mjs --live path\to\masked-summary.json
+```
+
+判定基準:
+
+- `unsafe_summary`: 停止。raw 値が混入している可能性があるため、Phase 2 判断材料に使わない。
+- `unknown`: F1-A 未確認。blocked / muted の masked observations を取り直す。
+- `f1a_insufficient`: F1-A primary 不採用。missing に出た不足を確認し、F1-B または F1-D fallback を選ぶ。
+- `fixture_pass`: local fixture は通っているが、実測ではない。F1-A primary 不採用。
+- `f1a_viable`: F1-A primary の候補。ただし採用前に review risk、保守性、ユーザー説明、削除手順を確認する。
+
+`f1a_viable` になるには、blocked / muted の両方で次が必要。
+
+- endpoint class
+- response shape
+- `user_id` 風または handle 風 signal
+- pagination / continuation signal
+- 同一 hook run による SPA continuity signal
+
+## Next implementation unit after insufficient result
+
+`f1a_insufficient` の missing ごとの次アクション:
+
+- endpoint / shape 不足: F1-A は内部 response 捕捉に失敗しているため、F1-B DOM extraction を優先検討する。
+- identity signal 不足: F1-A で stable matching が作れないため、F1-B で visible handle の限定同期、または F1-D user import を検討する。
+- pagination 不足: F1-A は全件同期に向かないため、F1-B の表示範囲限定同期または F1-D を検討する。
+- SPA continuity 不足: F1-A を採る場合でも refresh / manual sync 前提になる。レビューリスクが高い場合は F1-B / F1-D に切り替える。
+
+F1-B / F1-D fallback はこの decision では設計までに留める。production fallback implementation は Phase 2 の別 task として扱う。

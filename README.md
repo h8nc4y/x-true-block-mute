@@ -44,6 +44,8 @@ Phase 1 では、Chrome に「Load unpacked」で読み込める Manifest V3 拡
 - hook は raw response、Cookie、CSRF token、token、raw user_id、raw handle、表示名、本文を保存しない
 - sanitized observation は `xtbmF1AResearch` に保存し、通常の `xtbmEntries` には混ぜない
 - popup に `Phase 1.5 research / 開発用` の有効化、masked 観測数、削除操作を追加する
+- popup から判定用の `masked summary` をコピーできる
+- `tests/scripts/evaluate-f1-observation.mjs` で masked summary を機械判定できる
 - F1-A 採用条件と fallback 方針を docs に残す
 
 ## Phase 1.5 で実装しないこと
@@ -96,7 +98,8 @@ Phase 1.5 で宣言している権限は次だけです。
 - Phase 1 synthetic entries は `source: "phase1-synthetic"` と `idResolutionStatus` を持つ
 - key: `xtbmF1AResearch`
 - value: `{ schemaVersion: 1, enabled: boolean, observations: Observation[], updatedAt: string | null }`
-- `xtbmF1AResearch.observations` は endpoint class、top-level key、field presence、count だけを持つ masked research summary
+- `xtbmF1AResearch.observations` は endpoint class、top-level key、shape path、field presence、count、hook continuity marker だけを持つ masked research summary
+- raw response body、header、Cookie、CSRF token、Authorization header、OAuth token、raw user_id、raw handle、表示名、本文は schema 外
 
 ## Synthetic fixture での手動確認
 
@@ -121,6 +124,24 @@ node tests/scripts/verify-phase1-static.mjs
 ```
 
 この検証では manifest の権限、必須ファイル、JavaScript 構文、Phase 1 禁止事項の一部を確認します。
+
+Phase 1.5 の研究用検証では次も使います。
+
+```powershell
+node tests/scripts/verify-f1a-observation-safety.mjs
+node tests/scripts/verify-f1a-main-hook-simulator.mjs
+node tests/scripts/evaluate-f1-observation.mjs tests/fixtures/f1-a-masked-summary.fixture.json
+```
+
+`evaluate-f1-observation.mjs` は `--live` を付けた場合だけ、条件充足時に `f1a_viable` を返します。`--live` なしでは fixture 扱いのため、条件が揃っても `fixture_pass` です。
+
+実 X の masked summary を評価する場合:
+
+```powershell
+node tests/scripts/evaluate-f1-observation.mjs --live path\to\masked-summary.json
+```
+
+`unsafe_summary` が出た場合は raw 値が混入している可能性があるため、その summary は共有せず削除します。`f1a_insufficient` の場合は F1-A primary に進まず、F1-B または F1-D fallback を検討します。
 
 ## Phase 1.5 research docs
 
