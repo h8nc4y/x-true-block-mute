@@ -148,6 +148,15 @@ node tests/scripts/evaluate-f1-observation.mjs --live path\to\masked-summary.jso
 - `docs/research/f1-a-main-world-hook.md`
 - `docs/decisions/f1-source-selection.md`
 
+## Codex operation notes
+
+- GitHub issue コメント、PR review、人間の X ログイン、masked summary 貼り付けは開発開始条件ではありません。
+- Codex は入力待ちループ、対話式 CLI 待機、foreground dev server、`tail -f`、`watch`、`while true`、`sleep infinity` に入りません。
+- 実 X ログインが必要な検証は未確認として扱い、fixture / simulator / evaluator / docs のローカル検証へ戻ります。
+- remote が未設定の場合は push / PR を推測せず、local commit と報告で完了します。
+- Web UI 変更時は日本語 UI を優先し、可能な範囲で Chrome / Browser / Playwright / headless smoke を確認します。
+- GoogleChrome / modern-web-guidance は frontend 判断で必要な場合だけ利用候補にし、secret、token、OAuth、実データ、個人情報を query に入れません。
+
 ## 未確認事項
 
 - Chrome UI の `Load unpacked` 手動確認は未確認です。

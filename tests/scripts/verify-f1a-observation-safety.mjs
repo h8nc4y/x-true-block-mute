@@ -34,7 +34,7 @@ const rawLookingObservation = {
   requestKind: "fetch",
   method: "GET",
   endpointClass:
-    "https://x.com/i/api/graphql/12345678901234567890/BlockedAccounts?cursor=raw-cursor-value&auth_token=raw-secret",
+    "https://x.com/i/api/graphql/12345678901234567890/BlockedAccounts?cursor=raw-cursor-value&auth_token=synthetic-sensitive-value",
   statusClass: "2xx",
   responseKind: "json",
   hookRunId: "hook-test",
@@ -50,7 +50,7 @@ const normalizedText = JSON.stringify(normalized);
 assert(!normalizedText.includes("12345678901234567890"), "long numeric id-like values must be masked");
 assert(!normalizedText.includes("@raw_handle"), "raw handle-looking keys must be masked");
 assert(!normalizedText.includes("raw-cursor-value"), "query values must be masked");
-assert(!normalizedText.includes("raw-secret"), "token values must be masked");
+assert(!normalizedText.includes("synthetic-sensitive-value"), "token values must be masked");
 assert(normalized.fieldPresence.paginationLike, "cursorLike should imply paginationLike");
 
 const unsafe = ResearchF1A.evaluateObservationSummary({

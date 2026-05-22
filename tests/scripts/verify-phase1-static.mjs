@@ -19,6 +19,7 @@ const requiredFiles = [
   "tests/fixtures/f1-a-local-simulator.html",
   "tests/fixtures/f1-a-masked-summary.fixture.json",
   "tests/scripts/evaluate-f1-observation.mjs",
+  "tests/scripts/audit-operational-alignment.mjs",
   "tests/scripts/verify-f1a-main-hook-simulator.mjs",
   "tests/scripts/verify-f1a-observation-safety.mjs"
 ];
@@ -113,5 +114,6 @@ assert(!storageScript.includes("xtbmEntries") || storageScript.includes("xtbmF1A
 const popupHtml = await readText("src/popup/popup.html");
 assert(popupHtml.includes("masked summary をコピー"), "popup must expose masked summary copy flow");
 assert(popupHtml.includes("本番同期ではありません"), "popup must label research flow as non-production sync");
+assert(popupHtml.includes("raw response はコピーしません"), "popup must explicitly say raw response is not copied");
 
 console.log("Phase 1.5 static verification passed");

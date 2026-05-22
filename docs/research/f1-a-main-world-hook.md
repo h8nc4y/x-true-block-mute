@@ -125,19 +125,22 @@ SPA 遷移で `window` が維持される限り hook は残る想定だが、実
 
 ## 手動検証手順
 
+この手順は人間がログイン済み Chrome で実施する。Codex はログイン待ち、masked summary 入力待ち、DevTools Network 本文待ちをしない。
+
 1. Chrome で `chrome://extensions` を開く。
 2. `Developer mode` を有効にする。
-3. `Load unpacked` で `D:\Codex\Projects\012_x-true-block-mute\` を読み込む。
+3. `Load unpacked` で `D:\Codex\Projects\012_x-true-block-mute\` を読み込む。既に読み込み済みなら `Reload` を押す。
 4. 拡張 popup を開き、`Phase 1.5 research / 開発用` の `F1-A 捕捉検証` を有効にする。
 5. `https://x.com/settings/blocked/all` を開く。ログインが必要な場合は、人間が Chrome 上で直接ログインする。Codex に password、MFA、Cookie、token を渡さない。
 6. ページを refresh する。
 7. 一覧を少し scroll し、追加読み込みが起きるかを見る。
 8. 拡張 popup を開き、`masked 観測数` が増えたかだけを見る。
 9. popup の `masked summary をコピー` を押す。コピー対象は masked summary だけで、raw response は含めない。
-10. `https://x.com/settings/muted/all` に SPA 遷移または直接移動し、同じ確認をする。
-11. `twitter.com` equivalents が reachable なら同じ手順で確認する。
-12. 記録する場合は raw value を書かず、endpoint は `endpoint-1` などのラベル、shape は top-level key 名と field presence だけにする。
-13. 検証後、popup の `研究用サマリを削除` を押す。
+10. 必要なら `tmp\masked-summary.json` のような repo 内 ignored temp path に masked summary だけを置く。raw response、Cookie、CSRF、token、HAR、screenshot は置かない。
+11. `https://x.com/settings/muted/all` に SPA 遷移または直接移動し、同じ確認をする。
+12. `twitter.com` equivalents が reachable なら同じ手順で確認する。
+13. 記録する場合は raw value を書かず、endpoint は `endpoint-1` などのラベル、shape は top-level key 名と field presence だけにする。
+14. 検証後、popup の `研究用サマリを削除` を押す。
 
 ## masked summary 判定手順
 
