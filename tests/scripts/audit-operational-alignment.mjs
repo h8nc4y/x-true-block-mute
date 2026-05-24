@@ -1,9 +1,10 @@
 import { access, readFile } from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
+import vm from "node:vm";
 
 const root = new URL("../../", import.meta.url);
-const globalConfig = "C:/Users/h8nc4/.codex/config.toml";
-const globalCostGuard = "C:/Users/h8nc4/.codex/rules/cost-guard.rules";
+const globalConfig = "D:/Agent/Codex/.codex/config.toml";
+const globalCostGuard = "D:/Agent/Codex/.codex/rules/cost-guard.rules";
 
 async function readText(path) {
   return readFile(new URL(path, root), "utf8");
@@ -50,6 +51,127 @@ function summarizeExternalText(text) {
     hasProjectDocKeyword: /AGENTS|project_doc|fallback/i.test(text),
     bracketBalanceHint:
       (text.match(/[\[{]/g) || []).length === (text.match(/[\]}]/g) || []).length ? "ok" : "unbalanced"
+  };
+}
+
+function stripRuleComments(text) {
+  return text
+    .split(/\r?\n/)
+    .filter((line) => !line.trimStart().startsWith("#"))
+    .join("\n");
+}
+
+function collectPrefixRuleBodies(text) {
+  const source = stripRuleComments(text);
+  const bodies = [];
+  let cursor = 0;
+
+  while (cursor < source.length) {
+    const start = source.indexOf("prefix_rule(", cursor);
+    if (start === -1) break;
+
+    let depth = 1;
+    let quote = null;
+    let escaped = false;
+    let end = start + "prefix_rule(".length;
+
+    for (; end < source.length; end += 1) {
+      const char = source[end];
+
+      if (quote) {
+        if (escaped) {
+          escaped = false;
+        } else if (char === "\\") {
+          escaped = true;
+        } else if (char === quote) {
+          quote = null;
+        }
+        continue;
+      }
+
+      if (char === "\"" || char === "'") {
+        quote = char;
+      } else if (char === "(") {
+        depth += 1;
+      } else if (char === ")") {
+        depth -= 1;
+        if (depth === 0) break;
+      }
+    }
+
+    if (depth !== 0) {
+      throw new Error("unterminated prefix_rule block");
+    }
+
+    bodies.push(source.slice(start + "prefix_rule(".length, end));
+    cursor = end + 1;
+  }
+
+  return bodies;
+}
+
+function parsePrefixRuleBody(body) {
+  const expression = `({${body.replace(/(^|\n)\s*([A-Za-z_][A-Za-z0-9_]*)\s*=/g, "$1$2:")}\n})`;
+  return vm.runInNewContext(expression, Object.create(null), { timeout: 1000 });
+}
+
+function commandTokens(command) {
+  return command.trim().split(/\s+/).filter(Boolean);
+}
+
+function patternPartMatches(part, token) {
+  if (Array.isArray(part)) {
+    return part.some((candidate) => patternPartMatches(candidate, token));
+  }
+  if (typeof part !== "string") return false;
+  return token === part || token.startsWith(part) || token.includes(part);
+}
+
+function patternMatchesCommand(pattern, command) {
+  if (!Array.isArray(pattern)) return false;
+  const tokens = commandTokens(command);
+  if (tokens.length < pattern.length) return false;
+
+  return pattern.every((part, index) => patternPartMatches(part, tokens[index] ?? ""));
+}
+
+function validateCostGuardRules(text) {
+  const errors = [];
+  const bodies = collectPrefixRuleBodies(text);
+
+  for (const [index, body] of bodies.entries()) {
+    let rule;
+    try {
+      rule = parsePrefixRuleBody(body);
+    } catch (error) {
+      errors.push(`rule ${index + 1} parse failed: ${error.message}`);
+      continue;
+    }
+
+    if (!Array.isArray(rule.pattern) || rule.pattern.length === 0) {
+      errors.push(`rule ${index + 1} has invalid pattern`);
+    }
+    if (!["allow", "prompt", "forbidden"].includes(rule.decision)) {
+      errors.push(`rule ${index + 1} has invalid decision: ${rule.decision}`);
+    }
+    if (!Array.isArray(rule.match) || rule.match.length === 0) {
+      errors.push(`rule ${index + 1} has no match examples`);
+      continue;
+    }
+
+    for (const example of rule.match) {
+      if (typeof example !== "string") {
+        errors.push(`rule ${index + 1} has non-string match example`);
+      } else if (!patternMatchesCommand(rule.pattern, example)) {
+        errors.push(`rule ${index + 1} example does not match pattern: ${example}`);
+      }
+    }
+  }
+
+  return {
+    parsedRules: bodies.length,
+    validationErrors: errors.length,
+    errors
   };
 }
 
@@ -132,7 +254,12 @@ if (globalConfigExists) {
   external.globalConfig = summarizeExternalText(await readFile(globalConfig, "utf8"));
 }
 if (globalCostGuardExists) {
-  external.globalCostGuard = summarizeExternalText(await readFile(globalCostGuard, "utf8"));
+  const globalCostGuardText = await readFile(globalCostGuard, "utf8");
+  external.globalCostGuard = summarizeExternalText(globalCostGuardText);
+  external.costGuardRules = validateCostGuardRules(globalCostGuardText);
+  for (const error of external.costGuardRules.errors) {
+    failures.push(`cost-guard.rules ${error}`);
+  }
 }
 
 if (failures.length > 0) {

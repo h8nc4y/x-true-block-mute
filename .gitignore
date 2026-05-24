@@ -16,6 +16,7 @@ dist/
 build/
 out/
 node_modules/
+.codegraph/
 
 # Local secrets, credentials, and real data
 .env

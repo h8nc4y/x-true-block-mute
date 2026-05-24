@@ -62,7 +62,7 @@ Phase 1 では、Chrome に「Load unpacked」で読み込める Manifest V3 拡
 1. Chrome で `chrome://extensions` を開く。
 2. 右上の `Developer mode` を有効にする。
 3. `Load unpacked` をクリックする。
-4. `D:\Codex\Projects\012_x-true-block-mute\` を選択する。
+4. `D:\Agent\Codex\Projects\012_x-true-block-mute\` を選択する。
 5. `x-true-block-mute` が表示され、manifest エラーが出ていないことを確認する。
 6. 拡張アイコンの popup を開き、フィルタ、表示モード、登録件数が表示されることを確認する。
 
