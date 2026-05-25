@@ -9,6 +9,7 @@
 - 人間の X ログイン、masked summary 貼り付け、GitHub issue コメント、PR review、checkpoint、安全確認を開発開始条件にしない。必要なら未確認として記録し、fixture / simulator / evaluator / docs のローカル作業へ戻る。
 - 入力待ちループは禁止する。`read`、`pause`、`select`、対話式プロンプト待ち、`tail -f`、`watch`、`while true`、`sleep infinity`、foreground dev server で待機しない。
 - remote が未設定なら push / PR は推測せず、local commit と報告で完了してよい。
+- GitHub 認証診断では sandbox 内の invalid default token や `schannel: SEC_E_NO_CREDENTIALS` だけで認証破損と判断しない。`credential.helper` と `credential.https://github.com.helper` を確認し、sandbox 外で `gh auth status -h github.com --json hosts` の `tokenSource=keyring` / `state=success`、`gh api user --jq .login`、`GIT_TERMINAL_PROMPT=0 git ls-remote origin HEAD` を確認してから判断する。
 - Chrome 拡張の権限は最小限に保つ。Phase 0 では `host_permissions` の `https://x.com/*` と `https://twitter.com/*` だけを使う。
 - Phase 0 では DOM フィルタ、ストレージ、popup 動作、content script、background service worker、F1 取得処理を追加しない。
 - Phase 1 以降の機能を追加するときは、権限追加の理由と手動確認手順を README または関連ドキュメントに残す。
