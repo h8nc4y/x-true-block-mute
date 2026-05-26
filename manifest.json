@@ -3,8 +3,51 @@
   "name": "x-true-block-mute",
   "version": "0.0.1",
   "description": "X/Twitterでブロック・ミュート済みアカウント由来の情報露出を減らすための準備用拡張です。",
+  "permissions": [
+    "storage",
+    "scripting"
+  ],
   "host_permissions": [
     "https://x.com/*",
     "https://twitter.com/*"
+  ],
+  "action": {
+    "default_popup": "src/popup/popup.html"
+  },
+  "background": {
+    "service_worker": "src/background/research-background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://x.com/settings/blocked/all*",
+        "https://x.com/settings/muted/all*",
+        "https://twitter.com/settings/blocked/all*",
+        "https://twitter.com/settings/muted/all*"
+      ],
+      "js": [
+        "src/shared/constants.js",
+        "src/research/f1-a/observation-utils.js",
+        "src/storage/storage.js",
+        "src/research/f1-a/content-bridge.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://x.com/*",
+        "https://twitter.com/*"
+      ],
+      "js": [
+        "src/shared/constants.js",
+        "src/research/f1-a/observation-utils.js",
+        "src/storage/storage.js",
+        "src/content/content-script.js"
+      ],
+      "css": [
+        "src/content/content-script.css"
+      ],
+      "run_at": "document_idle"
+    }
   ]
 }

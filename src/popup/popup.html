@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>x-true-block-mute</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main class="popup-shell">
+      <header>
+        <h1>x-true-block-mute</h1>
+        <p>Phase 1 synthetic テスト</p>
+      </header>
+
+      <label class="toggle-row">
+        <span>フィルタ</span>
+        <input id="enabled" type="checkbox">
+      </label>
+
+      <fieldset>
+        <legend>表示モード</legend>
+        <label><input type="radio" name="display-mode" value="hidden"> 完全非表示</label>
+        <label><input type="radio" name="display-mode" value="placeholder"> プレースホルダ</label>
+        <label><input type="radio" name="display-mode" value="off"> オフ</label>
+      </fieldset>
+
+      <section class="status-panel" aria-live="polite">
+        <div>
+          <span>登録件数</span>
+          <strong id="entry-count">0</strong>
+        </div>
+        <div>
+          <span>テストデータ更新</span>
+          <strong id="last-synthetic-update">未投入</strong>
+        </div>
+      </section>
+
+      <div class="button-grid">
+        <button id="seed-synthetic" type="button">テストデータ投入</button>
+        <button id="clear-synthetic" type="button" class="secondary">テストデータ削除</button>
+      </div>
+
+      <section class="research-panel" aria-labelledby="research-title">
+        <h2 id="research-title">Phase 1.5 research / 開発用</h2>
+        <label class="toggle-row compact">
+          <span>F1-A 捕捉検証</span>
+          <input id="f1a-research-enabled" type="checkbox">
+        </label>
+        <div class="status-panel compact" aria-live="polite">
+          <div>
+            <span>masked 観測数</span>
+            <strong id="f1a-observation-count">0</strong>
+          </div>
+          <div>
+            <span>最終更新</span>
+            <strong id="f1a-updated-at">未確認</strong>
+          </div>
+        </div>
+        <p class="research-note">開発用です。本番同期ではありません。保存・コピーするのは masked summary のみです。raw response はコピーしません。</p>
+        <button id="copy-f1a-research" type="button" class="secondary">masked summary をコピー</button>
+        <button id="clear-f1a-research" type="button" class="secondary">研究用サマリを削除</button>
+        <textarea id="f1a-summary-output" class="summary-output" readonly hidden aria-label="masked summary"></textarea>
+      </section>
+
+      <p id="message" class="message" role="status"></p>
+    </main>
+
+    <script src="../shared/constants.js"></script>
+    <script src="../research/f1-a/observation-utils.js"></script>
+    <script src="../storage/storage.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

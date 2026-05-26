@@ -1,0 +1,14 @@
+.x-tbm-placeholder {
+  box-sizing: border-box;
+  margin: 8px 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(83, 100, 113, 0.35);
+  border-radius: 8px;
+  background: rgba(239, 243, 244, 0.92);
+  color: rgb(83, 100, 113);
+  font: 14px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.x-tbm-hidden-marker {
+  display: none !important;
+}

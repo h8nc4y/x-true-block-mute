@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "summaryKind": "masked-f1a-observation",
+  "generatedAt": "2026-05-21T00:00:00.000Z",
+  "observations": [
+    {
+      "schemaVersion": 1,
+      "observedAt": "2026-05-21T00:00:01.000Z",
+      "pageKind": "blocked",
+      "requestKind": "fetch",
+      "method": "GET",
+      "endpointClass": "https://x.com/i/api/graphql/<masked>/BlockedAccounts?cursor=<masked>&features=<masked>&variables=<masked>",
+      "statusClass": "2xx",
+      "responseKind": "json",
+      "hookRunId": "hook-fixture-shared",
+      "sourceKind": "fixture",
+      "topLevelKeys": ["data"],
+      "shapePaths": [
+        "$.data.users",
+        "$.data.users[]",
+        "$.data.users[].rest_id",
+        "$.data.users[].legacy",
+        "$.data.users[].legacy.screen_name",
+        "$.data.next_cursor"
+      ],
+      "queryKeys": ["cursor", "features", "variables"],
+      "arrayHints": [{ "path": "$.data.users", "count": 2 }],
+      "fieldPresence": {
+        "userIdLike": true,
+        "handleLike": true,
+        "cursorLike": true,
+        "paginationLike": true
+      }
+    },
+    {
+      "schemaVersion": 1,
+      "observedAt": "2026-05-21T00:00:02.000Z",
+      "pageKind": "muted",
+      "requestKind": "xhr",
+      "method": "GET",
+      "endpointClass": "https://x.com/i/api/graphql/<masked>/MutedAccounts?cursor=<masked>&features=<masked>&variables=<masked>",
+      "statusClass": "2xx",
+      "responseKind": "json",
+      "hookRunId": "hook-fixture-shared",
+      "sourceKind": "fixture",
+      "topLevelKeys": ["data"],
+      "shapePaths": [
+        "$.data.users",
+        "$.data.users[]",
+        "$.data.users[].rest_id",
+        "$.data.users[].legacy",
+        "$.data.users[].legacy.screen_name",
+        "$.data.next_cursor"
+      ],
+      "queryKeys": ["cursor", "features", "variables"],
+      "arrayHints": [{ "path": "$.data.users", "count": 1 }],
+      "fieldPresence": {
+        "userIdLike": true,
+        "handleLike": true,
+        "cursorLike": true,
+        "paginationLike": true
+      }
+    }
+  ]
+}
