@@ -111,7 +111,7 @@ function collectPrefixRuleBodies(text) {
 }
 
 function parsePrefixRuleBody(body) {
-  const expression = `({${body.replace(/(^|\n)\s*([A-Za-z_][A-Za-z0-9_]*)\s*=/g, "$1$2:")}\n})`;
+  const expression = `({${body.replace(/(^|[\n,])\s*([A-Za-z_][A-Za-z0-9_]*)\s*=/g, "$1$2:")}\n})`;
   return vm.runInNewContext(expression, Object.create(null), { timeout: 1000 });
 }
 
