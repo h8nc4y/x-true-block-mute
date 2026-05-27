@@ -112,7 +112,10 @@ assert(observationUtilsScript.includes("findUnsafeSummarySignals"), "unsafe summ
 assert(!storageScript.includes("xtbmEntries") || storageScript.includes("xtbmF1AResearch"), "research observations must not be mixed into xtbmEntries");
 
 const popupHtml = await readText("src/popup/popup.html");
-assert(popupHtml.includes("masked summary をコピー"), "popup must expose masked summary copy flow");
+assert(popupHtml.includes("ローカル確認用データ"), "popup must label local test data clearly");
+assert(popupHtml.includes("次に確認すること"), "popup must explain the next verification step");
+assert(popupHtml.includes("ブロック / ミュート"), "popup must separate blocked and muted observation counts");
+assert(popupHtml.includes("安全な要約をコピー（masked summary）"), "popup must expose masked summary copy flow");
 assert(popupHtml.includes("本番同期ではありません"), "popup must label research flow as non-production sync");
 assert(popupHtml.includes("raw response はコピーしません"), "popup must explicitly say raw response is not copied");
 

@@ -178,6 +178,7 @@ function validateCostGuardRules(text) {
 const failures = [];
 const agents = await readText("AGENTS.md");
 const readme = await readText("README.md");
+const popupManualDoc = await readText("docs/manual-popup-verification.md");
 const researchDoc = await readText("docs/research/f1-a-main-world-hook.md");
 const decisionDoc = await readText("docs/decisions/f1-source-selection.md");
 const popupHtml = await readText("src/popup/popup.html");
@@ -201,14 +202,32 @@ assertIncludes(
   failures
 );
 assertIncludes(
-  readme + researchDoc + decisionDoc,
-  ["f1a_viable", "fixture_pass", "unsafe_summary", "tmp\\masked-summary.json", "raw response", "remote が未設定"],
+  readme + popupManualDoc + researchDoc + decisionDoc,
+  [
+    "f1a_viable",
+    "fixture_pass",
+    "unsafe_summary",
+    "tmp\\masked-summary.json",
+    "raw response",
+    "remote が未設定",
+    "安全な要約をコピー（masked summary）",
+    "観測メモ",
+    "貼ってはいけない情報"
+  ],
   "docs",
   failures
 );
 assertIncludes(
   popupHtml,
-  ["開発用", "本番同期ではありません", "masked summary のみ", "raw response はコピーしません"],
+  [
+    "開発用",
+    "本番同期ではありません",
+    "masked summary のみ",
+    "raw response はコピーしません",
+    "ローカル確認用データ",
+    "次に確認すること",
+    "安全な要約をコピー（masked summary）"
+  ],
   "popup UI",
   failures
 );

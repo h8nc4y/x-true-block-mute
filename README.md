@@ -43,7 +43,7 @@ Phase 1 では、Chrome に「Load unpacked」で読み込める Manifest V3 拡
 - `chrome.scripting.executeScript` の `world: "MAIN"` で `fetch` / `XMLHttpRequest` hook を入れる
 - hook は raw response、Cookie、CSRF token、token、raw user_id、raw handle、表示名、本文を保存しない
 - sanitized observation は `xtbmF1AResearch` に保存し、通常の `xtbmEntries` には混ぜない
-- popup に `Phase 1.5 research / 開発用` の有効化、masked 観測数、削除操作を追加する
+- popup に `F1-A 観測メモ（開発用）`、観測件数、ブロック / ミュート別の件数、安全な要約コピー、削除操作を追加する
 - popup から判定用の `masked summary` をコピーできる
 - `tests/scripts/evaluate-f1-observation.mjs` で masked summary を機械判定できる
 - F1-A 採用条件と fallback 方針を docs に残す
@@ -64,7 +64,8 @@ Phase 1 では、Chrome に「Load unpacked」で読み込める Manifest V3 拡
 3. `Load unpacked` をクリックする。
 4. `D:\Agent\Codex\Projects\012_x-true-block-mute\` を選択する。
 5. `x-true-block-mute` が表示され、manifest エラーが出ていないことを確認する。
-6. 拡張アイコンの popup を開き、フィルタ、表示モード、登録件数が表示されることを確認する。
+6. 拡張アイコンの popup を開き、`通常フィルタ`、`ローカル確認用データ`、`F1-A 観測メモ（開発用）` が表示されることを確認する。
+7. 初心者向けの確認は `docs/manual-popup-verification.md` の手順に沿って行う。
 
 ## 現在の manifest 権限
 
@@ -105,15 +106,19 @@ Phase 1.5 で宣言している権限は次だけです。
 
 X にログインせず、実アカウントの投稿内容や Cookie を読まずに確認できます。
 
-1. `tests/fixtures/home-timeline.html` をブラウザで開く。
-2. `プレースホルダ` を押す。
-3. 非対象の投稿だけ本文が残り、user_id 対象と handle-only 対象の投稿本文が中立プレースホルダに置き換わることを確認する。
-4. `完全非表示` を押す。
-5. 対象投稿カードが表示領域から消え、非対象投稿が残ることを確認する。
-6. `オフ` を押す。
-7. 置換済みカードが復元され、対象投稿本文が再表示されることを確認する。
-8. `テストデータ削除` を押す。
-9. 対象投稿が処理されない状態に戻ることを確認する。
+1. 拡張 popup を開き、`ローカル確認用データ` の `テストデータを入れる` を押す。
+2. `登録済みの対象` が `0件` 以外になったことを確認する。
+3. `tests/fixtures/home-timeline.html` をブラウザで開く。
+4. `説明だけ表示` を押す。
+5. 非対象の投稿だけ本文が残り、user_id 対象と handle-only 対象の投稿本文が中立プレースホルダに置き換わることを確認する。
+6. `完全に隠す` を押す。
+7. 対象投稿カードが表示領域から消え、非対象投稿が残ることを確認する。
+8. `何もしない` を押す。
+9. 置換済みカードが復元され、対象投稿本文が再表示されることを確認する。
+10. popup の `テストデータを消す` を押す。
+11. 対象投稿が処理されない状態に戻ることを確認する。
+
+popup で見る場所、件数の意味、貼ってよい情報、貼ってはいけない情報は `docs/manual-popup-verification.md` にまとめています。
 
 ## Static validation
 
@@ -145,6 +150,7 @@ node tests/scripts/evaluate-f1-observation.mjs --live path\to\masked-summary.jso
 
 ## Phase 1.5 research docs
 
+- `docs/manual-popup-verification.md`
 - `docs/research/f1-a-main-world-hook.md`
 - `docs/decisions/f1-source-selection.md`
 

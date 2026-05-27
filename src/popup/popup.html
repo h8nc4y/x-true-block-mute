@@ -8,58 +8,134 @@
   </head>
   <body>
     <main class="popup-shell">
-      <header>
+      <header class="app-header">
         <h1>x-true-block-mute</h1>
-        <p>Phase 1 synthetic テスト</p>
+        <p>ローカル検証用パネル</p>
       </header>
 
-      <label class="toggle-row">
-        <span>フィルタ</span>
-        <input id="enabled" type="checkbox">
-      </label>
-
-      <fieldset>
-        <legend>表示モード</legend>
-        <label><input type="radio" name="display-mode" value="hidden"> 完全非表示</label>
-        <label><input type="radio" name="display-mode" value="placeholder"> プレースホルダ</label>
-        <label><input type="radio" name="display-mode" value="off"> オフ</label>
-      </fieldset>
-
-      <section class="status-panel" aria-live="polite">
-        <div>
-          <span>登録件数</span>
-          <strong id="entry-count">0</strong>
+      <section class="panel" aria-labelledby="filter-title">
+        <div class="section-heading">
+          <h2 id="filter-title">通常フィルタ</h2>
+          <p>登録済みのテスト対象を、タイムライン上でどう扱うかを確認します。</p>
         </div>
-        <div>
-          <span>テストデータ更新</span>
-          <strong id="last-synthetic-update">未投入</strong>
-        </div>
+
+        <label class="toggle-row">
+          <span>
+            <span class="control-title">フィルタを使う</span>
+            <span id="filter-state" class="control-help">状態を読み込み中</span>
+          </span>
+          <input id="enabled" type="checkbox">
+        </label>
+
+        <fieldset>
+          <legend>投稿の扱い</legend>
+          <label>
+            <input type="radio" name="display-mode" value="hidden">
+            <span>
+              <span class="control-title">完全に隠す</span>
+              <span class="control-help">対象投稿カードを画面から消します。</span>
+            </span>
+          </label>
+          <label>
+            <input type="radio" name="display-mode" value="placeholder">
+            <span>
+              <span class="control-title">説明だけ表示</span>
+              <span class="control-help">投稿本文の代わりに中立メッセージを出します。</span>
+            </span>
+          </label>
+          <label>
+            <input type="radio" name="display-mode" value="off">
+            <span>
+              <span class="control-title">何もしない</span>
+              <span class="control-help">対象投稿もそのまま表示します。</span>
+            </span>
+          </label>
+        </fieldset>
       </section>
 
-      <div class="button-grid">
-        <button id="seed-synthetic" type="button">テストデータ投入</button>
-        <button id="clear-synthetic" type="button" class="secondary">テストデータ削除</button>
-      </div>
+      <section class="panel" aria-labelledby="local-test-title">
+        <div class="section-heading">
+          <h2 id="local-test-title">ローカル確認用データ</h2>
+          <p>実アカウントを使わず、fixture だけで通常フィルタを確認します。</p>
+        </div>
 
-      <section class="research-panel" aria-labelledby="research-title">
-        <h2 id="research-title">Phase 1.5 research / 開発用</h2>
-        <label class="toggle-row compact">
-          <span>F1-A 捕捉検証</span>
-          <input id="f1a-research-enabled" type="checkbox">
-        </label>
-        <div class="status-panel compact" aria-live="polite">
+        <section class="status-panel" aria-live="polite">
           <div>
-            <span>masked 観測数</span>
-            <strong id="f1a-observation-count">0</strong>
+            <span>登録済みの対象</span>
+            <strong id="entry-count">0件</strong>
           </div>
           <div>
             <span>最終更新</span>
-            <strong id="f1a-updated-at">未確認</strong>
+            <strong id="last-synthetic-update">未投入</strong>
+          </div>
+        </section>
+        <p id="local-test-summary" class="help-text">テストデータの状態を読み込み中です。</p>
+
+        <div class="button-grid">
+          <button id="seed-synthetic" type="button">テストデータを入れる</button>
+          <button id="clear-synthetic" type="button" class="secondary">テストデータを消す</button>
+        </div>
+      </section>
+
+      <section class="research-panel" aria-labelledby="research-title">
+        <div class="section-heading">
+          <h2 id="research-title">F1-A 観測メモ（開発用）</h2>
+          <p>ブロック / ミュート設定ページで、構造だけを安全にメモします。本番同期ではありません。</p>
+        </div>
+
+        <label class="toggle-row compact">
+          <span>
+            <span class="control-title">F1-A 観測を開始</span>
+            <span class="control-help">対象ページを再読み込みすると、masked summary の材料を集めます。</span>
+          </span>
+          <input id="f1a-research-enabled" type="checkbox">
+        </label>
+
+        <div class="status-panel compact" aria-live="polite">
+          <div>
+            <span>監視状態</span>
+            <strong id="f1a-research-status">読み込み中</strong>
+          </div>
+          <div>
+            <span>観測メモ</span>
+            <strong id="f1a-observation-count">0件</strong>
+          </div>
+          <div>
+            <span>ブロック / ミュート</span>
+            <strong id="f1a-page-counts">0件 / 0件</strong>
+          </div>
+          <div>
+            <span>最終更新</span>
+            <strong id="f1a-updated-at">未記録</strong>
           </div>
         </div>
-        <p class="research-note">開発用です。本番同期ではありません。保存・コピーするのは masked summary のみです。raw response はコピーしません。</p>
-        <button id="copy-f1a-research" type="button" class="secondary">masked summary をコピー</button>
-        <button id="clear-f1a-research" type="button" class="secondary">研究用サマリを削除</button>
+
+        <section class="next-step-panel" aria-labelledby="next-step-title">
+          <h3 id="next-step-title">次に確認すること</h3>
+          <p id="f1a-next-step">状態を読み込み中です。</p>
+        </section>
+
+        <details class="details-panel">
+          <summary>用語と安全ルール</summary>
+          <dl>
+            <div>
+              <dt>masked summary</dt>
+              <dd>個人名、ID、本文、token を入れない安全な構造メモです。</dd>
+            </div>
+            <div>
+              <dt>raw response</dt>
+              <dd>X から返る生データです。保存、コピー、共有しません。</dd>
+            </div>
+            <div>
+              <dt>F1-A</dt>
+              <dd>ブロック / ミュート一覧の取得方法を検討するための研究名です。</dd>
+            </div>
+          </dl>
+        </details>
+
+        <p class="research-note">保存・コピーするのは masked summary のみです。raw response はコピーしません。</p>
+        <button id="copy-f1a-research" type="button" class="secondary">安全な要約をコピー（masked summary）</button>
+        <button id="clear-f1a-research" type="button" class="secondary">観測メモを消す</button>
         <textarea id="f1a-summary-output" class="summary-output" readonly hidden aria-label="masked summary"></textarea>
       </section>
 

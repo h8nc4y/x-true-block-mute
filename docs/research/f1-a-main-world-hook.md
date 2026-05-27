@@ -81,7 +81,7 @@ node tests/scripts/evaluate-f1-observation.mjs tests/fixtures/f1-a-masked-summar
 
 ただし、実ページで初期 request より前に hook が入るかは未確認。手動検証では次を分けて確認する。
 
-- 対象ページを開く前に popup で `F1-A 捕捉検証` を有効化し、対象ページを新規ロードする。
+- 対象ページを開く前に popup で `F1-A 観測を開始` を有効化し、対象ページを新規ロードする。
 - 対象ページ上で有効化したあと refresh する。
 - 直接ロード時に初期 request が欠落するかを見る。
 
@@ -130,21 +130,22 @@ SPA 遷移で `window` が維持される限り hook は残る想定だが、実
 1. Chrome で `chrome://extensions` を開く。
 2. `Developer mode` を有効にする。
 3. `Load unpacked` で `D:\Agent\Codex\Projects\012_x-true-block-mute\` を読み込む。既に読み込み済みなら `Reload` を押す。
-4. 拡張 popup を開き、`Phase 1.5 research / 開発用` の `F1-A 捕捉検証` を有効にする。
+4. 拡張 popup を開き、`F1-A 観測メモ（開発用）` の `F1-A 観測を開始` を有効にする。
 5. `https://x.com/settings/blocked/all` を開く。ログインが必要な場合は、人間が Chrome 上で直接ログインする。Codex に password、MFA、Cookie、token を渡さない。
 6. ページを refresh する。
 7. 一覧を少し scroll し、追加読み込みが起きるかを見る。
-8. 拡張 popup を開き、`masked 観測数` が増えたかだけを見る。
-9. popup の `masked summary をコピー` を押す。コピー対象は masked summary だけで、raw response は含めない。
-10. 必要なら `tmp\masked-summary.json` のような repo 内 ignored temp path に masked summary だけを置く。raw response、Cookie、CSRF、token、HAR、screenshot は置かない。
-11. `https://x.com/settings/muted/all` に SPA 遷移または直接移動し、同じ確認をする。
-12. `twitter.com` equivalents が reachable なら同じ手順で確認する。
-13. 記録する場合は raw value を書かず、endpoint は `endpoint-1` などのラベル、shape は top-level key 名と field presence だけにする。
-14. 検証後、popup の `研究用サマリを削除` を押す。
+8. 拡張 popup を開き、`観測メモ` と `ブロック / ミュート` の件数が増えたかだけを見る。
+9. popup の `次に確認すること` を読み、足りない側の設定ページがあれば確認する。
+10. popup の `安全な要約をコピー（masked summary）` を押す。コピー対象は masked summary だけで、raw response は含めない。
+11. 必要なら `tmp\masked-summary.json` のような repo 内 ignored temp path に masked summary だけを置く。raw response、Cookie、CSRF、token、HAR、screenshot は置かない。
+12. `https://x.com/settings/muted/all` に SPA 遷移または直接移動し、同じ確認をする。
+13. `twitter.com` equivalents が reachable なら同じ手順で確認する。
+14. 記録する場合は raw value を書かず、endpoint は `endpoint-1` などのラベル、shape は top-level key 名と field presence だけにする。
+15. 検証後、popup の `観測メモを消す` を押す。
 
 ## masked summary 判定手順
 
-popup の `masked summary をコピー` で得た JSON だけを使う。raw response、DevTools Network log、HAR、screenshot は使わない。
+popup の `安全な要約をコピー（masked summary）` で得た JSON だけを使う。raw response、DevTools Network log、HAR、screenshot は使わない。
 
 fixture の確認:
 
@@ -163,7 +164,7 @@ node tests/scripts/evaluate-f1-observation.mjs --live path\to\masked-summary.jso
 判定:
 
 - `unsafe_summary`: raw-looking 値が混入している可能性がある。共有せず削除する。
-- `unknown`: observations がない。F1-A 捕捉検証を有効化し、blocked / muted を再確認する。
+- `unknown`: observations がない。`F1-A 観測を開始` を有効化し、blocked / muted を再確認する。
 - `f1a_insufficient`: 不足項目がある。F1-A primary には進めない。
 - `fixture_pass`: synthetic fixture としては通った。実測根拠ではない。
 - `f1a_viable`: `--live` 付きの masked 実測が機械条件を満たした。ただし Chrome Web Store review risk と保守性は別途判断する。

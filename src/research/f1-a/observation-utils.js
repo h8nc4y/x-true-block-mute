@@ -325,7 +325,7 @@
         status: "unknown",
         unsafeSignals: [],
         missing: ["observations"],
-        recommendation: "masked observation がありません。F1-A 捕捉検証を有効化して blocked / muted を再確認してください。"
+        recommendation: "masked observation がありません。popup の「F1-A 観測を開始」を有効化して blocked / muted を再確認してください。"
       };
     }
 
