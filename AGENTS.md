@@ -6,6 +6,7 @@
 - 秘密情報、OAuth 資格情報、Cookie、実データ、個人データを読まない、記録しない、コミットしない。
 - テスト結果、コマンド結果、commit hash、PR URL、デプロイ URL を捏造しない。未確認のものは未確認と書く。
 - この repo-local `AGENTS.md` は、グローバルの Codex 運用ルール、Codex config、cost guard rules を前提にした差分ルールとして扱う。
+- Codex 向け prompt を作る場合、Windows Codex App では `/goal` を使わず、通常チャット欄に `Goal` から始まる単一ブロックを渡す。
 - 人間の X ログイン、masked summary 貼り付け、GitHub issue コメント、PR review、checkpoint、安全確認を開発開始条件にしない。必要なら未確認として記録し、fixture / simulator / evaluator / docs のローカル作業へ戻る。
 - 入力待ちループは禁止する。`read`、`pause`、`select`、対話式プロンプト待ち、`tail -f`、`watch`、`while true`、`sleep infinity`、foreground dev server で待機しない。
 - remote が未設定なら push / PR は推測せず、local commit と報告で完了してよい。
@@ -24,4 +25,6 @@
 - production F1 sync、captured response から `xtbmEntries` への登録、F1-B / F1-C / F1-D 実装、OAuth、X API 連携はこの research scope では実装しない。
 - Web UI を変更した場合は、可能な範囲で Chrome / Browser / Playwright / headless smoke を使い、実施できた viewport や未確認理由を報告する。
 - GoogleChrome / modern-web-guidance は frontend 判断で迷う場合だけ利用候補にする。query に secret、token、OAuth、実データ、個人情報を含めない。
+- Taste Skill は Web/UI/design の具体作業で必要な場合だけ、公式・無料・非対話・単一 skill を対象に使う。backend/docs/test だけの作業では原則使わない。
+- Agent Governance Toolkit は、agent/tool/MCP/API/security 境界のローカル policy lint / verify / red-team / code-level gate が必要な場合だけ使う。Azure、OAuth、secret、cloud、paid、real-data 経路は使わない。
 - Google Cloud / Firebase / Gemini など Google 公式 skill は、その領域に関係する task のみ優先する。この repo の F1-A research では原則不要。

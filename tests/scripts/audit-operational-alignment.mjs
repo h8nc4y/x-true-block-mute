@@ -195,14 +195,29 @@ assertIncludes(
     "remote が未設定",
     "入力待ちループ",
     "raw X response",
-    "GoogleChrome / modern-web-guidance"
+    "GoogleChrome / modern-web-guidance",
+    "/goal",
+    "単一ブロック",
+    "Taste Skill",
+    "Agent Governance Toolkit"
   ],
   "AGENTS.md",
   failures
 );
 assertIncludes(
   readme + researchDoc + decisionDoc,
-  ["f1a_viable", "fixture_pass", "unsafe_summary", "tmp\\masked-summary.json", "raw response", "remote が未設定"],
+  [
+    "f1a_viable",
+    "fixture_pass",
+    "unsafe_summary",
+    "tmp\\masked-summary.json",
+    "raw response",
+    "remote が未設定",
+    "Windows Codex App",
+    "/goal",
+    "Taste Skill",
+    "Agent Governance Toolkit"
+  ],
   "docs",
   failures
 );
@@ -251,12 +266,35 @@ const external = {
   localCodexConfigExists: await exists(new URL(".codex/config.toml", root))
 };
 if (globalConfigExists) {
-  external.globalConfig = summarizeExternalText(await readFile(globalConfig, "utf8"));
+  const globalConfigText = await readFile(globalConfig, "utf8");
+  external.globalConfig = summarizeExternalText(globalConfigText);
+  assertIncludes(
+    globalConfigText,
+    [
+      "goals = false",
+      "project_doc_fallback_filenames",
+      "[projects.'d:\\agent\\codex\\projects\\012_x-true-block-mute']",
+      "trust_level = \"trusted\""
+    ],
+    "global config",
+    failures
+  );
 }
 if (globalCostGuardExists) {
   const globalCostGuardText = await readFile(globalCostGuard, "utf8");
   external.globalCostGuard = summarizeExternalText(globalCostGuardText);
   external.costGuardRules = validateCostGuardRules(globalCostGuardText);
+  assertIncludes(
+    globalCostGuardText,
+    [
+      "pattern = [\"/goal\"]",
+      "Foreground dev servers",
+      "Taste Skill",
+      "Agent Governance Toolkit"
+    ],
+    "cost-guard.rules",
+    failures
+  );
   for (const error of external.costGuardRules.errors) {
     failures.push(`cost-guard.rules ${error}`);
   }

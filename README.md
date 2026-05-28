@@ -150,12 +150,15 @@ node tests/scripts/evaluate-f1-observation.mjs --live path\to\masked-summary.jso
 
 ## Codex operation notes
 
+- Windows Codex App で Codex 向け prompt を作る場合、`/goal` は使わず、通常チャット欄に `Goal` から始まる単一ブロックを渡します。
 - GitHub issue コメント、PR review、人間の X ログイン、masked summary 貼り付けは開発開始条件ではありません。
 - Codex は入力待ちループ、対話式 CLI 待機、foreground dev server、`tail -f`、`watch`、`while true`、`sleep infinity` に入りません。
 - 実 X ログインが必要な検証は未確認として扱い、fixture / simulator / evaluator / docs のローカル検証へ戻ります。
 - remote が未設定の場合は push / PR を推測せず、local commit と報告で完了します。
 - Web UI 変更時は日本語 UI を優先し、可能な範囲で Chrome / Browser / Playwright / headless smoke を確認します。
 - GoogleChrome / modern-web-guidance は frontend 判断で必要な場合だけ利用候補にし、secret、token、OAuth、実データ、個人情報を query に入れません。
+- Taste Skill は Web/UI/design の具体作業で必要な場合だけ、公式・無料・非対話・単一 skill を対象に使います。今回のような instruction / readiness 監査だけでは原則使いません。
+- Agent Governance Toolkit は agent/tool/MCP/API/security 境界のローカル policy lint / verify / red-team / code-level gate が必要な場合だけ使います。Azure、OAuth、secret、cloud、paid、real-data 経路は使いません。
 
 ## 未確認事項
 
