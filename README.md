@@ -37,6 +37,15 @@ Phase 1 では、Chrome に「Load unpacked」で読み込める Manifest V3 拡
 - `webRequest`、`cookies`、`tabs`、`activeTab`、`<all_urls>`、`https://api.x.com/*`
 - import/export、options page
 
+## Phase 1 の real DOM 制限
+
+現在の content script の handle 抽出は、synthetic fixture とローカル Phase 1 確認のためのものです。実 X DOM では、投稿カード内のリンクや埋め込み要素が必ず投稿者本人を示すとは限りません。
+
+- 実 X DOM の author identity は保証していません。
+- quote / embedded target / profile card / 関連リンクの扱いは production-complete ではありません。
+- 実 DOM で安全に投稿者を判定する author matching は Phase 2 以降の作業です。
+- この Phase 1 / Phase 1.5 task では real-DOM 著者判定ロジックを変更しません。
+
 ## Phase 1.5 の範囲
 
 - F1-A feasibility investigation のため、`/settings/blocked/all` と `/settings/muted/all` に限定した研究用 bridge を追加する
@@ -138,6 +147,12 @@ node tests/scripts/verify-f1a-main-hook-simulator.mjs
 node tests/scripts/evaluate-f1-observation.mjs tests/fixtures/f1-a-masked-summary.fixture.json
 ```
 
+repo 外の Codex global config / cost guard rules も確認したい場合だけ、明示的に opt-in します。指定しない通常実行では外部チェックは skip reason 付きで省略され、生の外部ファイル内容は出力しません。
+
+```powershell
+node tests/scripts/audit-operational-alignment.mjs --global-config path\to\config.toml --cost-guard-rules path\to\cost-guard.rules
+```
+
 `evaluate-f1-observation.mjs` は `--live` を付けた場合だけ、条件充足時に `f1a_viable` を返します。`--live` なしでは fixture 扱いのため、条件が揃っても `fixture_pass` です。
 
 実 X の masked summary を評価する場合:
@@ -167,6 +182,7 @@ node tests/scripts/evaluate-f1-observation.mjs --live path\to\masked-summary.jso
 
 - Chrome UI の `Load unpacked` 手動確認は未確認です。
 - X 実 DOM から安定して `user_id` を取得できるかは未確認です。
+- 実 X DOM の投稿者判定、quote / embedded target の除外、関連リンク混在時の handle 判定は未確認です。
 - 実 X 画面での F1-A endpoint、response shape、pagination、injection timing、SPA navigation 維持は未確認です。
 
 ## 関係性の表明

@@ -177,6 +177,15 @@ node tests/scripts/evaluate-f1-observation.mjs --live path\to\masked-summary.jso
 - Chrome Web Store review では、`MAIN` world の network hook が高リスクに見える可能性がある。Phase 2 で採用する場合は、ユーザー操作で明示的に同期を開始する設計、最小ページ限定、保存値の redaction 方針、権限理由の説明が必要。
 - X 側の内部 endpoint / response shape は非公開仕様であり、破壊的変更のリスクが高い。
 
+## real DOM author matching limitation
+
+Phase 1 の通常 content script にある handle 抽出は、synthetic fixture とローカル確認用の補助です。実 X DOM の author identity を保証するものではありません。
+
+- 投稿カード内リンクが投稿者本人、quote 元、埋め込み対象、profile card、関連リンクのどれを指すかは未確認。
+- quote / embedded target を production 品質で除外する処理は未実装。
+- real-DOM author matching は Phase 2 以降の別 task として扱う。
+- この F1-A research scope では real-DOM 著者判定ロジック、MutationObserver 挙動、本番同期処理は変更しない。
+
 ## F1-A judgment
 
 未確認。

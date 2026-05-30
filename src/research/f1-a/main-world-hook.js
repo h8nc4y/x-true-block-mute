@@ -74,6 +74,27 @@
       "users",
       "value"
     ]);
+    const safeEndpointPathSegments = new Map(
+      [
+        "<masked>",
+        "1.1",
+        "2",
+        "BlockedAccounts",
+        "MutedAccounts",
+        "all",
+        "api",
+        "blocked",
+        "graphql",
+        "i",
+        "list",
+        "lists",
+        "muted",
+        "settings",
+        "timeline",
+        "user",
+        "users"
+      ].map((segment) => [segment.toLowerCase(), segment])
+    );
     const sensitiveKeyPattern = /(^|[_-])(authorization|auth|cookie|csrf|ct0|oauth|password|secret|token)($|[_-])/i;
 
     function getPageKind() {
@@ -138,18 +159,36 @@
       return "<masked-key>";
     }
 
+    function decodePathSegment(segment) {
+      try {
+        return decodeURIComponent(segment);
+      } catch (_error) {
+        return segment;
+      }
+    }
+
+    function sanitizeEndpointPathSegment(segment) {
+      const text = decodePathSegment(String(segment || ""));
+      if (!text) {
+        return "";
+      }
+      if (text === "<masked>") {
+        return "<masked>";
+      }
+      if (sensitiveKeyPattern.test(text)) {
+        return "<sensitive>";
+      }
+      const allowed = safeEndpointPathSegments.get(text.toLowerCase());
+      if (allowed) {
+        return allowed;
+      }
+      return "<masked>";
+    }
+
     function maskPath(pathname) {
       return pathname
         .split("/")
-        .map((segment) => {
-          if (!segment) {
-            return "";
-          }
-          if (/^\d+$/.test(segment) || /^@/.test(segment) || /^[a-f0-9]{16,}$/i.test(segment) || segment.length > 48) {
-            return "<masked>";
-          }
-          return segment.slice(0, 80);
-        })
+        .map(sanitizeEndpointPathSegment)
         .join("/");
     }
 

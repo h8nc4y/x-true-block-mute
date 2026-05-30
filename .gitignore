@@ -11,6 +11,27 @@ logs/
 tmp/
 temp/
 
+# Privacy-sensitive browser/research artifacts
+*.har
+*.HAR
+screenshots/
+*screenshot*.png
+*screenshot*.jpg
+*screenshot*.jpeg
+*screenshot*.webp
+*screen-shot*.png
+*network-log*.json
+*network_log*.json
+*raw-response*
+*raw_response*
+*masked-summary*.json
+*masked_summary*.json
+*f1a-summary*.json
+*f1a-observation*.json
+*observation-export*.json
+*exported-observation*.json
+!tests/fixtures/f1-a-masked-summary.fixture.json
+
 # Future build outputs and dependencies
 dist/
 build/
@@ -32,4 +53,3 @@ oauth/
 *token*.json
 *oauth*.json
 *credentials*.json
-

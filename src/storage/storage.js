@@ -6,7 +6,6 @@
     DEFAULT_SETTINGS,
     DISPLAY_MODES,
     RESEARCH_F1A,
-    ResearchF1A,
     SCHEMA_VERSION,
     STORAGE_KEYS,
     SYNTHETIC_ENTRIES,
@@ -73,12 +72,24 @@
     };
   }
 
+  function getResearchF1A() {
+    const research = namespace.ResearchF1A;
+    if (
+      !research ||
+      typeof research.normalizeObservation !== "function" ||
+      typeof research.normalizeState !== "function"
+    ) {
+      throw new Error("ResearchF1A is unavailable; load observation-utils.js before storage.js");
+    }
+    return research;
+  }
+
   function normalizeResearchObservation(value) {
-    return ResearchF1A.normalizeObservation(value);
+    return getResearchF1A().normalizeObservation(value);
   }
 
   function normalizeResearchState(value) {
-    return ResearchF1A.normalizeState(value);
+    return getResearchF1A().normalizeState(value);
   }
 
   function getArea(areaName, key) {

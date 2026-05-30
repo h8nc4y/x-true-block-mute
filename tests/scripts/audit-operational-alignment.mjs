@@ -3,8 +3,33 @@ import { constants as fsConstants } from "node:fs";
 import vm from "node:vm";
 
 const root = new URL("../../", import.meta.url);
-const globalConfig = "D:/Agent/Codex/.codex/config.toml";
-const globalCostGuard = "D:/Agent/Codex/.codex/rules/cost-guard.rules";
+const args = parseArgs(process.argv.slice(2));
+const externalConfigPath = args.globalConfig || process.env.XTBM_GLOBAL_CONFIG || process.env.XTBM_CODEX_CONFIG || "";
+const externalCostGuardPath =
+  args.costGuard || process.env.XTBM_COST_GUARD_RULES || process.env.XTBM_COST_GUARD || "";
+
+function parseArgs(values) {
+  const parsed = {};
+
+  for (let index = 0; index < values.length; index += 1) {
+    const value = values[index];
+    if (value === "--global-config") {
+      parsed.globalConfig = values[index + 1] || "";
+      index += 1;
+    } else if (value.startsWith("--global-config=")) {
+      parsed.globalConfig = value.slice("--global-config=".length);
+    } else if (value === "--cost-guard" || value === "--cost-guard-rules") {
+      parsed.costGuard = values[index + 1] || "";
+      index += 1;
+    } else if (value.startsWith("--cost-guard=")) {
+      parsed.costGuard = value.slice("--cost-guard=".length);
+    } else if (value.startsWith("--cost-guard-rules=")) {
+      parsed.costGuard = value.slice("--cost-guard-rules=".length);
+    }
+  }
+
+  return parsed;
+}
 
 async function readText(path) {
   return readFile(new URL(path, root), "utf8");
@@ -52,6 +77,33 @@ function summarizeExternalText(text) {
     bracketBalanceHint:
       (text.match(/[\[{]/g) || []).length === (text.match(/[\]}]/g) || []).length ? "ok" : "unbalanced"
   };
+}
+
+async function inspectOptionalExternalText(path, label, optInHint) {
+  if (!path) {
+    return {
+      status: "skipped",
+      reason: `${label} path not provided; set ${optInHint} to include this optional external check`
+    };
+  }
+  if (!(await exists(path))) {
+    return {
+      status: "skipped",
+      reason: `${label} path not found; optional external check was not run`
+    };
+  }
+
+  const text = await readFile(path, "utf8");
+  return {
+    status: "checked",
+    summary: summarizeExternalText(text),
+    text
+  };
+}
+
+function publicExternalResult(result) {
+  const { text: _text, ...safeResult } = result;
+  return safeResult;
 }
 
 function stripRuleComments(text) {
@@ -261,21 +313,24 @@ if (fixture) {
   }
 }
 
-const globalConfigExists = await exists(globalConfig);
-const globalCostGuardExists = await exists(globalCostGuard);
+const globalConfigResult = await inspectOptionalExternalText(
+  externalConfigPath,
+  "global Codex config",
+  "XTBM_GLOBAL_CONFIG or --global-config"
+);
+const globalCostGuardResult = await inspectOptionalExternalText(
+  externalCostGuardPath,
+  "global cost guard rules",
+  "XTBM_COST_GUARD_RULES or --cost-guard-rules"
+);
 const external = {
-  globalConfigExists,
-  globalCostGuardExists,
+  globalConfig: publicExternalResult(globalConfigResult),
+  globalCostGuard: publicExternalResult(globalCostGuardResult),
   localAgentMdExists: await exists(new URL("AGENT.md", root)),
   localCodexConfigExists: await exists(new URL(".codex/config.toml", root))
 };
-if (globalConfigExists) {
-  external.globalConfig = summarizeExternalText(await readFile(globalConfig, "utf8"));
-}
-if (globalCostGuardExists) {
-  const globalCostGuardText = await readFile(globalCostGuard, "utf8");
-  external.globalCostGuard = summarizeExternalText(globalCostGuardText);
-  external.costGuardRules = validateCostGuardRules(globalCostGuardText);
+if (globalCostGuardResult.status === "checked") {
+  external.costGuardRules = validateCostGuardRules(globalCostGuardResult.text);
   for (const error of external.costGuardRules.errors) {
     failures.push(`cost-guard.rules ${error}`);
   }

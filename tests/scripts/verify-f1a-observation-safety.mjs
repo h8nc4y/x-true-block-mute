@@ -53,6 +53,21 @@ assert(!normalizedText.includes("raw-cursor-value"), "query values must be maske
 assert(!normalizedText.includes("synthetic-sensitive-value"), "token values must be masked");
 assert(normalized.fieldPresence.paginationLike, "cursorLike should imply paginationLike");
 
+const rawPathObservation = {
+  ...rawLookingObservation,
+  endpointClass: "https://x.com/i/api/graphql/raw_handle_value/BlockedAccounts?cursor=raw-cursor-value"
+};
+const normalizedPathObservation = ResearchF1A.normalizeObservation(rawPathObservation);
+const normalizedPathText = JSON.stringify(normalizedPathObservation);
+assert(
+  !normalizedPathText.includes("raw_handle_value"),
+  "handle-like endpoint path segments must be masked from normalized observations"
+);
+assert(
+  normalizedPathObservation.endpointClass.includes("<masked>"),
+  "handle-like endpoint path segments should leave only a masked path marker"
+);
+
 const unsafe = ResearchF1A.evaluateObservationSummary({
   observations: [
     {
@@ -63,6 +78,27 @@ const unsafe = ResearchF1A.evaluateObservationSummary({
   ]
 });
 assert(unsafe.status === "unsafe_summary", "raw-looking summary must be rejected");
+
+const unsafeEndpointPath = ResearchF1A.evaluateObservationSummary({
+  observations: [
+    {
+      pageKind: "blocked",
+      requestKind: "fetch",
+      method: "GET",
+      endpointClass: "https://x.com/i/api/graphql/raw_handle_value/BlockedAccounts?cursor=<masked>",
+      statusClass: "2xx",
+      responseKind: "json",
+      hookRunId: "hook-test",
+      sourceKind: "fixture",
+      topLevelKeys: ["data"],
+      shapePaths: ["$.data.users"],
+      queryKeys: ["cursor"],
+      arrayHints: [{ path: "$.data.users", count: 1 }],
+      fieldPresence: { userIdLike: false, handleLike: true, cursorLike: true, paginationLike: true }
+    }
+  ]
+});
+assert(unsafeEndpointPath.status === "unsafe_summary", "unmasked handle-like endpoint path must be rejected");
 
 const fixture = JSON.parse(await readText("tests/fixtures/f1-a-masked-summary.fixture.json"));
 const fixtureResult = ResearchF1A.evaluateObservationSummary(fixture);
