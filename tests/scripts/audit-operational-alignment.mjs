@@ -248,7 +248,11 @@ assertIncludes(
     "remote が未設定",
     "入力待ちループ",
     "raw X response",
-    "GoogleChrome / modern-web-guidance"
+    "GoogleChrome / modern-web-guidance",
+    "/goal",
+    "単一ブロック",
+    "Taste Skill",
+    "Agent Governance Toolkit"
   ],
   "AGENTS.md",
   failures
@@ -264,7 +268,11 @@ assertIncludes(
     "remote が未設定",
     "安全な要約をコピー（masked summary）",
     "観測メモ",
-    "貼ってはいけない情報"
+    "貼ってはいけない情報",
+    "Windows Codex App",
+    "/goal",
+    "Taste Skill",
+    "Agent Governance Toolkit"
   ],
   "docs",
   failures
@@ -329,8 +337,32 @@ const external = {
   localAgentMdExists: await exists(new URL("AGENT.md", root)),
   localCodexConfigExists: await exists(new URL(".codex/config.toml", root))
 };
+if (globalConfigResult.status === "checked") {
+  assertIncludes(
+    globalConfigResult.text,
+    [
+      "goals = false",
+      "project_doc_fallback_filenames",
+      "[projects.'d:\\agent\\codex\\projects\\012_x-true-block-mute']",
+      "trust_level = \"trusted\""
+    ],
+    "global config",
+    failures
+  );
+}
 if (globalCostGuardResult.status === "checked") {
   external.costGuardRules = validateCostGuardRules(globalCostGuardResult.text);
+  assertIncludes(
+    globalCostGuardResult.text,
+    [
+      "pattern = [\"/goal\"]",
+      "Foreground dev servers",
+      "Taste Skill",
+      "Agent Governance Toolkit"
+    ],
+    "cost-guard.rules",
+    failures
+  );
   for (const error of external.costGuardRules.errors) {
     failures.push(`cost-guard.rules ${error}`);
   }
