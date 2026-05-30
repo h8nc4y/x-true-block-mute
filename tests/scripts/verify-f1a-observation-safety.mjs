@@ -28,6 +28,17 @@ async function loadResearchF1A() {
 }
 
 const ResearchF1A = await loadResearchF1A();
+assert(ResearchF1A.sanitizeSchemaKey("screen_name") === "screen_name", "safe schema key must remain allowed");
+assert(ResearchF1A.sanitizeSchemaKey("@raw_handle") === "<masked-key>", "raw handle-like schema key must be masked");
+assert(
+  ResearchF1A.sanitizeEndpointPathSegment("BlockedAccounts") === "BlockedAccounts",
+  "safe endpoint path segment must remain allowed"
+);
+assert(
+  ResearchF1A.sanitizeEndpointPathSegment("raw_handle_value") === "<masked>",
+  "raw handle-like endpoint path segment must be masked"
+);
+
 const rawLookingObservation = {
   observedAt: "2026-05-21T00:00:00.000Z",
   pageKind: "blocked",

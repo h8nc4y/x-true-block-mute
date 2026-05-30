@@ -42,6 +42,40 @@ function assert(condition, message) {
   }
 }
 
+function assertSameStringArray(actual, expected, message) {
+  assert(JSON.stringify(actual) === JSON.stringify(expected), message);
+}
+
+function extractQuotedStrings(text) {
+  return Array.from(text.matchAll(/"([^"]+)"/g)).map((match) => match[1]);
+}
+
+function extractSetStrings(text, name) {
+  const pattern = new RegExp(`const ${name} = new Set\\(\\[([\\s\\S]*?)\\]\\);`);
+  const match = text.match(pattern);
+  assert(match, `missing Set definition: ${name}`);
+  return extractQuotedStrings(match[1]).sort();
+}
+
+function extractMappedStringArray(text, name) {
+  const pattern = new RegExp(`const ${name} = new Map\\(\\s*\\[([\\s\\S]*?)\\]\\.map`);
+  const match = text.match(pattern);
+  assert(match, `missing mapped string array definition: ${name}`);
+  return extractQuotedStrings(match[1]).sort();
+}
+
+function extractSharedResearchConstant(text, name) {
+  const match = text.match(new RegExp(`${name}:\\s*"([^"]+)"`));
+  assert(match, `missing shared research constant: ${name}`);
+  return match[1];
+}
+
+function extractLocalConstant(text, name) {
+  const match = text.match(new RegExp(`const ${name} = "([^"]+)"`));
+  assert(match, `missing local constant: ${name}`);
+  return match[1];
+}
+
 const manifest = JSON.parse(await readText("manifest.json"));
 assert(manifest.manifest_version === 3, "manifest_version must remain 3");
 assert(Array.isArray(manifest.permissions), "permissions must be declared");
@@ -75,6 +109,22 @@ assert(
     manifest.content_scripts[1].js.includes("src/content/content-script.js"),
   "normal Phase 1 content script must remain document_idle with observation-utils before storage"
 );
+const settingsPageMatches = [
+  "https://x.com/settings/blocked/all*",
+  "https://x.com/settings/muted/all*",
+  "https://twitter.com/settings/blocked/all*",
+  "https://twitter.com/settings/muted/all*"
+];
+assertSameStringArray(manifest.content_scripts[0].matches, settingsPageMatches, "research bridge must stay limited to settings pages");
+assert(
+  !("exclude_matches" in manifest.content_scripts[0]),
+  "research bridge must keep settings page access without exclude_matches"
+);
+assertSameStringArray(
+  manifest.content_scripts[1].exclude_matches,
+  settingsPageMatches,
+  "normal filter content script must exclude settings pages while research bridge keeps them"
+);
 
 const manifestText = JSON.stringify(manifest);
 for (const value of prohibitedValues) {
@@ -95,12 +145,24 @@ assert(contentScript.includes("data-user-id"), "synthetic user_id fixture attrib
 assert(contentScript.includes("data-handle"), "synthetic handle fixture attribute must be supported");
 assert(!contentScript.includes("fetch("), "production content script must not fetch F1/API data");
 assert(!contentScript.includes("XMLHttpRequest"), "production content script must not hook XHR");
+assert(!contentScript.includes("__xTbmOriginalCard"), "content script must not keep unused original-card expando state");
 
 const backgroundScript = await readText("src/background/research-background.js");
+const constantsScript = await readText("src/shared/constants.js");
 const bridgeScript = await readText("src/research/f1-a/content-bridge.js");
 const mainWorldHookScript = await readText("src/research/f1-a/main-world-hook.js");
 const observationUtilsScript = await readText("src/research/f1-a/observation-utils.js");
 const storageScript = await readText("src/storage/storage.js");
+assert(
+  extractLocalConstant(backgroundScript, "MESSAGE_INJECT") ===
+    extractSharedResearchConstant(constantsScript, "MESSAGE_INJECT"),
+  "background MESSAGE_INJECT must match shared RESEARCH_F1A constant"
+);
+assert(
+  extractLocalConstant(backgroundScript, "PAGE_MESSAGE_SOURCE") ===
+    extractSharedResearchConstant(constantsScript, "PAGE_MESSAGE_SOURCE"),
+  "background PAGE_MESSAGE_SOURCE must match shared RESEARCH_F1A constant"
+);
 assert(backgroundScript.includes('world: "MAIN"'), "research injection must target MAIN world");
 assert(backgroundScript.includes("main-world-hook.js"), "background must import the tested main world hook");
 assert(mainWorldHookScript.includes("window.fetch"), "research hook must wrap fetch");
@@ -118,6 +180,16 @@ assert(storageScript.includes("function getResearchF1A()"), "storage must resolv
 assert(!/\bResearchF1A,\s*\n/.test(storageScript), "storage must not destructure ResearchF1A at initial evaluation time");
 assert(observationUtilsScript.includes("evaluateObservationSummary"), "observation evaluator must be available");
 assert(observationUtilsScript.includes("findUnsafeSummarySignals"), "unsafe summary detection must be available");
+assertSameStringArray(
+  extractSetStrings(mainWorldHookScript, "safeSchemaKeys"),
+  extractSetStrings(observationUtilsScript, "SAFE_SCHEMA_KEYS"),
+  "MAIN world hook and observation-utils SAFE_SCHEMA_KEYS must stay aligned"
+);
+assertSameStringArray(
+  extractMappedStringArray(mainWorldHookScript, "safeEndpointPathSegments"),
+  extractMappedStringArray(observationUtilsScript, "SAFE_ENDPOINT_PATH_SEGMENTS"),
+  "MAIN world hook and observation-utils endpoint segment allowlists must stay aligned"
+);
 assert(!storageScript.includes("xtbmEntries") || storageScript.includes("xtbmF1AResearch"), "research observations must not be mixed into xtbmEntries");
 
 const popupHtml = await readText("src/popup/popup.html");

@@ -38,6 +38,12 @@
         "https://x.com/*",
         "https://twitter.com/*"
       ],
+      "exclude_matches": [
+        "https://x.com/settings/blocked/all*",
+        "https://x.com/settings/muted/all*",
+        "https://twitter.com/settings/blocked/all*",
+        "https://twitter.com/settings/muted/all*"
+      ],
       "js": [
         "src/shared/constants.js",
         "src/research/f1-a/observation-utils.js",

@@ -24,6 +24,18 @@ Use this template for new decisions.
 
 ## Initial decisions
 
+### 2026-05-31: ChatGPT approves low-risk maintenance follow-up after PR #2
+
+- Date: 2026-05-31
+- Decision: Codex may implement MAINT-00 through MAINT-04 as a low-risk maintenance follow-up on a new branch from `main`.
+- Context: PR #2 was squash-merged into `main`, completing COD-00 through COD-05. ChatGPT then approved a smaller follow-up scope from previously deferred Claude findings.
+- Options considered: Leave all remaining Claude findings deferred; implement only static consistency guards and documentation cleanup; move into Phase 2 implementation.
+- Rationale: The approved work improves maintainability and reviewability without adding permissions, dependencies, CI/package setup, production sync, OAuth/API work, live X verification, or real-DOM author matching.
+- Consequences: CL-AUDIT-008, CL-AUDIT-009, and CL-AUDIT-010 are partially approved only for MAINT-01 through MAINT-03. CL-AUDIT-006, CL-AUDIT-007, CL-AUDIT-011, Phase 2, production sync, F1-B/F1-C/F1-D, and Chrome Web Store work remain deferred.
+- Status: Active
+- Related files: `manifest.json`, `src/content/content-script.js`, `tests/scripts/verify-phase1-static.mjs`, `tests/scripts/verify-f1a-observation-safety.mjs`, `README.md`, `docs/AI_REVIEW_TRIAGE.md`, `docs/CODEX_TASKS.md`
+- Related review findings: CL-AUDIT-008, CL-AUDIT-009, CL-AUDIT-010
+
 ### 2026-05-30: ChatGPT triage limits this implementation pass to COD-00〜COD-05
 
 - Date: 2026-05-30

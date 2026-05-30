@@ -278,6 +278,18 @@ assertIncludes(
   failures
 );
 assertIncludes(
+  readme,
+  [
+    "Current status",
+    "Phase 1 / Phase 1.5",
+    "research / prototype",
+    "Phase 1 filter content script",
+    "real X DOM author matching"
+  ],
+  "README current status",
+  failures
+);
+assertIncludes(
   popupHtml,
   [
     "開発用",
