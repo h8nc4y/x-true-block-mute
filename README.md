@@ -37,13 +37,22 @@ Phase 1 では、Chrome に「Load unpacked」で読み込める Manifest V3 拡
 - `webRequest`、`cookies`、`tabs`、`activeTab`、`<all_urls>`、`https://api.x.com/*`
 - import/export、options page
 
+## Phase 1 の real DOM 制限
+
+現在の content script の handle 抽出は、synthetic fixture とローカル Phase 1 確認のためのものです。実 X DOM では、投稿カード内のリンクや埋め込み要素が必ず投稿者本人を示すとは限りません。
+
+- 実 X DOM の author identity は保証していません。
+- quote / embedded target / profile card / 関連リンクの扱いは production-complete ではありません。
+- 実 DOM で安全に投稿者を判定する author matching は Phase 2 以降の作業です。
+- この Phase 1 / Phase 1.5 task では real-DOM 著者判定ロジックを変更しません。
+
 ## Phase 1.5 の範囲
 
 - F1-A feasibility investigation のため、`/settings/blocked/all` と `/settings/muted/all` に限定した研究用 bridge を追加する
 - `chrome.scripting.executeScript` の `world: "MAIN"` で `fetch` / `XMLHttpRequest` hook を入れる
 - hook は raw response、Cookie、CSRF token、token、raw user_id、raw handle、表示名、本文を保存しない
 - sanitized observation は `xtbmF1AResearch` に保存し、通常の `xtbmEntries` には混ぜない
-- popup に `Phase 1.5 research / 開発用` の有効化、masked 観測数、削除操作を追加する
+- popup に `F1-A 観測メモ（開発用）`、観測件数、ブロック / ミュート別の件数、安全な要約コピー、削除操作を追加する
 - popup から判定用の `masked summary` をコピーできる
 - `tests/scripts/evaluate-f1-observation.mjs` で masked summary を機械判定できる
 - F1-A 採用条件と fallback 方針を docs に残す
@@ -64,7 +73,8 @@ Phase 1 では、Chrome に「Load unpacked」で読み込める Manifest V3 拡
 3. `Load unpacked` をクリックする。
 4. `D:\Agent\Codex\Projects\012_x-true-block-mute\` を選択する。
 5. `x-true-block-mute` が表示され、manifest エラーが出ていないことを確認する。
-6. 拡張アイコンの popup を開き、フィルタ、表示モード、登録件数が表示されることを確認する。
+6. 拡張アイコンの popup を開き、`通常フィルタ`、`ローカル確認用データ`、`F1-A 観測メモ（開発用）` が表示されることを確認する。
+7. 初心者向けの確認は `docs/manual-popup-verification.md` の手順に沿って行う。
 
 ## 現在の manifest 権限
 
@@ -105,15 +115,19 @@ Phase 1.5 で宣言している権限は次だけです。
 
 X にログインせず、実アカウントの投稿内容や Cookie を読まずに確認できます。
 
-1. `tests/fixtures/home-timeline.html` をブラウザで開く。
-2. `プレースホルダ` を押す。
-3. 非対象の投稿だけ本文が残り、user_id 対象と handle-only 対象の投稿本文が中立プレースホルダに置き換わることを確認する。
-4. `完全非表示` を押す。
-5. 対象投稿カードが表示領域から消え、非対象投稿が残ることを確認する。
-6. `オフ` を押す。
-7. 置換済みカードが復元され、対象投稿本文が再表示されることを確認する。
-8. `テストデータ削除` を押す。
-9. 対象投稿が処理されない状態に戻ることを確認する。
+1. 拡張 popup を開き、`ローカル確認用データ` の `テストデータを入れる` を押す。
+2. `登録済みの対象` が `0件` 以外になったことを確認する。
+3. `tests/fixtures/home-timeline.html` をブラウザで開く。
+4. `説明だけ表示` を押す。
+5. 非対象の投稿だけ本文が残り、user_id 対象と handle-only 対象の投稿本文が中立プレースホルダに置き換わることを確認する。
+6. `完全に隠す` を押す。
+7. 対象投稿カードが表示領域から消え、非対象投稿が残ることを確認する。
+8. `何もしない` を押す。
+9. 置換済みカードが復元され、対象投稿本文が再表示されることを確認する。
+10. popup の `テストデータを消す` を押す。
+11. 対象投稿が処理されない状態に戻ることを確認する。
+
+popup で見る場所、件数の意味、貼ってよい情報、貼ってはいけない情報は `docs/manual-popup-verification.md` にまとめています。
 
 ## Static validation
 
@@ -133,6 +147,12 @@ node tests/scripts/verify-f1a-main-hook-simulator.mjs
 node tests/scripts/evaluate-f1-observation.mjs tests/fixtures/f1-a-masked-summary.fixture.json
 ```
 
+repo 外の Codex global config / cost guard rules も確認したい場合だけ、明示的に opt-in します。指定しない通常実行では外部チェックは skip reason 付きで省略され、生の外部ファイル内容は出力しません。
+
+```powershell
+node tests/scripts/audit-operational-alignment.mjs --global-config path\to\config.toml --cost-guard-rules path\to\cost-guard.rules
+```
+
 `evaluate-f1-observation.mjs` は `--live` を付けた場合だけ、条件充足時に `f1a_viable` を返します。`--live` なしでは fixture 扱いのため、条件が揃っても `fixture_pass` です。
 
 実 X の masked summary を評価する場合:
@@ -145,6 +165,7 @@ node tests/scripts/evaluate-f1-observation.mjs --live path\to\masked-summary.jso
 
 ## Phase 1.5 research docs
 
+- `docs/manual-popup-verification.md`
 - `docs/research/f1-a-main-world-hook.md`
 - `docs/decisions/f1-source-selection.md`
 
@@ -164,6 +185,7 @@ node tests/scripts/evaluate-f1-observation.mjs --live path\to\masked-summary.jso
 
 - Chrome UI の `Load unpacked` 手動確認は未確認です。
 - X 実 DOM から安定して `user_id` を取得できるかは未確認です。
+- 実 X DOM の投稿者判定、quote / embedded target の除外、関連リンク混在時の handle 判定は未確認です。
 - 実 X 画面での F1-A endpoint、response shape、pagination、injection timing、SPA navigation 維持は未確認です。
 
 ## 関係性の表明

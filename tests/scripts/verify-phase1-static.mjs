@@ -62,14 +62,18 @@ assert(
 assert(
   manifest.content_scripts[0].run_at === "document_start" &&
     manifest.content_scripts[0].js.includes("src/research/f1-a/observation-utils.js") &&
+    manifest.content_scripts[0].js.indexOf("src/research/f1-a/observation-utils.js") <
+      manifest.content_scripts[0].js.indexOf("src/storage/storage.js") &&
     manifest.content_scripts[0].js.includes("src/research/f1-a/content-bridge.js"),
-  "research bridge must run at document_start"
+  "research bridge must run at document_start with observation-utils before storage"
 );
 assert(
   manifest.content_scripts[1].run_at === "document_idle" &&
     manifest.content_scripts[1].js.includes("src/research/f1-a/observation-utils.js") &&
+    manifest.content_scripts[1].js.indexOf("src/research/f1-a/observation-utils.js") <
+      manifest.content_scripts[1].js.indexOf("src/storage/storage.js") &&
     manifest.content_scripts[1].js.includes("src/content/content-script.js"),
-  "normal Phase 1 content script must remain document_idle"
+  "normal Phase 1 content script must remain document_idle with observation-utils before storage"
 );
 
 const manifestText = JSON.stringify(manifest);
@@ -106,13 +110,26 @@ assert(mainWorldHookScript.includes("hookRunId"), "MAIN world hook must tag obse
 assert(!backgroundScript.includes("chrome.storage"), "MAIN world hook path must not use chrome.storage");
 assert(bridgeScript.includes("appendF1AResearchObservation"), "bridge must persist only normalized research observations");
 assert(storageScript.includes("F1A_RESEARCH"), "research storage must be separate from xtbmEntries");
-assert(storageScript.includes("ResearchF1A.normalizeObservation"), "research storage must use the shared masked observation normalizer");
+assert(
+  storageScript.includes("getResearchF1A().normalizeObservation"),
+  "research storage must use the shared masked observation normalizer"
+);
+assert(storageScript.includes("function getResearchF1A()"), "storage must resolve ResearchF1A lazily at call time");
+assert(!/\bResearchF1A,\s*\n/.test(storageScript), "storage must not destructure ResearchF1A at initial evaluation time");
 assert(observationUtilsScript.includes("evaluateObservationSummary"), "observation evaluator must be available");
 assert(observationUtilsScript.includes("findUnsafeSummarySignals"), "unsafe summary detection must be available");
 assert(!storageScript.includes("xtbmEntries") || storageScript.includes("xtbmF1AResearch"), "research observations must not be mixed into xtbmEntries");
 
 const popupHtml = await readText("src/popup/popup.html");
-assert(popupHtml.includes("masked summary をコピー"), "popup must expose masked summary copy flow");
+const popupScripts = Array.from(popupHtml.matchAll(/<script src="([^"]+)"><\/script>/g)).map((match) => match[1]);
+assert(
+  popupScripts.indexOf("../research/f1-a/observation-utils.js") < popupScripts.indexOf("../storage/storage.js"),
+  "popup must load observation-utils before storage"
+);
+assert(popupHtml.includes("ローカル確認用データ"), "popup must label local test data clearly");
+assert(popupHtml.includes("次に確認すること"), "popup must explain the next verification step");
+assert(popupHtml.includes("ブロック / ミュート"), "popup must separate blocked and muted observation counts");
+assert(popupHtml.includes("安全な要約をコピー（masked summary）"), "popup must expose masked summary copy flow");
 assert(popupHtml.includes("本番同期ではありません"), "popup must label research flow as non-production sync");
 assert(popupHtml.includes("raw response はコピーしません"), "popup must explicitly say raw response is not copied");
 

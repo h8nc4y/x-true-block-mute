@@ -6,21 +6,27 @@
 
   const enabledInput = document.querySelector("#enabled");
   const modeInputs = Array.from(document.querySelectorAll("input[name='display-mode']"));
+  const filterState = document.querySelector("#filter-state");
   const entryCount = document.querySelector("#entry-count");
   const lastSyntheticUpdate = document.querySelector("#last-synthetic-update");
+  const localTestSummary = document.querySelector("#local-test-summary");
   const seedButton = document.querySelector("#seed-synthetic");
   const clearButton = document.querySelector("#clear-synthetic");
   const researchEnabledInput = document.querySelector("#f1a-research-enabled");
+  const researchStatus = document.querySelector("#f1a-research-status");
   const researchObservationCount = document.querySelector("#f1a-observation-count");
+  const researchPageCounts = document.querySelector("#f1a-page-counts");
   const researchUpdatedAt = document.querySelector("#f1a-updated-at");
+  const researchNextStep = document.querySelector("#f1a-next-step");
   const copyResearchButton = document.querySelector("#copy-f1a-research");
   const clearResearchButton = document.querySelector("#clear-f1a-research");
   const researchSummaryOutput = document.querySelector("#f1a-summary-output");
   const message = document.querySelector("#message");
+  let busy = false;
 
-  function formatDateTime(isoString) {
+  function formatDateTime(isoString, emptyLabel = "未投入") {
     if (!isoString) {
-      return "未投入";
+      return emptyLabel;
     }
     const date = new Date(isoString);
     if (Number.isNaN(date.getTime())) {
@@ -32,10 +38,57 @@
     }).format(date);
   }
 
+  function formatCount(count) {
+    return `${count}件`;
+  }
+
+  function summarizePageKinds(observations) {
+    return observations.reduce(
+      (summary, observation) => {
+        if (observation.pageKind === "blocked") {
+          summary.blocked += 1;
+        } else if (observation.pageKind === "muted") {
+          summary.muted += 1;
+        } else {
+          summary.unknown += 1;
+        }
+        return summary;
+      },
+      { blocked: 0, muted: 0, unknown: 0 }
+    );
+  }
+
+  function describeLocalTest(entryStore) {
+    if (entryStore.entries.length === 0) {
+      return "テストデータは未投入です。ローカル fixture を確認する前に「テストデータを入れる」を押してください。";
+    }
+    return "テストデータが入っています。README の synthetic fixture を開くと、対象投稿の表示変化を確認できます。";
+  }
+
+  function describeResearchNextStep(researchState, pageCounts) {
+    if (!researchState.enabled) {
+      return "実 X の確認をする人だけ「F1-A 観測を開始」を入れます。ローカル確認だけなら停止中のままで問題ありません。";
+    }
+    if (researchState.observations.length === 0) {
+      return "観測メモはまだ 0件です。対象ページ外、未ログイン、またはページ再読み込み前なら異常ではありません。";
+    }
+    if (pageCounts.blocked > 0 && pageCounts.muted > 0) {
+      return "ブロックとミュートの両方で観測があります。安全な要約だけをコピーし、raw response やアカウント名は共有しないでください。";
+    }
+    if (pageCounts.blocked > 0) {
+      return "ブロック側だけ観測があります。必要ならミュート設定ページでも同じ手順を確認してください。";
+    }
+    if (pageCounts.muted > 0) {
+      return "ミュート側だけ観測があります。必要ならブロック設定ページでも同じ手順を確認してください。";
+    }
+    return "観測メモはありますが、ページ種別は未判定です。安全な要約の詳細だけを確認し、raw response は共有しないでください。";
+  }
+
   function setBusy(isBusy) {
+    busy = isBusy;
     seedButton.disabled = isBusy;
     clearButton.disabled = isBusy;
-    copyResearchButton.disabled = isBusy;
+    copyResearchButton.disabled = isBusy || copyResearchButton.dataset.hasObservations !== "true";
     clearResearchButton.disabled = isBusy;
     enabledInput.disabled = isBusy;
     researchEnabledInput.disabled = isBusy;
@@ -58,12 +111,19 @@
     for (const input of modeInputs) {
       input.checked = input.value === settings.displayMode;
     }
-    entryCount.textContent = String(entryStore.entries.length);
+    filterState.textContent = settings.enabled ? "状態: 有効" : "状態: 停止中";
+    entryCount.textContent = formatCount(entryStore.entries.length);
     lastSyntheticUpdate.textContent = formatDateTime(entryStore.lastSyntheticUpdatedAt);
+    localTestSummary.textContent = describeLocalTest(entryStore);
     researchEnabledInput.checked = researchState.enabled;
-    researchObservationCount.textContent = String(researchState.observations.length);
-    researchUpdatedAt.textContent = formatDateTime(researchState.updatedAt);
-    copyResearchButton.disabled = researchState.observations.length === 0;
+    const pageCounts = summarizePageKinds(researchState.observations);
+    researchStatus.textContent = researchState.enabled ? "監視中" : "停止中";
+    researchObservationCount.textContent = formatCount(researchState.observations.length);
+    researchPageCounts.textContent = `${formatCount(pageCounts.blocked)} / ${formatCount(pageCounts.muted)}`;
+    researchUpdatedAt.textContent = formatDateTime(researchState.updatedAt, "未記録");
+    researchNextStep.textContent = describeResearchNextStep(researchState, pageCounts);
+    copyResearchButton.dataset.hasObservations = researchState.observations.length > 0 ? "true" : "false";
+    copyResearchButton.disabled = busy || researchState.observations.length === 0;
   }
 
   async function updateSettings(patch) {
@@ -91,7 +151,7 @@
     try {
       await Storage.seedSyntheticEntries();
       await render();
-      setMessage("Phase 1 テストデータを投入しました。");
+      setMessage("ローカル確認用のテストデータを入れました。fixture ページで表示の変化を確認してください。");
     } catch (_error) {
       setMessage("テストデータ投入に失敗しました。");
     } finally {
@@ -105,9 +165,9 @@
     try {
       await Storage.clearSyntheticEntries();
       await render();
-      setMessage("Phase 1 テストデータを削除しました。");
+      setMessage("ローカル確認用のテストデータを消しました。");
     } catch (_error) {
-      setMessage("テストデータ削除に失敗しました。");
+      setMessage("テストデータの削除に失敗しました。");
     } finally {
       setBusy(false);
     }
@@ -121,11 +181,11 @@
       await render();
       setMessage(
         researchEnabledInput.checked
-          ? "F1-A 捕捉検証を有効にしました。対象ページを再読み込みしてください。"
-          : "F1-A 捕捉検証を無効にしました。"
+          ? "F1-A 観測を開始しました。対象ページを再読み込みしてください。"
+          : "F1-A 観測を停止しました。"
       );
     } catch (_error) {
-      setMessage("F1-A 捕捉検証の設定保存に失敗しました。");
+      setMessage("F1-A 観測設定の保存に失敗しました。");
     } finally {
       setBusy(false);
     }
@@ -137,9 +197,9 @@
     try {
       await Storage.clearF1AResearchObservations();
       await render();
-      setMessage("研究用の masked サマリを削除しました。");
+      setMessage("観測メモを消しました。");
     } catch (_error) {
-      setMessage("研究用サマリの削除に失敗しました。");
+      setMessage("観測メモの削除に失敗しました。");
     } finally {
       setBusy(false);
     }
@@ -159,13 +219,19 @@
       } else {
         document.execCommand("copy");
       }
-      setMessage("masked summary をコピーしました。raw response は含みません。");
+      setMessage("安全な要約（masked summary）をコピーしました。raw response は含みません。");
     } catch (_error) {
-      setMessage("masked summary のコピーに失敗しました。表示欄から手動でコピーしてください。");
+      setMessage("コピーに失敗しました。表示欄から安全な要約だけを手動でコピーしてください。");
     } finally {
       setBusy(false);
     }
   });
 
-  render().catch(() => setMessage("状態の読み込みに失敗しました。"));
+  render().catch(() => {
+    filterState.textContent = "状態: 読み込み失敗";
+    localTestSummary.textContent = "Chrome 拡張として読み込んでいない、または storage を読めない可能性があります。";
+    researchStatus.textContent = "読み込み失敗";
+    researchNextStep.textContent = "Chrome の拡張機能画面から再読み込みし、もう一度 popup を開いてください。";
+    setMessage("状態の読み込みに失敗しました。Chrome 拡張として読み込んでいるか確認してください。");
+  });
 })();

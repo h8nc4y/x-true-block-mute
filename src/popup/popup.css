@@ -3,25 +3,27 @@
 }
 
 body {
-  width: 320px;
+  width: 360px;
   margin: 0;
-  color: #111;
-  background: #fff;
+  color: #202124;
+  background: #f7f9fb;
   font: 14px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 .popup-shell {
   display: grid;
-  gap: 14px;
+  gap: 12px;
   padding: 16px;
 }
 
-header {
+.app-header {
   display: grid;
   gap: 2px;
 }
 
 h1,
+h2,
+h3,
 p {
   margin: 0;
 }
@@ -33,22 +35,43 @@ h1 {
 
 h2 {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
+}
+
+h3 {
+  font-size: 13px;
 }
 
 header p,
 .status-panel span,
-.research-panel p,
+.section-heading p,
+.control-help,
+.help-text,
+.research-note,
 .message {
-  color: #536471;
+  color: #5f6368;
   font-size: 12px;
 }
 
+.panel,
 .toggle-row,
 fieldset,
 .status-panel {
-  border: 1px solid #d7dbdc;
+  border: 1px solid #d9e2ea;
   border-radius: 8px;
+  background: #fff;
+}
+
+.panel,
+.research-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+
+.section-heading {
+  display: grid;
+  gap: 3px;
 }
 
 .toggle-row {
@@ -72,7 +95,23 @@ legend {
 }
 
 label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   cursor: pointer;
+}
+
+.control-title,
+.control-help {
+  display: block;
+}
+
+.control-title {
+  font-weight: 700;
+}
+
+.control-help {
+  font-weight: 400;
 }
 
 .status-panel {
@@ -84,8 +123,9 @@ label {
 .research-panel {
   display: grid;
   gap: 10px;
-  border-top: 1px solid #eff3f4;
-  padding-top: 12px;
+  border: 1px solid #d7dbdc;
+  border-radius: 8px;
+  background: #fff;
 }
 
 .research-note {
@@ -111,6 +151,39 @@ label {
   gap: 12px;
 }
 
+.next-step-panel,
+.details-panel {
+  border-left: 3px solid #2f6f9f;
+  padding: 8px 10px;
+  background: #f2f7fb;
+}
+
+.next-step-panel {
+  display: grid;
+  gap: 3px;
+}
+
+.details-panel summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.details-panel dl {
+  display: grid;
+  gap: 8px;
+  margin: 8px 0 0;
+}
+
+.details-panel dt {
+  font-weight: 700;
+}
+
+.details-panel dd {
+  margin: 0;
+  color: #5f6368;
+  font-size: 12px;
+}
+
 .button-grid {
   display: grid;
   grid-template-columns: 1fr;
@@ -121,16 +194,16 @@ button {
   min-height: 36px;
   border: 0;
   border-radius: 8px;
-  background: #111;
+  background: #174ea6;
   color: #fff;
   font-weight: 700;
   cursor: pointer;
 }
 
 button.secondary {
-  border: 1px solid #d7dbdc;
+  border: 1px solid #c8d2dc;
   background: #fff;
-  color: #111;
+  color: #174ea6;
 }
 
 button:disabled {
@@ -142,7 +215,7 @@ button:disabled {
   min-height: 96px;
   width: 100%;
   resize: vertical;
-  border: 1px solid #d7dbdc;
+  border: 1px solid #d9e2ea;
   border-radius: 8px;
   padding: 8px;
   font: 11px/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace;

@@ -57,6 +57,27 @@
     "users",
     "value"
   ]);
+  const SAFE_ENDPOINT_PATH_SEGMENTS = new Map(
+    [
+      "<masked>",
+      "1.1",
+      "2",
+      "BlockedAccounts",
+      "MutedAccounts",
+      "all",
+      "api",
+      "blocked",
+      "graphql",
+      "i",
+      "list",
+      "lists",
+      "muted",
+      "settings",
+      "timeline",
+      "user",
+      "users"
+    ].map((segment) => [segment.toLowerCase(), segment])
+  );
   const SENSITIVE_TEXT_PATTERN = /(authorization|auth[_-]?token|bearer\s+|cookie|csrf|ct0|oauth|password|secret|set-cookie|token)/i;
   const SENSITIVE_KEY_PATTERN = /(^|[_-])(authorization|auth|cookie|csrf|ct0|oauth|password|secret|token)($|[_-])/i;
   const RAW_HANDLE_PATTERN = /(^|[^\w])@[A-Za-z0-9_]{1,15}($|[^\w])/;
@@ -135,6 +156,52 @@
     return MASKED_KEY;
   }
 
+  function decodePathSegment(segment) {
+    try {
+      return decodeURIComponent(segment);
+    } catch (_error) {
+      return segment;
+    }
+  }
+
+  function sanitizeEndpointPathSegment(segment) {
+    const text = decodePathSegment(String(segment || ""));
+    if (!text) {
+      return "";
+    }
+    if (text === "<masked>") {
+      return "<masked>";
+    }
+    if (isSensitiveKey(text) || SENSITIVE_TEXT_PATTERN.test(text)) {
+      return "<sensitive>";
+    }
+    const allowed = SAFE_ENDPOINT_PATH_SEGMENTS.get(text.toLowerCase());
+    if (allowed) {
+      return allowed;
+    }
+    return "<masked>";
+  }
+
+  function hasUnsafeEndpointPathSegment(value) {
+    if (typeof value !== "string" || !/^https?:\/\//i.test(value)) {
+      return false;
+    }
+    try {
+      const url = new URL(value.replaceAll("<masked>", "%3Cmasked%3E"));
+      return url.pathname
+        .split("/")
+        .some((segment) => {
+          const text = decodePathSegment(segment);
+          if (!text || text === "<masked>") {
+            return false;
+          }
+          return sanitizeEndpointPathSegment(text) !== text;
+        });
+    } catch (_error) {
+      return false;
+    }
+  }
+
   function sanitizeShapePath(path) {
     return String(path || "$")
       .split(".")
@@ -153,28 +220,23 @@
 
   function sanitizeEndpointClass(value) {
     const text = clipString(value, "unknown", 260);
+    if (text === "unknown" || text === "unparseable-url" || text === "sensitive-endpoint") {
+      return text;
+    }
     if (SENSITIVE_TEXT_PATTERN.test(text)) {
       return "sensitive-endpoint";
     }
     try {
-      const url = new URL(text);
+      const url = new URL(text.replaceAll("<masked>", "%3Cmasked%3E"));
       const keys = Array.from(url.searchParams.keys()).map(sanitizeQueryKey).sort();
       const query = keys.length ? `?${keys.map((key) => `${key}=<masked>`).join("&")}` : "";
       const pathname = url.pathname
         .split("/")
-        .map((segment) => {
-          if (!segment) {
-            return "";
-          }
-          if (/^\d+$/.test(segment) || /^@/.test(segment) || /^[a-f0-9]{16,}$/i.test(segment) || segment.length > 48) {
-            return "<masked>";
-          }
-          return segment.slice(0, 80);
-        })
+        .map(sanitizeEndpointPathSegment)
         .join("/");
       return `${url.origin}${pathname}${query}`.slice(0, 260);
     } catch (_error) {
-      return text.replace(/[?&]([^=]+)=([^&]+)/g, (_match, key) => `?${sanitizeQueryKey(key)}=<masked>`).slice(0, 260);
+      return "unparseable-url";
     }
   }
 
@@ -263,6 +325,9 @@
           if (LONG_ID_PATTERN.test(node) && !path.endsWith(".observedAt") && !path.endsWith(".updatedAt")) {
             signals.push(`${path}: long numeric id-looking text`);
           }
+          if (hasUnsafeEndpointPathSegment(node)) {
+            signals.push(`${path}: raw endpoint path segment`);
+          }
         }
         return;
       }
@@ -325,7 +390,7 @@
         status: "unknown",
         unsafeSignals: [],
         missing: ["observations"],
-        recommendation: "masked observation がありません。F1-A 捕捉検証を有効化して blocked / muted を再確認してください。"
+        recommendation: "masked observation がありません。popup の「F1-A 観測を開始」を有効化して blocked / muted を再確認してください。"
       };
     }
 
@@ -379,6 +444,7 @@
     normalizeState,
     sanitizeEndpointClass,
     sanitizeQueryKey,
+    sanitizeEndpointPathSegment,
     sanitizeSchemaKey,
     sanitizeShapePath
   };
