@@ -155,6 +155,7 @@ Phase 1.5 の研究用検証では次も使います。
 node tests/scripts/verify-f1a-observation-safety.mjs
 node tests/scripts/verify-f1a-main-hook-simulator.mjs
 node tests/scripts/evaluate-f1-observation.mjs tests/fixtures/f1-a-masked-summary.fixture.json
+node tests/scripts/verify-docs-consistency.mjs
 ```
 
 repo 外の Codex global config / cost guard rules も確認したい場合だけ、明示的に opt-in します。指定しない通常実行では外部チェックは skip reason 付きで省略され、生の外部ファイル内容は出力しません。
@@ -176,6 +177,10 @@ node tests/scripts/evaluate-f1-observation.mjs --live path\to\masked-summary.jso
 ## Phase 1.5 research docs
 
 - `docs/manual-popup-verification.md`
+- `docs/local-chrome-synthetic-verification.md`
+- `docs/phase2-readiness-gates.md`
+- `docs/privacy-threat-model.md`
+- `docs/deferred-findings-register.md`
 - `docs/research/f1-a-main-world-hook.md`
 - `docs/decisions/f1-source-selection.md`
 
