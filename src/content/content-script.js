@@ -116,7 +116,6 @@
     }
     const replacement = createReplacement(mode);
     replacements.set(card, replacement);
-    replacement.__xTbmOriginalCard = card;
     card.replaceWith(replacement);
   }
 

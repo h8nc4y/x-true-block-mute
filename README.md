@@ -1,5 +1,15 @@
 # x-true-block-mute
 
+## Current status
+
+この repository は現在 Phase 1 / Phase 1.5 の research / prototype 段階です。
+
+- Phase 1 は local MV3 extension shell、popup、storage、synthetic fixture、通常 content-script filter path を扱います。
+- Phase 1.5 は `/settings/blocked/all` と `/settings/muted/all` で masked observation を集める F1-A research scaffold を扱います。
+- 通常の Phase 1 filter content script は X/Twitter ページに広く一致しますが、F1-A settings pages からは除外し、research bridge がそのページを担当します。
+- synthetic home-timeline-style fixture が現在の local verification surface です。real X DOM author matching は未実装で、この phase の範囲外です。
+- Production block/mute list sync、F1-B/F1-C/F1-D、OAuth/API integration、Chrome Web Store preparation、live X verification は未実装です。
+
 X/Twitter でブロック・ミュート済みアカウント由来の情報露出を減らすことを目指す Chrome 拡張です。
 
 Phase 1 では、Chrome に「Load unpacked」で読み込める Manifest V3 拡張として、popup、`chrome.storage`、静的 content script、synthetic fixture による最小 DOM フィルタを用意します。Phase 1.5 では、F1-A 採用判断のための研究用 `MAIN` world hook scaffold と docs を追加します。X 実 DOM の user_id 安定取得と本番用の F1-A / F1-B / F1-C / F1-D 一覧取得処理は未実装です。

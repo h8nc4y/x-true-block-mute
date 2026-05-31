@@ -63,6 +63,35 @@ This file records the triage decisions and implementation scope provided to Code
 - Validation: `node tests/scripts/audit-operational-alignment.mjs`
 - Priority: P2
 
+## Later approved maintenance findings
+
+- Finding ID: CL-AUDIT-008
+- Reason for approval: ChatGPT approved low-risk content-script scope and dead-code cleanup after PR #2 merged.
+- Scope: Exclude the normal Phase 1 filter content script from F1-A settings pages while preserving the research bridge, and remove unused original-card expando state if safe.
+- Implementation task: MAINT-02
+- Acceptance criteria: Research bridge still matches `/settings/blocked/all` and `/settings/muted/all`; normal filter content script excludes those pages; no new permissions are added; unused `__xTbmOriginalCard` state is absent.
+- Out of scope: MutationObserver behavior changes, teardown implementation, F1-A bridge removal, Phase 2 behavior, and real-DOM author matching.
+- Validation: `node tests/scripts/verify-phase1-static.mjs`
+- Priority: P3
+
+- Finding ID: CL-AUDIT-009
+- Reason for approval: ChatGPT approved consistency checks only, not production-code single-source refactoring.
+- Scope: Add static guards for duplicated message constants and MAIN-world masking allowlists.
+- Implementation task: MAINT-01
+- Acceptance criteria: `research-background.js` message constants match `src/shared/constants.js`; MAIN-world hook and `observation-utils.js` safe schema and endpoint segment allowlists stay aligned.
+- Out of scope: Refactoring MAIN-world hook production code into shared isolated-world utilities.
+- Validation: `node tests/scripts/verify-phase1-static.mjs`, `node tests/scripts/verify-f1a-observation-safety.mjs`
+- Priority: P3
+
+- Finding ID: CL-AUDIT-010
+- Reason for approval: ChatGPT approved README phase/status clarity cleanup.
+- Scope: Clarify that the project is currently Phase 1 / Phase 1.5 research/prototype, describe the settings-page bridge ownership, and keep future Phase 2 work clearly out of scope.
+- Implementation task: MAINT-03
+- Acceptance criteria: README separates current status from future or unimplemented functionality.
+- Out of scope: Product behavior changes.
+- Validation: Docs diff review and `node tests/scripts/audit-operational-alignment.mjs`
+- Priority: P3
+
 ## Deferred findings
 
 - Finding ID: CL-AUDIT-006
@@ -71,21 +100,6 @@ This file records the triage decisions and implementation scope provided to Code
 - Revisit condition: ChatGPT explicitly approves a new task.
 
 - Finding ID: CL-AUDIT-007
-- Reason for deferral: ChatGPT triage marked this finding as deferred.
-- Information needed: Future ChatGPT approval and task scope.
-- Revisit condition: ChatGPT explicitly approves a new task.
-
-- Finding ID: CL-AUDIT-008
-- Reason for deferral: ChatGPT triage marked this finding as deferred.
-- Information needed: Future ChatGPT approval and task scope.
-- Revisit condition: ChatGPT explicitly approves a new task.
-
-- Finding ID: CL-AUDIT-009
-- Reason for deferral: ChatGPT triage marked this finding as deferred.
-- Information needed: Future ChatGPT approval and task scope.
-- Revisit condition: ChatGPT explicitly approves a new task.
-
-- Finding ID: CL-AUDIT-010
 - Reason for deferral: ChatGPT triage marked this finding as deferred.
 - Information needed: Future ChatGPT approval and task scope.
 - Revisit condition: ChatGPT explicitly approves a new task.

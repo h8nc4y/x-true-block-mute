@@ -2,7 +2,7 @@
 
 ## Status
 
-ChatGPT-approved tasks COD-00〜COD-05 have been implemented in the current Codex pass.
+ChatGPT-approved tasks COD-00 through COD-05 were implemented in PR #2. MAINT-00 through MAINT-04 are implemented in the current maintenance follow-up pass.
 
 ## Source of truth
 
@@ -336,6 +336,230 @@ Docs may need more detail after future live X verification.
 
 Implemented in this Codex pass. README and F1-A research docs now state the approved real-DOM limitation boundaries.
 
+## Maintenance follow-up task queue
+
+### MAINT-00
+
+### Priority
+
+P3
+
+### Source finding
+
+Post-merge baseline verification requested by ChatGPT after PR #2.
+
+### Goal
+
+Verify `main` after PR #2 merge before starting additional maintenance work.
+
+### Scope
+
+Confirm `main` and `origin/main` are synchronized, PR #2 is merged, and the existing local validation commands still pass.
+
+### Files likely affected
+
+None.
+
+### Implementation plan
+
+Run the existing local verification commands on `main` before creating the maintenance branch.
+
+### Acceptance criteria
+
+`main...origin/main` is `0 0`, PR #2 is merged, working tree is clean, and existing local verification passes.
+
+### Validation commands
+
+`git rev-list --left-right --count main...origin/main`, `gh api repos/h8nc4y/x-true-block-mute/pulls/2`, existing Node verification commands, `git diff --check`.
+
+### Out of scope
+
+External dashboard checks, live X verification, and production deploy checks.
+
+### Risks
+
+Vercel / Cloudflare GitHub App check suites can remain queued even when no required PR checks are present.
+
+### Completion notes
+
+Implemented in this maintenance pass.
+
+### MAINT-01
+
+### Priority
+
+P3
+
+### Source finding
+
+CL-AUDIT-009, later approved by ChatGPT for consistency checks only.
+
+### Goal
+
+Guard duplicated constants and MAIN-world masking allowlists from drifting.
+
+### Scope
+
+Add static assertions without refactoring production code into a single source.
+
+### Files likely affected
+
+`tests/scripts/verify-phase1-static.mjs`, `tests/scripts/verify-f1a-observation-safety.mjs`
+
+### Implementation plan
+
+Assert background message constants match shared constants; assert MAIN-world hook and observation-utils safe schema and endpoint segment allowlists match; add direct sanitizer guard assertions.
+
+### Acceptance criteria
+
+Static verification fails if duplicated constants or allowlists drift.
+
+### Validation commands
+
+`node tests/scripts/verify-phase1-static.mjs`, `node tests/scripts/verify-f1a-observation-safety.mjs`
+
+### Out of scope
+
+Refactoring isolated MAIN-world code into shared extension-world code.
+
+### Risks
+
+Tests intentionally preserve some duplication because MAIN-world isolation makes direct sharing risky at this phase.
+
+### Completion notes
+
+Implemented in this maintenance pass.
+
+### MAINT-02
+
+### Priority
+
+P3
+
+### Source finding
+
+CL-AUDIT-008, later approved by ChatGPT for low-risk cleanup only.
+
+### Goal
+
+Reduce settings-page script overlap and remove unused content-script state.
+
+### Scope
+
+Exclude the normal Phase 1 filter content script from F1-A settings pages while preserving the research bridge, and remove unused `__xTbmOriginalCard` expando state.
+
+### Files likely affected
+
+`manifest.json`, `src/content/content-script.js`, `tests/scripts/verify-phase1-static.mjs`
+
+### Implementation plan
+
+Add `exclude_matches` to the normal content script for blocked/muted settings pages; keep the research bridge matches unchanged; remove unused expando assignment.
+
+### Acceptance criteria
+
+Research bridge still loads on settings pages; normal filter content script excludes those settings pages; no new permissions are added.
+
+### Validation commands
+
+`node tests/scripts/verify-phase1-static.mjs`
+
+### Out of scope
+
+MutationObserver redesign, teardown implementation, F1-A bridge removal, and real-DOM author matching.
+
+### Risks
+
+The normal filter will no longer run on the F1-A settings pages, which is intentional for this research phase.
+
+### Completion notes
+
+Implemented in this maintenance pass.
+
+### MAINT-03
+
+### Priority
+
+P3
+
+### Source finding
+
+CL-AUDIT-010, later approved by ChatGPT for README clarity only.
+
+### Goal
+
+Clarify current project phase and implemented status.
+
+### Scope
+
+README status wording only.
+
+### Files likely affected
+
+`README.md`
+
+### Implementation plan
+
+Add a current status section describing Phase 1 / Phase 1.5 research/prototype state and unimplemented future work.
+
+### Acceptance criteria
+
+README separates current implemented behavior from future Phase 2 and production-sync work.
+
+### Validation commands
+
+Docs diff review, `node tests/scripts/audit-operational-alignment.mjs`.
+
+### Out of scope
+
+Product behavior changes.
+
+### Completion notes
+
+Implemented in this maintenance pass.
+
+### MAINT-04
+
+### Priority
+
+P3
+
+### Source finding
+
+ChatGPT maintenance approval for review coordination docs.
+
+### Goal
+
+Record the new ChatGPT-approved maintenance scope and preserve deferred boundaries.
+
+### Scope
+
+`docs/AI_REVIEW_TRIAGE.md`, `docs/CODEX_TASKS.md`, `docs/DECISION_LOG.md`
+
+### Implementation plan
+
+Move CL-AUDIT-008/009/010 into later-approved maintenance scope; keep CL-AUDIT-006/007/011 and Phase 2 items deferred.
+
+### Acceptance criteria
+
+Docs show MAINT-00 through MAINT-04 without implying approval for Phase 2, production sync, CI/package setup, teardown, or MutationObserver redesign.
+
+### Validation commands
+
+Docs diff review.
+
+### Out of scope
+
+Inventing new Claude findings or changing Claude review content.
+
+### Risks
+
+Future agents must still read the task-specific approval, not just the old initial triage status.
+
+### Completion notes
+
+Implemented in this maintenance pass.
+
 ## Completed tasks
 
 - COD-00: Implemented.
@@ -344,3 +568,8 @@ Implemented in this Codex pass. README and F1-A research docs now state the appr
 - COD-03: Implemented.
 - COD-04: Implemented.
 - COD-05: Implemented.
+- MAINT-00: Implemented.
+- MAINT-01: Implemented.
+- MAINT-02: Implemented.
+- MAINT-03: Implemented.
+- MAINT-04: Implemented.
