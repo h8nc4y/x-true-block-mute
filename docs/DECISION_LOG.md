@@ -24,6 +24,18 @@ Use this template for new decisions.
 
 ## Initial decisions
 
+### 2026-05-31: Keep post-merge Chrome verification local-only before real X
+
+- Date: 2026-05-31
+- Decision: After PR #2 and PR #4, Codex may verify only the local Chrome extension loading path and synthetic fixture path, and must not proceed to real X verification in this pass.
+- Context: ChatGPT approved VERIFY-00 through VERIFY-05 to prepare safe Chrome Load unpacked / popup / synthetic fixture verification after `main` reached `6c6238707bad4629a6074bf8eb107487893b9453`.
+- Options considered: Proceed to real X login; use an existing logged-in Chrome profile; use a temporary Chrome profile and local fixture only; skip Chrome automation and only write manual docs.
+- Rationale: Local-only verification improves confidence in the extension shell and fixture path without exposing account data, tokens, Cookies, raw X responses, HAR files, or personal screenshots.
+- Consequences: Synthetic fixture behavior can be verified locally, but popup Load unpacked still needs human confirmation when Codex cannot reliably automate the extension context. Real X DOM, F1-A live endpoint checks, production sync, F1-B/F1-C/F1-D, package/CI work, deploy, and Chrome Web Store work remain out of scope.
+- Status: Active
+- Related files: `docs/manual-popup-verification.md`, `docs/local-chrome-synthetic-verification.md`, `docs/CODEX_TASKS.md`
+- Related review findings: None.
+
 ### 2026-05-31: ChatGPT approves low-risk maintenance follow-up after PR #2
 
 - Date: 2026-05-31
