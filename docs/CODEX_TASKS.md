@@ -2,7 +2,7 @@
 
 ## Status
 
-ChatGPT-approved tasks COD-00 through COD-05 were implemented in PR #2. MAINT-00 through MAINT-04 are implemented in the current maintenance follow-up pass.
+ChatGPT-approved tasks COD-00 through COD-05 were implemented in PR #2. MAINT-00 through MAINT-04 were implemented in PR #4. VERIFY-00 through VERIFY-05 are implemented in the current local verification documentation pass.
 
 ## Source of truth
 
@@ -560,6 +560,272 @@ Future agents must still read the task-specific approval, not just the old initi
 
 Implemented in this maintenance pass.
 
+## Local verification task queue
+
+### VERIFY-00
+
+### Priority
+
+P2
+
+### Source finding
+
+ChatGPT post-merge local verification request after PR #2 and PR #4.
+
+### Goal
+
+Confirm `main` baseline after PR #2 / PR #4 merge.
+
+### Scope
+
+Confirm local branch, sync state, PR merge state, HEAD, and clean working tree.
+
+### Files likely affected
+
+`docs/local-chrome-synthetic-verification.md`, `docs/CODEX_TASKS.md`, `docs/DECISION_LOG.md`
+
+### Implementation plan
+
+Run safe Git and GitHub read commands, then record the verified baseline.
+
+### Acceptance criteria
+
+`main...origin/main` is `0 0`, PR #2 and PR #4 are merged, and the local branch is `main`.
+
+### Validation commands
+
+`git status --short --branch`, `git branch --show-current`, `git rev-list --left-right --count main...origin/main`, `gh pr view 2 --json state,mergedAt,mergeCommit,url`, `gh pr view 4 --json state,mergedAt,mergeCommit,url`.
+
+### Out of scope
+
+Real X, deploy, dashboard checks, and production infrastructure.
+
+### Risks
+
+GitHub authentication may require the Windows keyring-capable execution path.
+
+### Completion notes
+
+Implemented in this verification pass.
+
+### VERIFY-01
+
+### Priority
+
+P2
+
+### Source finding
+
+ChatGPT post-merge local verification request after PR #2 and PR #4.
+
+### Goal
+
+Re-run existing local Node verification on `main`.
+
+### Scope
+
+Run existing verification scripts only; do not add package scripts, dependencies, CI, lint, typecheck, or build setup.
+
+### Files likely affected
+
+`docs/local-chrome-synthetic-verification.md`
+
+### Implementation plan
+
+Run the existing Node scripts and record exact pass/fail status.
+
+### Acceptance criteria
+
+Existing local verification results are recorded without inventing test outcomes.
+
+### Validation commands
+
+`node tests/scripts/verify-phase1-static.mjs`, `node tests/scripts/verify-f1a-observation-safety.mjs`, `node tests/scripts/verify-f1a-main-hook-simulator.mjs`, `node tests/scripts/evaluate-f1-observation.mjs tests/fixtures/f1-a-masked-summary.fixture.json`, `node tests/scripts/audit-operational-alignment.mjs`, `git diff --check`.
+
+### Out of scope
+
+New test frameworks or package metadata.
+
+### Risks
+
+`fixture_pass` is not evidence of real X F1-A viability.
+
+### Completion notes
+
+Implemented in this verification pass.
+
+### VERIFY-02
+
+### Priority
+
+P2
+
+### Source finding
+
+ChatGPT safe Chrome / Browser verification request.
+
+### Goal
+
+Attempt safe local Chrome verification without real X and without a logged-in Chrome profile.
+
+### Scope
+
+Use a `%TEMP%` Chrome profile, local file URLs, and synthetic fixture data only.
+
+### Files likely affected
+
+`docs/local-chrome-synthetic-verification.md`
+
+### Implementation plan
+
+Start Chrome with a temporary profile, attempt unpacked extension and popup verification, verify `tests/fixtures/home-timeline.html` through local synthetic controls where possible, and document any automation limits.
+
+### Acceptance criteria
+
+No real X URL is opened, no existing profile is used, synthetic fixture results are recorded, and unverified popup automation is clearly marked as unverified.
+
+### Validation commands
+
+Bounded local Chrome / DevTools Protocol checks with a temporary profile.
+
+### Out of scope
+
+Real X login, real X DOM, OAuth, raw X response, HAR, screenshot containing personal data, and Chrome Web Store preparation.
+
+### Risks
+
+Chrome unpacked extension popup automation can be unreliable from Codex without using a normal interactive profile.
+
+### Completion notes
+
+Implemented in this verification pass. Synthetic fixture was verified through local Chrome automation; extension popup automation remains unconfirmed and is documented for human Load unpacked verification.
+
+### VERIFY-03
+
+### Priority
+
+P2
+
+### Source finding
+
+ChatGPT manual verification packet cleanup request.
+
+### Goal
+
+Keep manual Chrome Load unpacked and synthetic fixture steps current after PR #2 / PR #4.
+
+### Scope
+
+`docs/manual-popup-verification.md`
+
+### Implementation plan
+
+Clarify current scope, local-only flow, expected synthetic fixture behavior, and reportable / non-reportable information.
+
+### Acceptance criteria
+
+Manual steps are readable in Japanese, non-programmer-friendly, and explicitly exclude real X verification from this pass.
+
+### Validation commands
+
+Docs diff review.
+
+### Out of scope
+
+Changing popup behavior.
+
+### Risks
+
+Manual browser verification still requires a human to operate Chrome.
+
+### Completion notes
+
+Implemented in this verification pass.
+
+### VERIFY-04
+
+### Priority
+
+P2
+
+### Source finding
+
+ChatGPT verification result document request.
+
+### Goal
+
+Record what was verified, what remains unverified, and the human checklist.
+
+### Scope
+
+`docs/local-chrome-synthetic-verification.md`
+
+### Implementation plan
+
+Add a small local verification result document covering baseline, Node checks, Chrome automation results, manual steps, reporting boundaries, and real X stop conditions.
+
+### Acceptance criteria
+
+The document separates confirmed results from unverified items and preserves raw-data / secret boundaries.
+
+### Validation commands
+
+Docs diff review.
+
+### Out of scope
+
+Claiming Chrome popup automation passed when it did not.
+
+### Risks
+
+The document can become stale after future Chrome or manifest changes.
+
+### Completion notes
+
+Implemented in this verification pass.
+
+### VERIFY-05
+
+### Priority
+
+P2
+
+### Source finding
+
+ChatGPT coordination docs update request.
+
+### Goal
+
+Record the VERIFY scope and decision boundary in coordination docs.
+
+### Scope
+
+`docs/CODEX_TASKS.md`, `docs/DECISION_LOG.md`
+
+### Implementation plan
+
+Add VERIFY-00 through VERIFY-05 task records and a decision log entry for local-only Chrome / synthetic verification.
+
+### Acceptance criteria
+
+Docs do not imply real X, deploy, package, CI, new permissions, or Chrome Web Store work was performed.
+
+### Validation commands
+
+Docs diff review.
+
+### Out of scope
+
+Changing Claude triage decisions or implementing deferred findings.
+
+### Risks
+
+Future agents must distinguish local synthetic verification from live X validation.
+
+### Completion notes
+
+Implemented in this verification pass.
+
 ## Completed tasks
 
 - COD-00: Implemented.
@@ -573,3 +839,9 @@ Implemented in this maintenance pass.
 - MAINT-02: Implemented.
 - MAINT-03: Implemented.
 - MAINT-04: Implemented.
+- VERIFY-00: Implemented.
+- VERIFY-01: Implemented.
+- VERIFY-02: Implemented.
+- VERIFY-03: Implemented.
+- VERIFY-04: Implemented.
+- VERIFY-05: Implemented.
