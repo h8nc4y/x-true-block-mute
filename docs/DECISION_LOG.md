@@ -24,6 +24,18 @@ Use this template for new decisions.
 
 ## Initial decisions
 
+### 2026-05-31: Phase 2 remains gated by local readiness, privacy, and ChatGPT approval
+
+- Date: 2026-05-31
+- Decision: Codex may prepare GATE-00 through GATE-05 readiness documentation, but must not start Phase 2 implementation, real X verification, external API work, packaging, CI, deployment, or Chrome Web Store preparation in this pass.
+- Context: The user is waiting for human Chrome Load unpacked verification and asked Codex to add Phase 2 readiness gates, a privacy/threat model, a deferred findings register, and a docs consistency verification script.
+- Options considered: Start Phase 2 implementation immediately; perform real X or Chrome 실機 verification from Codex; create local readiness and governance docs only.
+- Rationale: The repository still needs human Chrome Load unpacked / popup confirmation and ChatGPT triage before higher-risk implementation. Docs-only gates improve reviewability without exposing secrets, OAuth credentials, raw X data, account data, or production infrastructure.
+- Consequences: `docs/phase2-readiness-gates.md`, `docs/privacy-threat-model.md`, `docs/deferred-findings-register.md`, and `tests/scripts/verify-docs-consistency.mjs` become the current local readiness packet. Phase 2, production sync, F1-B/F1-C/F1-D, real-DOM matching, package/CI, deploy, and Chrome Web Store work remain deferred.
+- Status: Active
+- Related files: `docs/phase2-readiness-gates.md`, `docs/privacy-threat-model.md`, `docs/deferred-findings-register.md`, `tests/scripts/verify-docs-consistency.mjs`, `docs/CODEX_TASKS.md`
+- Related review findings: CL-AUDIT-006, CL-AUDIT-007, CL-AUDIT-011
+
 ### 2026-05-31: Keep post-merge Chrome verification local-only before real X
 
 - Date: 2026-05-31

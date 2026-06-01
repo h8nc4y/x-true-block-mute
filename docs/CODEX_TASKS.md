@@ -2,7 +2,7 @@
 
 ## Status
 
-ChatGPT-approved tasks COD-00 through COD-05 were implemented in PR #2. MAINT-00 through MAINT-04 were implemented in PR #4. VERIFY-00 through VERIFY-05 are implemented in the current local verification documentation pass.
+ChatGPT-approved tasks COD-00 through COD-05 were implemented in PR #2. MAINT-00 through MAINT-04 were implemented in PR #4. VERIFY-00 through VERIFY-05 were implemented in PR #5. GATE-00 through GATE-05 are implemented in the current Phase 2 readiness documentation pass.
 
 ## Source of truth
 
@@ -826,6 +826,284 @@ Future agents must distinguish local synthetic verification from live X validati
 
 Implemented in this verification pass.
 
+## Phase 2 readiness gate task queue
+
+### GATE-00
+
+### Priority
+
+P1
+
+### Source finding
+
+ChatGPT Phase 2 readiness gate request.
+
+### Goal
+
+Confirm the post-merge baseline before adding Phase 2 readiness documentation.
+
+### Scope
+
+Git branch/status inspection, recent merge context, existing validation commands, and current coordination docs.
+
+### Files likely affected
+
+Documentation only.
+
+### Implementation plan
+
+Inspect `main`, create a new docs branch, and preserve the current Phase 1 / Phase 1.5 boundary.
+
+### Acceptance criteria
+
+The gate pass does not claim Chrome Load unpacked, popup human confirmation, real X, external API, deploy, package, CI, or Chrome Web Store work was performed.
+
+### Validation commands
+
+`git status --short --branch`; existing local Node validation commands.
+
+### Out of scope
+
+Source behavior changes and real X verification.
+
+### Risks
+
+Future agents may confuse fixture evidence with live X evidence.
+
+### Completion notes
+
+Implemented in this gate pass.
+
+### GATE-01
+
+### Priority
+
+P1
+
+### Source finding
+
+ChatGPT Phase 2 readiness gate request.
+
+### Goal
+
+Create a Phase 2 readiness gate document.
+
+### Scope
+
+`docs/phase2-readiness-gates.md`
+
+### Files likely affected
+
+`docs/phase2-readiness-gates.md`
+
+### Implementation plan
+
+Document baseline, gate summary, Chrome Load unpacked status, synthetic fixture limits, F1-A masked-summary gate, source selection gate, stop conditions, and next minimum step.
+
+### Acceptance criteria
+
+The document clearly marks Chrome Load unpacked and popup confirmation as 未確認 and keeps Phase 2 implementation blocked until ChatGPT approval.
+
+### Validation commands
+
+`node tests/scripts/verify-docs-consistency.mjs`
+
+### Out of scope
+
+Implementing Phase 2.
+
+### Risks
+
+The document must not be treated as live validation evidence.
+
+### Completion notes
+
+Implemented in this gate pass.
+
+### GATE-02
+
+### Priority
+
+P1
+
+### Source finding
+
+ChatGPT privacy and threat model request.
+
+### Goal
+
+Create a privacy and threat model for the current extension and Phase 2 boundary.
+
+### Scope
+
+`docs/privacy-threat-model.md`
+
+### Files likely affected
+
+`docs/privacy-threat-model.md`
+
+### Implementation plan
+
+Document assets, trust boundaries, storage separation, clipboard rules, MAIN-world hook risks, permission boundaries, threats, mitigations, and human reporting rules.
+
+### Acceptance criteria
+
+The document prohibits secrets, OAuth credentials, Cookies, raw X responses, raw identifiers, HAR, screenshots, and unapproved permissions from docs/logs/PRs.
+
+### Validation commands
+
+`node tests/scripts/verify-docs-consistency.mjs`
+
+### Out of scope
+
+Security implementation changes.
+
+### Risks
+
+Human-provided masked summaries can still be over-shared if future instructions are unclear.
+
+### Completion notes
+
+Implemented in this gate pass.
+
+### GATE-03
+
+### Priority
+
+P1
+
+### Source finding
+
+ChatGPT deferred findings register request.
+
+### Goal
+
+Record deferred Claude findings and future product/architecture items without approving them.
+
+### Scope
+
+`docs/deferred-findings-register.md`
+
+### Files likely affected
+
+`docs/deferred-findings-register.md`
+
+### Implementation plan
+
+List deferred review findings, deferred Phase 2 work, stop conditions, minimum future approval packet, human blockers, and next minimum step.
+
+### Acceptance criteria
+
+The register states that deferred items are not tasks and must not be implemented until ChatGPT approves them.
+
+### Validation commands
+
+`node tests/scripts/verify-docs-consistency.mjs`
+
+### Out of scope
+
+Moving deferred findings into approved tasks.
+
+### Risks
+
+Future agents may accidentally treat the register as an implementation queue.
+
+### Completion notes
+
+Implemented in this gate pass.
+
+### GATE-04
+
+### Priority
+
+P2
+
+### Source finding
+
+ChatGPT docs consistency verification request.
+
+### Goal
+
+Add a local docs consistency verification script.
+
+### Scope
+
+`tests/scripts/verify-docs-consistency.mjs`, `README.md`
+
+### Files likely affected
+
+`tests/scripts/verify-docs-consistency.mjs`, `README.md`
+
+### Implementation plan
+
+Add a dependency-free Node script that checks required docs, manifest permission boundaries, forbidden-permission documentation, readiness-gate phrases, threat-model phrases, deferred-register IDs, and coordination-doc Gate IDs.
+
+### Acceptance criteria
+
+The script runs locally without installing dependencies and prints `Docs consistency verification passed`.
+
+### Validation commands
+
+`node tests/scripts/verify-docs-consistency.mjs`
+
+### Out of scope
+
+Adding package scripts or CI.
+
+### Risks
+
+String-based docs checks can require maintenance when docs are intentionally reworded.
+
+### Completion notes
+
+Implemented in this gate pass.
+
+### GATE-05
+
+### Priority
+
+P2
+
+### Source finding
+
+ChatGPT coordination docs update request.
+
+### Goal
+
+Record Phase 2 readiness gate work in coordination docs.
+
+### Scope
+
+`docs/CODEX_TASKS.md`, `docs/DECISION_LOG.md`
+
+### Files likely affected
+
+`docs/CODEX_TASKS.md`, `docs/DECISION_LOG.md`
+
+### Implementation plan
+
+Update task history and add a decision that Phase 2 remains gated by local readiness, privacy boundaries, and ChatGPT approval.
+
+### Acceptance criteria
+
+Coordination docs mention GATE-00 through GATE-05 and do not imply unapproved implementation work.
+
+### Validation commands
+
+`node tests/scripts/verify-docs-consistency.mjs`
+
+### Out of scope
+
+Changing Claude triage decisions.
+
+### Risks
+
+Future agents must continue to distinguish documentation gates from implementation approval.
+
+### Completion notes
+
+Implemented in this gate pass.
+
 ## Completed tasks
 
 - COD-00: Implemented.
@@ -845,3 +1123,9 @@ Implemented in this verification pass.
 - VERIFY-03: Implemented.
 - VERIFY-04: Implemented.
 - VERIFY-05: Implemented.
+- GATE-00: Implemented.
+- GATE-01: Implemented.
+- GATE-02: Implemented.
+- GATE-03: Implemented.
+- GATE-04: Implemented.
+- GATE-05: Implemented.
