@@ -1,5 +1,7 @@
 # CLAUDE_REVIEW
 
+> **ARCHIVED (2026-06-13)**: この文書は ChatGPT 承認制ガバナンス時代のレビュー記録です。「Claude findings remain advisory; Codex may implement only ChatGPT-approved ... scope」を含む前提は現在無効です。現行の運用ルールは [`AGENTS.md`](../AGENTS.md)、現行タスクは [`TASKS_BACKLOG.md`](../TASKS_BACKLOG.md)、経緯は [`DECISION_LOG.md`](DECISION_LOG.md) の 2026-06-13 決定を参照してください。本文は CL-AUDIT 出典の追跡のため凍結保存しています。
+
 ## Status
 
 Claude Code review has been completed and pasted into this file.

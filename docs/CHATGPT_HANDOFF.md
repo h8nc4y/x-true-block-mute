@@ -1,5 +1,7 @@
 # CHATGPT_HANDOFF
 
+> **ARCHIVED (2026-06-13)**: この文書は ChatGPT 承認制ガバナンス時代の歴史的記録です。ガバナンス自体が 2026-06-13 にユーザー直接承認制へ変更され、本文の前提は無効です。現行の運用ルールは [`AGENTS.md`](../AGENTS.md)、現行タスクは [`TASKS_BACKLOG.md`](../TASKS_BACKLOG.md)、経緯は [`DECISION_LOG.md`](DECISION_LOG.md) の 2026-06-13 決定を参照してください。本文は凍結保存しています。
+
 ## Status
 
 Prepared by Codex for upload or paste into ChatGPT.

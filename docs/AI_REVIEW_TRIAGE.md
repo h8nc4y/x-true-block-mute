@@ -1,5 +1,7 @@
 # AI_REVIEW_TRIAGE
 
+> **ARCHIVED (2026-06-13)**: この文書は ChatGPT 承認制ガバナンス時代の歴史的記録です。「Claude findings remain advisory; ChatGPT is the decision-maker」を含む triage ルールは現在無効です。現行の運用ルールは [`AGENTS.md`](../AGENTS.md)、現行タスクは [`TASKS_BACKLOG.md`](../TASKS_BACKLOG.md)、経緯は [`DECISION_LOG.md`](DECISION_LOG.md) の 2026-06-13 決定を参照してください。本文は CL-AUDIT 出典の追跡のため凍結保存しています。
+
 ## Status
 
 ChatGPT triage has been performed for the Claude Code review findings referenced by the current Codex task.

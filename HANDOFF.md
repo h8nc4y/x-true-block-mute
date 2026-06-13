@@ -2,6 +2,8 @@
 
 最終更新: 2026-06-12
 
+> **2026-06-13 追記**: Codex から Claude Code への引き継ぎが完了しました。ガバナンスは「ユーザー本人がチャットで直接承認 → Claude Code が実装」へ変更され、ChatGPT 承認制は廃止されました（経緯は [`docs/DECISION_LOG.md`](docs/DECISION_LOG.md) の 2026-06-13 決定）。最終目的は Chrome Web Store での一般配布です。現行タスクは [`TASKS_BACKLOG.md`](TASKS_BACKLOG.md)、運用ルールは [`AGENTS.md`](AGENTS.md) を参照してください。以下の本文は引き継ぎ時点の歴史的記録です（「次にやるべき候補」は 2026-06-13 のロードマップ M1〜M7 に置き換わりました）。
+
 ## 目的
 
 この repository は、X/Twitter でブロック・ミュート済みアカウント由来の情報露出を減らすことを目指す Chrome Manifest V3 拡張です。現時点では Phase 1 / Phase 1.5 の research / prototype 段階です。

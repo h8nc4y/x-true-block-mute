@@ -1,5 +1,7 @@
 # CODEX_TASKS
 
+> **ARCHIVED (2026-06-13)**: この文書は ChatGPT 承認制ガバナンス時代の歴史的記録です。本文の「Rules for Codex」を含むルールは現在無効です。現行の運用ルールは [`AGENTS.md`](../AGENTS.md)、現行タスクは [`TASKS_BACKLOG.md`](../TASKS_BACKLOG.md)、ガバナンス変更の経緯は [`DECISION_LOG.md`](DECISION_LOG.md) の 2026-06-13 決定を参照してください。本文は監査追跡のため凍結保存しています。
+
 ## Status
 
 ChatGPT-approved tasks COD-00 through COD-05 were implemented in PR #2. MAINT-00 through MAINT-04 were implemented in PR #4. VERIFY-00 through VERIFY-05 were implemented in PR #5. GATE-00 through GATE-05 are implemented in the current Phase 2 readiness documentation pass.

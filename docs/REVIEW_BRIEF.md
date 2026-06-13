@@ -1,5 +1,7 @@
 # REVIEW_BRIEF
 
+> **ARCHIVED (2026-06-13)**: この文書は ChatGPT 承認制ガバナンス時代のレビュー文脈の歴史的記録です。「ChatGPT remains responsible for accepting/deferring/rejecting」を含む前提は現在無効です。現行の運用ルールは [`AGENTS.md`](../AGENTS.md)、現行タスクは [`TASKS_BACKLOG.md`](../TASKS_BACKLOG.md)、経緯は [`DECISION_LOG.md`](DECISION_LOG.md) の 2026-06-13 決定を参照してください。本文は凍結保存しています。
+
 ## Status
 
 This file was prepared by Codex from local repository inspection for ChatGPT and a future Claude Code review. It may contain inferences.
