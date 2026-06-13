@@ -213,6 +213,17 @@ node tests/scripts/evaluate-f1-observation.mjs --live path\to\masked-summary.jso
 - 実 X DOM の投稿者判定は User-Name 領域限定 + quote / embed 分離で実装・確認済み（M5）。同期の主キー `user_id`（rest_id）と補助キー handle（screen_name）は一覧 GraphQL 応答から取得する。
 - 残: Chrome Web Store 提出（M7）の審査結果は未確認。
 
+## プライバシーポリシー
+
+プライバシーポリシーは `docs/privacy-policy.md`（日英併記）と、ホスティング用の自己完結
+HTML `docs/privacy-policy.html` にあります。Chrome Web Store 提出には公開 URL が必要です。
+
+公開前のユーザー作業:
+
+1. `docs/privacy-policy.md` と `docs/privacy-policy.html` の連絡先プレースホルダ（`[ADD YOUR CONTACT EMAIL BEFORE PUBLISHING]` / `[公開前に連絡先メールアドレスを記入してください]`）に連絡先メールを記入する。
+2. `docs/privacy-policy.html` をホストする（例: リポジトリ設定で GitHub Pages を `/docs` から有効化すると `https://<user>.github.io/<repo>/privacy-policy.html` で公開される）。
+3. その URL をストア掲載情報のプライバシーポリシー欄に設定する（`docs/store-listing.md` 参照）。
+
 ## パッケージング（Chrome Web Store 用）
 
 出荷用 zip は allowlist 方式で、拡張に必要なファイルだけを同梱します（research のオフライン証跡・tests・docs・scripts・`*.md`・`icons/icon.svg` は除外）。
