@@ -1,0 +1,63 @@
+{
+  "_note": "Synthetic X-timeline-shaped BlockedAccounts response for offline tests. All ids/handles are fake.",
+  "data": {
+    "viewer": {
+      "timeline": {
+        "timeline": {
+          "instructions": [
+            { "type": "TimelineClearCache" },
+            {
+              "type": "TimelineAddEntries",
+              "entries": [
+                {
+                  "entryId": "user-9000000000000000001",
+                  "sortIndex": "1900",
+                  "content": {
+                    "entryType": "TimelineTimelineItem",
+                    "itemContent": {
+                      "itemType": "TimelineUser",
+                      "user_results": {
+                        "result": {
+                          "__typename": "User",
+                          "rest_id": "9000000000000000001",
+                          "legacy": { "screen_name": "synthetic_blocked_a", "name": "Synthetic Blocked A" }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "entryId": "user-9000000000000000002",
+                  "sortIndex": "1800",
+                  "content": {
+                    "entryType": "TimelineTimelineItem",
+                    "itemContent": {
+                      "itemType": "TimelineUser",
+                      "user_results": {
+                        "result": {
+                          "__typename": "User",
+                          "rest_id": "9000000000000000002",
+                          "core": { "screen_name": "Synthetic_Blocked_B", "name": "Synthetic Blocked B" }
+                        }
+                      }
+                    }
+                  }
+                },
+                {
+                  "entryId": "cursor-top-AAA",
+                  "sortIndex": "1901",
+                  "content": { "entryType": "TimelineTimelineCursor", "cursorType": "Top", "value": "synthetic-top-cursor" }
+                },
+                {
+                  "entryId": "cursor-bottom-ZZZ",
+                  "sortIndex": "0",
+                  "content": { "entryType": "TimelineTimelineCursor", "cursorType": "Bottom", "value": "synthetic-bottom-cursor" }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}
