@@ -13,8 +13,13 @@
   namespace.STORAGE_KEYS = Object.freeze({
     SETTINGS: "xtbmSettings",
     ENTRIES: "xtbmEntries",
-    F1A_RESEARCH: "xtbmF1AResearch"
+    F1A_RESEARCH: "xtbmF1AResearch",
+    SYNC_STATE: "xtbmSyncState"
   });
+
+  // Production sync (M4): the MAIN-world capture hook posts extracted list
+  // entries to the ISOLATED bridge under this page-message source.
+  namespace.SYNC_MESSAGE_SOURCE = "x-tbm:sync:capture";
 
   namespace.RESEARCH_F1A = Object.freeze({
     MESSAGE_INJECT: "x-tbm:f1a:inject-main-hook",
