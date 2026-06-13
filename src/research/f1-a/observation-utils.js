@@ -399,6 +399,13 @@
     const hasFixtureSource = state.observations.some((observation) => observation.sourceKind === "fixture");
     const mutedHookRunIds = new Set(muted.hookRunIds);
     const sharedHookRun = blocked.hookRunIds.some((id) => mutedHookRunIds.has(id));
+    // The extension injects content scripts per settings page (manifest
+    // content_scripts match both /settings/blocked/all and /settings/muted/all
+    // at document_start), so each page is captured under its own hook run.
+    // Cross-page SPA continuity is therefore not required for viability; what
+    // matters is that each page was captured under a live hook. `spaContinuity`
+    // is reported for information only and never gates the verdict.
+    const perPageHookCapture = blocked.hookRunIds.length > 0 && muted.hookRunIds.length > 0;
     const missing = [];
     if (!blocked.count) missing.push("blocked observation");
     if (!muted.count) missing.push("muted observation");
@@ -410,7 +417,7 @@
     if (!muted.hasIdentity) missing.push("muted user_id-like or handle-like signal");
     if (!blocked.hasPagination) missing.push("blocked pagination or completion signal");
     if (!muted.hasPagination) missing.push("muted pagination or completion signal");
-    if (!sharedHookRun) missing.push("SPA navigation continuity signal");
+    if (!perPageHookCapture) missing.push("per-page hook capture signal");
 
     if (missing.length > 0) {
       return {
@@ -419,6 +426,7 @@
         missing,
         blocked,
         muted,
+        spaContinuity: sharedHookRun,
         recommendation: "不足項目があるため、F1-A primary は未採用です。F1-B または F1-D fallback を検討してください。"
       };
     }
@@ -429,6 +437,7 @@
       missing: [],
       blocked,
       muted,
+      spaContinuity: sharedHookRun,
       recommendation:
         options.mode === "live" && !hasFixtureSource
           ? "masked 実測条件は満たしています。Phase 2 では review risk と保守性を確認してから F1-A primary を採用してください。"

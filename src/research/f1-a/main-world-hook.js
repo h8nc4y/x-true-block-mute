@@ -218,6 +218,46 @@
       return Number.isFinite(status) && status > 0 ? `${Math.floor(status / 100)}xx` : "unknown";
     }
 
+    function detectDeepPaginationSignal(root) {
+      // X timeline cursors live inside `instructions[].entries[]` — often the
+      // LAST entry, with `content.cursorType: "Bottom"`. The shapePath scan
+      // below does not reach them (depth limit + only-first-array-element), so
+      // this pass walks all array elements within a bounded node budget and
+      // inspects KEY NAMES only. No value is read or emitted; it returns a
+      // boolean indicating a pagination/cursor field exists.
+      let budget = 4000;
+      const visited = new WeakSet();
+      function walk(node, depth) {
+        if (budget <= 0 || depth > 12 || node === null || typeof node !== "object") {
+          return false;
+        }
+        if (visited.has(node)) {
+          return false;
+        }
+        visited.add(node);
+        budget -= 1;
+        if (Array.isArray(node)) {
+          for (const item of node) {
+            if (walk(item, depth + 1)) {
+              return true;
+            }
+          }
+          return false;
+        }
+        for (const key of Object.keys(node)) {
+          const normalized = String(key).toLowerCase().replace(/[^a-z0-9_]/g, "");
+          if (paginationKeys.has(normalized) || normalized.includes("cursor")) {
+            return true;
+          }
+          if (walk(node[key], depth + 1)) {
+            return true;
+          }
+        }
+        return false;
+      }
+      return walk(root, 0);
+    }
+
     function scanShape(value) {
       const topLevelKeys = [];
       const shapePaths = [];
@@ -277,6 +317,10 @@
       }
 
       visit(value, "$", 0);
+      if (!fieldPresence.paginationLike && detectDeepPaginationSignal(value)) {
+        fieldPresence.cursorLike = true;
+        fieldPresence.paginationLike = true;
+      }
       return {
         topLevelKeys: topLevelKeys.slice(0, 30),
         shapePaths: shapePaths.slice(0, 80),

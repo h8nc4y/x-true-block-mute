@@ -87,8 +87,59 @@ const syntheticJson = JSON.stringify({
   }
 });
 
+// A GraphQL-timeline-style body whose only pagination signal is a cursor entry
+// nested deep inside instructions[].entries[] as the LAST element — exactly the
+// shape the shallow shapePath scan cannot reach. The raw id/handle/cursor values
+// must never appear in the emitted observation.
+const timelineCursorJson = JSON.stringify({
+  data: {
+    user: {
+      result: {
+        timeline: {
+          timeline: {
+            instructions: [
+              {
+                type: "TimelineAddEntries",
+                entries: [
+                  {
+                    entryId: "user-001",
+                    sortIndex: "1000",
+                    content: {
+                      itemContent: {
+                        user_results: {
+                          result: { rest_id: "12345678901234567890", legacy: { screen_name: "raw_handle_value_should_not_be_saved" } }
+                        }
+                      }
+                    }
+                  },
+                  {
+                    entryId: "cursor-bottom-DEEP",
+                    sortIndex: "0",
+                    content: {
+                      entryType: "TimelineTimelineCursor",
+                      __typename: "TimelineTimelineCursor",
+                      cursorType: "Bottom",
+                      value: "deep-cursor-value-should-not-be-saved"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+});
+
 const windowObject = {
-  fetch: () => Promise.resolve(new FakeResponse(syntheticJson)),
+  fetch: (url) => {
+    const text = String(url || "");
+    if (text.includes("DeepTL")) {
+      return Promise.resolve(new FakeResponse(timelineCursorJson));
+    }
+    return Promise.resolve(new FakeResponse(syntheticJson));
+  },
   postMessage: (message, targetOrigin) => {
     messages.push({ message, targetOrigin });
   }
@@ -137,5 +188,18 @@ assert(observations[0].fieldPresence.userIdLike, "fetch observation should detec
 assert(observations[0].fieldPresence.handleLike, "fetch observation should detect handle-like fields");
 assert(observations[0].fieldPresence.paginationLike, "fetch observation should detect pagination-like fields");
 assert(observations[0].hookRunId === observations[1].hookRunId, "same hookRunId should support SPA continuity evaluation");
+
+// Deep timeline cursor: pagination signal is only reachable by the dedicated
+// deep detector (nested past the shapePath depth limit, last array element).
+await context.window.fetch("https://x.com/i/api/graphql/aaa/BlockedAccounts?DeepTL=1&variables=x");
+await flushAsyncInspection();
+await flushAsyncInspection();
+assert(messages.length === 3, "deep timeline cursor fetch should produce a third observation");
+const deep = messages[2].message.observation;
+const deepOutput = JSON.stringify(deep);
+assert(deep.fieldPresence.paginationLike === true, "deep nested timeline cursor (last entry) must set paginationLike");
+assert(!deepOutput.includes("12345678901234567890"), "deep observation must not include raw id");
+assert(!deepOutput.includes("raw_handle_value_should_not_be_saved"), "deep observation must not include raw handle");
+assert(!deepOutput.includes("deep-cursor-value-should-not-be-saved"), "deep observation must not include raw cursor value");
 
 console.log("F1-A MAIN world hook simulator verification passed");

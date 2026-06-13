@@ -22,9 +22,9 @@ masked summary の構造分析（生値なし）で確認できたこと:
 
 採用条件（M4 で実施）:
 
-1. MAIN world hook の shape 走査を `instructions[].entries[]` 配下まで深め、`TimelineTimelineCursor` / `cursorType` / `entryId="cursor-…"` を検出して `paginationLike` を立てる（cursor の有無＝boolean のみ。raw cursor 値は保存しない）。
-2. observation-utils と simulator test を同期更新。
-3. 短時間の live 再評価で `hasPagination` 成立（→ `f1a_viable`）を確認してから production capture を実装する。
+1. （実装済み）MAIN world hook に深いカーソル検出 `detectDeepPaginationSignal` を追加。`instructions[].entries[]` を全要素・深さ12・ノード予算つきで走査し、`cursorType` 等のキー名だけで `paginationLike` を立てる（raw cursor 値は読まない・出さない）。simulator test に「末尾ネスト cursor」ケースを追加し検証済み。
+2. （実装済み）evaluator の continuity 判定を per-page 注入設計に整合。cross-page の `sharedHookRun` 必須を撤廃し、`spaContinuity` は情報出力のみ（manifest が両設定ページに document_start で個別注入するため、ページ跨ぎ continuity は本番要件ではない）。
+3. （未実施）拡張を reload して新フックで blocked/muted を取り直し、短時間の live 再評価で `f1a_viable` を確認してから production capture を実装する。旧フックで取得した summary は continuity 是正後も pagination のみ欠落（= 新フックで解消見込み）。
 
 不採用に切り替える条件: 上記修正後の live 再評価でも pagination が成立しない、または full-list 取得が安定しない場合は F1-B（表示範囲限定同期）/ F1-D（手動インポート）へ切り替える。
 
