@@ -2,7 +2,7 @@
 
 ## Status
 
-2026-06-13 (M3) live 評価により、**F1-A を Phase 2 primary 候補として採用**する。ただし pagination 検出の修正を採用条件とする（下記「Live evaluation result」参照）。
+2026-06-13 (M3) live 評価により、**F1-A を Phase 2 primary として確定採用**する。深検出修正後の live 再評価で `f1a_viable`（blocked / muted とも endpoint・shape・identity・pagination 成立、`unsafeSignals: []`）を確認した（下記「Live evaluation result」「Live re-evaluation」）。
 
 実 X のログイン済みアカウントで blocked / muted 両ページの masked observation を収集し、`evaluate-f1-observation.mjs --live` で判定した。endpoint / response shape / identity（user_id 風・handle 風）は両ページで成立。pagination 検出のみ未成立だが、これはカーソル不在ではなくフックの走査が浅いことが原因と構造分析で判明したため、修正対象として扱う。
 
@@ -24,7 +24,18 @@ masked summary の構造分析（生値なし）で確認できたこと:
 
 1. （実装済み）MAIN world hook に深いカーソル検出 `detectDeepPaginationSignal` を追加。`instructions[].entries[]` を全要素・深さ12・ノード予算つきで走査し、`cursorType` 等のキー名だけで `paginationLike` を立てる（raw cursor 値は読まない・出さない）。simulator test に「末尾ネスト cursor」ケースを追加し検証済み。
 2. （実装済み）evaluator の continuity 判定を per-page 注入設計に整合。cross-page の `sharedHookRun` 必須を撤廃し、`spaContinuity` は情報出力のみ（manifest が両設定ページに document_start で個別注入するため、ページ跨ぎ continuity は本番要件ではない）。
-3. （未実施）拡張を reload して新フックで blocked/muted を取り直し、短時間の live 再評価で `f1a_viable` を確認してから production capture を実装する。旧フックで取得した summary は continuity 是正後も pagination のみ欠落（= 新フックで解消見込み）。
+3. （実施済み）拡張を reload し新フックで blocked/muted を取り直して live 再評価 → `f1a_viable` 確認済み。production capture 実装に進んでよい。
+
+## Live re-evaluation (2026-06-13, f1a_viable)
+
+深検出を identity（rest_id/screen_name）と pagination（cursor）に一般化（深さ18・キー名のみ・raw 値非読取）した後、拡張を reload し観測メモをクリアして blocked/muted を取り直した。`evaluate-f1-observation.mjs --live` の結果:
+
+- status: `f1a_viable`、missing: なし、`unsafeSignals: []`。
+- blocked: count 27、endpoint ✓ / shape ✓ / identity ✓ / pagination ✓。
+- muted: count 33、endpoint ✓ / shape ✓ / identity ✓ / pagination ✓。
+- spaContinuity: false（情報のみ。本番は両ページ個別注入のため非ゲート）。
+
+結論: F1-A を Phase 2 primary として採用。production capture は user_id（rest_id）/ handle（screen_name）/ listKind（blocked/muted）のみを抽出し、`Storage.upsertSyncedEntries()` で `xtbmEntries` に同期する（M4）。raw cursor 値・表示名・本文は抽出しない。
 
 不採用に切り替える条件: 上記修正後の live 再評価でも pagination が成立しない、または full-list 取得が安定しない場合は F1-B（表示範囲限定同期）/ F1-D（手動インポート）へ切り替える。
 
