@@ -142,6 +142,38 @@
     }
   }
 
+  // A quoted tweet is a clickable container (role="link") that holds its own
+  // User-Name. The post author's User-Name lives outside any such container, so
+  // these are exactly the embedded quotes. Keep only the outermost ones.
+  function findQuoteContainers(card) {
+    const candidates = Array.from(card.querySelectorAll('div[role="link"]')).filter((element) =>
+      element.querySelector('[data-testid="User-Name"]')
+    );
+    return candidates.filter((element) => !candidates.some((other) => other !== element && other.contains(element)));
+  }
+
+  function extractQuoteHandle(quote) {
+    const userName = quote.querySelector('[data-testid="User-Name"]');
+    if (!userName) {
+      return "";
+    }
+    return normalizeHandle(handleFromLinks(userName.querySelectorAll("a[href]")));
+  }
+
+  // When the post author is not a target, hide only the quoted card(s) whose
+  // author is blocked/muted, leaving the safe author's own post intact.
+  function processQuotedCards(card, mode) {
+    for (const quote of findQuoteContainers(card)) {
+      if (replacements.has(quote) || quote.dataset.xTbmReplacement) {
+        continue;
+      }
+      const handle = extractQuoteHandle(quote);
+      if (handle && targetHandles.has(handle)) {
+        replaceCard(quote, mode);
+      }
+    }
+  }
+
   function processCard(card) {
     if (card.dataset.xTbmReplacement) {
       return;
@@ -149,10 +181,11 @@
     if (!settings.enabled || settings.displayMode === DISPLAY_MODES.OFF) {
       return;
     }
-    if (!isTargetCard(card)) {
+    if (isTargetCard(card)) {
+      replaceCard(card, settings.displayMode);
       return;
     }
-    replaceCard(card, settings.displayMode);
+    processQuotedCards(card, settings.displayMode);
   }
 
   function processRoot(root) {
