@@ -213,6 +213,17 @@ node tests/scripts/evaluate-f1-observation.mjs --live path\to\masked-summary.jso
 - 実 X DOM の投稿者判定は User-Name 領域限定 + quote / embed 分離で実装・確認済み（M5）。同期の主キー `user_id`（rest_id）と補助キー handle（screen_name）は一覧 GraphQL 応答から取得する。
 - 残: Chrome Web Store 提出（M7）の審査結果は未確認。
 
+## パッケージング（Chrome Web Store 用）
+
+出荷用 zip は allowlist 方式で、拡張に必要なファイルだけを同梱します（research のオフライン証跡・tests・docs・scripts・`*.md`・`icons/icon.svg` は除外）。
+
+```powershell
+node scripts/build-package.mjs        # dist/TrueBlock-Mute-v<version>.zip を生成
+node tests/scripts/verify-package.mjs # allowlist 完全性・禁止パス不在・ZIP 妥当性を検証
+```
+
+`dist/` は gitignore 済みです。アイコンは `node scripts/make-icons.mjs` で `icons/icon.svg` から再生成できます。
+
 ## 関係性の表明
 
 このプロジェクトは X Corp.、Twitter、または Chrome Web Store レビュアーと提携、承認、公式接続されたものではありません。
