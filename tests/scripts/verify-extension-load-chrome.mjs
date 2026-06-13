@@ -374,6 +374,43 @@ async function main() {
     await runFixtureMode("off", 0);
     await runFixtureMode("placeholder", 2); // re-apply after off proves toggling works
     await runFixtureMode("clear", 0);
+
+    // --- Check 5: real-DOM-shaped author matching (M5) ------------------
+    const realDomUrl = pathToFileURL(path.join(repoRoot, "tests", "fixtures", "real-dom-timeline.html")).href;
+    const realDom = await openPage(cdp, realDomUrl);
+    await pollValue(
+      async () => {
+        const value = await evaluate(
+          cdp,
+          realDom.sessionId,
+          "Boolean(window.XTrueBlockMute && window.XTrueBlockMute.ContentScript)"
+        );
+        return { ok: value === true, value };
+      },
+      { timeout: 8000, desc: "real-dom fixture scripts to load" }
+    );
+    const realDomProbe =
+      "({ replaced: document.querySelectorAll('[data-x-tbm-replacement]').length," +
+      " card1: Boolean(document.querySelector('[data-test-id=\\'card-1\\']'))," +
+      " card2: Boolean(document.querySelector('[data-test-id=\\'card-2\\']'))," +
+      " card3: Boolean(document.querySelector('[data-test-id=\\'card-3\\']'))," +
+      " card4: Boolean(document.querySelector('[data-test-id=\\'card-4\\']'))," +
+      " card5: Boolean(document.querySelector('[data-test-id=\\'card-5\\']')) })";
+    await evaluate(cdp, realDom.sessionId, "document.querySelector('[data-fixture-action=\"hidden\"]').click()");
+    const realDomResult = await pollValue(
+      async () => {
+        const value = await evaluate(cdp, realDom.sessionId, realDomProbe);
+        return { ok: value.replaced === 2, value };
+      },
+      { timeout: 5000, desc: "real-dom hidden to replace the 2 author-matched cards" }
+    ).catch(() => evaluate(cdp, realDom.sessionId, realDomProbe));
+    await captureScreenshot(cdp, realDom.sessionId, path.join(tmpDir, "tb002-realdom-screenshot.png"));
+    check(realDomResult.replaced === 2, "real-DOM: exactly 2 author-matched cards replaced", realDomResult);
+    check(realDomResult.card1 === false, "real-DOM: card-1 (User-Name author = target) hidden", realDomResult);
+    check(realDomResult.card4 === false, "real-DOM: card-4 (avatar-only author = target) hidden", realDomResult);
+    check(realDomResult.card2 === true, "real-DOM: card-2 (safe author) kept", realDomResult);
+    check(realDomResult.card3 === true, "real-DOM: card-3 quotes target but safe author -> kept", realDomResult);
+    check(realDomResult.card5 === true, "real-DOM: card-5 mentions target but safe author -> kept", realDomResult);
   } finally {
     await cleanup();
   }

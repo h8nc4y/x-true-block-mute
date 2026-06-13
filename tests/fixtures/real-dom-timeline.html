@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Real-DOM-shaped timeline fixture (synthetic)</title>
+    <link rel="stylesheet" href="../../src/content/content-script.css">
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; color: #111; background: #f7f9f9; font: 15px/1.5 system-ui, sans-serif; }
+      main { max-width: 640px; margin: 0 auto; background: #fff; }
+      header, article, .fixture-controls { padding: 16px; border-bottom: 1px solid #eff3f4; }
+      button { min-height: 34px; border: 1px solid #111; border-radius: 8px; background: #111; color: #fff; font-weight: 700; cursor: pointer; }
+      button.secondary { background: #fff; color: #111; }
+      article { display: grid; gap: 6px; }
+      .quoted { border: 1px solid #d7dbdc; border-radius: 12px; padding: 8px; color: #536471; }
+    </style>
+  </head>
+  <body>
+    <!--
+      Synthetic timeline that mimics the real X DOM shape: each post is an
+      article[data-testid="tweet"] whose author lives in a
+      div[data-testid="User-Name"] (or Tweet-User-Avatar). All handles are fake.
+      Target = blocked_author. Expected hidden result: card-1 and card-4 are
+      replaced; card-2 (safe), card-3 (quotes blocked_author), and card-5
+      (mentions blocked_author) stay visible.
+    -->
+    <main role="main" data-testid="primaryColumn">
+      <header><h1>real-DOM-shaped synthetic timeline</h1></header>
+
+      <section class="fixture-controls" aria-label="fixture controls">
+        <button type="button" data-fixture-action="hidden">完全に隠す</button>
+        <button type="button" data-fixture-action="off" class="secondary">何もしない</button>
+      </section>
+
+      <article data-testid="tweet" data-test-id="card-1">
+        <div data-testid="Tweet-User-Avatar"><a href="/blocked_author"><span>avatar</span></a></div>
+        <div data-testid="User-Name"><a href="/blocked_author"><span>Blocked Author</span></a> <a href="/blocked_author"><span>@blocked_author</span></a></div>
+        <div data-testid="tweetText">対象アカウントの投稿（card-1）。</div>
+      </article>
+
+      <article data-testid="tweet" data-test-id="card-2">
+        <div data-testid="Tweet-User-Avatar"><a href="/safe_author"><span>avatar</span></a></div>
+        <div data-testid="User-Name"><a href="/safe_author"><span>Safe Author</span></a> <a href="/safe_author"><span>@safe_author</span></a></div>
+        <div data-testid="tweetText">非対象アカウントの投稿（card-2）。</div>
+      </article>
+
+      <article data-testid="tweet" data-test-id="card-3">
+        <div data-testid="Tweet-User-Avatar"><a href="/quote_host"><span>avatar</span></a></div>
+        <div data-testid="User-Name"><a href="/quote_host"><span>Quote Host</span></a> <a href="/quote_host"><span>@quote_host</span></a></div>
+        <div data-testid="tweetText">引用元が対象でも外側著者は非対象（card-3）。</div>
+        <div class="quoted" role="link">
+          <div data-testid="User-Name"><a href="/blocked_author"><span>Blocked Author</span></a> <a href="/blocked_author"><span>@blocked_author</span></a></div>
+          <div data-testid="tweetText">引用された対象アカウントの投稿。</div>
+        </div>
+      </article>
+
+      <article data-testid="tweet" data-test-id="card-4">
+        <div data-testid="Tweet-User-Avatar"><a href="/blocked_author"><span>avatar</span></a></div>
+        <div data-testid="tweetText">User-Name 不在で avatar から著者を判定（card-4）。</div>
+      </article>
+
+      <article data-testid="tweet" data-test-id="card-5">
+        <div data-testid="Tweet-User-Avatar"><a href="/safe_mentioner"><span>avatar</span></a></div>
+        <div data-testid="User-Name"><a href="/safe_mentioner"><span>Safe Mentioner</span></a> <a href="/safe_mentioner"><span>@safe_mentioner</span></a></div>
+        <div data-testid="tweetText">本文で <a href="/blocked_author">@blocked_author</a> にメンション（card-5）。著者は非対象。</div>
+      </article>
+    </main>
+
+    <script>
+      (function () {
+        "use strict";
+        const stores = { local: {}, sync: {} };
+        const listeners = new Set();
+        function area(name) {
+          return {
+            get(key, callback) { callback({ [key]: stores[name][key] }); },
+            set(next, callback) {
+              const changes = {};
+              for (const [key, value] of Object.entries(next)) {
+                changes[key] = { oldValue: stores[name][key], newValue: value };
+                stores[name][key] = value;
+              }
+              callback();
+              for (const listener of listeners) listener(changes, name);
+            }
+          };
+        }
+        window.chrome = {
+          runtime: { lastError: null },
+          storage: { local: area("local"), sync: area("sync"), onChanged: { addListener(l) { listeners.add(l); } } }
+        };
+      })();
+    </script>
+    <script src="../../src/shared/constants.js"></script>
+    <script src="../../src/research/f1-a/observation-utils.js"></script>
+    <script src="../../src/storage/storage.js"></script>
+    <script src="../../src/content/content-script.js"></script>
+    <script>
+      (function () {
+        "use strict";
+        const { DISPLAY_MODES, Storage } = window.XTrueBlockMute;
+
+        async function seedHandleTargets() {
+          await Storage.setEntryStore({
+            schemaVersion: 1,
+            entries: [{ user_id: "9000000000000000001", handle: "blocked_author", source: "f1a-sync", listKind: "blocked" }],
+            lastSyntheticUpdatedAt: null
+          });
+        }
+
+        async function setMode(displayMode) {
+          await seedHandleTargets();
+          await Storage.setSettings({ enabled: true, displayMode });
+          await window.XTrueBlockMute.ContentScript.reloadState();
+        }
+
+        document.addEventListener("click", (event) => {
+          const action = event.target.dataset.fixtureAction;
+          if (!action) return;
+          setMode(DISPLAY_MODES[action.toUpperCase()]);
+        });
+      })();
+    </script>
+  </body>
+</html>

@@ -53,8 +53,7 @@
     return Storage.normalizeHandle(handle);
   }
 
-  function extractHandleFromLink(card) {
-    const links = card.querySelectorAll("a[href]");
+  function handleFromLinks(links) {
     for (const link of links) {
       let url;
       try {
@@ -74,6 +73,21 @@
     return "";
   }
 
+  // Extract the post author's handle from the real X DOM. Scanning is scoped to
+  // the author's User-Name / avatar region so quoted, embedded, and mentioned
+  // accounts (which live elsewhere in the card) are not mistaken for the author.
+  // The first User-Name in DOM order is the top-level author; a quoted tweet's
+  // User-Name appears later/nested and is therefore ignored.
+  function extractAuthorHandle(card) {
+    const region =
+      card.querySelector('[data-testid="User-Name"]') ||
+      card.querySelector('[data-testid="Tweet-User-Avatar"]');
+    if (!region) {
+      return "";
+    }
+    return handleFromLinks(region.querySelectorAll("a[href]"));
+  }
+
   function getCardIdentity(card) {
     const userId =
       card.getAttribute("data-user-id") ||
@@ -82,7 +96,7 @@
     const handle =
       card.getAttribute("data-handle") ||
       card.getAttribute("data-x-tbm-handle") ||
-      extractHandleFromLink(card);
+      extractAuthorHandle(card);
 
     return {
       userId: userId.trim(),
@@ -106,7 +120,7 @@
     replacement.textContent =
       kind === DISPLAY_MODES.HIDDEN
         ? ""
-        : "この投稿は x-true-block-mute の Phase 1 テストデータに一致したため、内容を表示していません。";
+        : "この投稿は、ブロックまたはミュート対象のアカウントによるものです（x-true-block-mute）。";
     return replacement;
   }
 
@@ -166,9 +180,11 @@
     targetUserIds = new Set();
     targetHandles = new Set();
     for (const entry of entryStore.entries) {
+      // Register BOTH keys. Synced entries carry user_id and handle; the real X
+      // timeline DOM exposes only the handle, so handle matching is required,
+      // while the synthetic fixture matches by data-user-id.
       if (entry.user_id) {
         targetUserIds.add(entry.user_id);
-        continue;
       }
       if (entry.handle) {
         targetHandles.add(normalizeHandle(entry.handle));
