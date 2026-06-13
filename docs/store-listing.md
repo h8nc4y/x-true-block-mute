@@ -13,7 +13,7 @@ account owner.
 - **Category:** Productivity
 - **Default language:** 日本語 (Japanese); English copy is provided below as well.
 - **Package:** `dist/TrueBlock-Mute-v<version>.zip` (built with `node scripts/build-package.mjs`)
-- **Privacy policy URL:** `https://h8nc4y.github.io/x-true-block-mute/privacy-policy.html` （GitHub Pages を /docs で有効化すると有効になる想定 URL。別ホストを使う場合は差し替え）
+- **Privacy policy URL:** `https://h8nc4y.github.io/x-true-block-mute/privacy-policy.html` （GitHub Pages /docs で公開・到達確認済み 2026-06-14）
 - **Support / contact email:** h8nc4y@gmail.com
 
 ---
@@ -110,7 +110,7 @@ device) it collects no user data.
 - **Use or transfer for purposes unrelated to the single purpose?** No.
 - **Use or transfer to determine creditworthiness / for lending?** No.
 - **Remote code?** No — all scripts are included in the package.
-- **Privacy policy URL:** `https://h8nc4y.github.io/x-true-block-mute/privacy-policy.html` （GitHub Pages を /docs で有効化すると有効になる想定 URL。別ホストを使う場合は差し替え）
+- **Privacy policy URL:** `https://h8nc4y.github.io/x-true-block-mute/privacy-policy.html` （GitHub Pages /docs で公開・到達確認済み 2026-06-14）
 
 (If the review form treats the locally-stored list as a data category, disclose it
 as "Personally identifiable information" handled **locally only, not transmitted**,
