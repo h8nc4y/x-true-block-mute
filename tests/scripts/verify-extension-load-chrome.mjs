@@ -306,6 +306,25 @@ async function main() {
 
     await captureScreenshot(cdp, popup.sessionId, path.join(tmpDir, "tb002-popup-screenshot.png"));
 
+    // --- Check 3b: popup sync controls render and the toggle persists ---
+    const syncInfo = await evaluate(
+      cdp,
+      popup.sessionId,
+      "({ hasToggle: Boolean(document.querySelector('#sync-enabled')), last: document.querySelector('#sync-last')?.textContent || '', blocked: document.querySelector('#sync-blocked-count')?.textContent || '' })"
+    );
+    check(syncInfo.hasToggle === true, "popup shows the sync toggle", syncInfo);
+    check(syncInfo.last === "未同期", "sync status starts as 未同期", syncInfo.last);
+    check(syncInfo.blocked === "0件", "synced blocked count starts at 0件", syncInfo.blocked);
+    await evaluate(cdp, popup.sessionId, "document.querySelector('#sync-enabled').click()");
+    const syncToggled = await pollValue(
+      async () => {
+        const value = await evaluate(cdp, popup.sessionId, "document.querySelector('#sync-enabled').checked");
+        return { ok: value === true, value };
+      },
+      { timeout: 5000, desc: "sync toggle to persist as checked" }
+    ).catch((error) => `ERROR: ${error.message}`);
+    check(syncToggled === true, "enabling sync persists (checkbox stays checked after render)", String(syncToggled));
+
     // --- Check 4: synthetic fixture filters cards -----------------------
     const fixtureUrl = pathToFileURL(
       path.join(repoRoot, "tests", "fixtures", "home-timeline.html")

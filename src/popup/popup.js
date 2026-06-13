@@ -21,6 +21,11 @@
   const copyResearchButton = document.querySelector("#copy-f1a-research");
   const clearResearchButton = document.querySelector("#clear-f1a-research");
   const researchSummaryOutput = document.querySelector("#f1a-summary-output");
+  const syncEnabledInput = document.querySelector("#sync-enabled");
+  const syncBlockedCount = document.querySelector("#sync-blocked-count");
+  const syncMutedCount = document.querySelector("#sync-muted-count");
+  const syncLast = document.querySelector("#sync-last");
+  const clearSyncedButton = document.querySelector("#clear-synced");
   const message = document.querySelector("#message");
   let busy = false;
 
@@ -92,6 +97,8 @@
     clearResearchButton.disabled = isBusy;
     enabledInput.disabled = isBusy;
     researchEnabledInput.disabled = isBusy;
+    syncEnabledInput.disabled = isBusy;
+    clearSyncedButton.disabled = isBusy;
     for (const input of modeInputs) {
       input.disabled = isBusy;
     }
@@ -101,12 +108,21 @@
     message.textContent = text;
   }
 
+  function countSyncedByListKind(entryStore, listKind) {
+    return entryStore.entries.filter((entry) => entry.source === "f1a-sync" && entry.listKind === listKind).length;
+  }
+
   async function render() {
-    const [settings, entryStore, researchState] = await Promise.all([
+    const [settings, entryStore, researchState, syncState] = await Promise.all([
       Storage.getSettings(),
       Storage.getEntryStore(),
-      Storage.getF1AResearchState()
+      Storage.getF1AResearchState(),
+      Storage.getSyncState()
     ]);
+    syncEnabledInput.checked = syncState.enabled;
+    syncBlockedCount.textContent = formatCount(countSyncedByListKind(entryStore, "blocked"));
+    syncMutedCount.textContent = formatCount(countSyncedByListKind(entryStore, "muted"));
+    syncLast.textContent = formatDateTime(syncState.lastSyncedAt, "未同期");
     enabledInput.checked = settings.enabled;
     for (const input of modeInputs) {
       input.checked = input.value === settings.displayMode;
@@ -222,6 +238,38 @@
       setMessage("安全な要約（masked summary）をコピーしました。raw response は含みません。");
     } catch (_error) {
       setMessage("コピーに失敗しました。表示欄から安全な要約だけを手動でコピーしてください。");
+    } finally {
+      setBusy(false);
+    }
+  });
+
+  syncEnabledInput.addEventListener("change", async () => {
+    setBusy(true);
+    setMessage("");
+    try {
+      await Storage.setSyncEnabled(syncEnabledInput.checked);
+      await render();
+      setMessage(
+        syncEnabledInput.checked
+          ? "同期を有効にしました。「ブロック一覧を開く」から一覧を一番下まで表示してください。"
+          : "同期を停止しました。取り込み済みのデータは残ります。"
+      );
+    } catch (_error) {
+      setMessage("同期設定の保存に失敗しました。");
+    } finally {
+      setBusy(false);
+    }
+  });
+
+  clearSyncedButton.addEventListener("click", async () => {
+    setBusy(true);
+    setMessage("");
+    try {
+      await Storage.clearSyncedEntries();
+      await render();
+      setMessage("同期で取り込んだブロック・ミュートデータを消しました。");
+    } catch (_error) {
+      setMessage("同期データの削除に失敗しました。");
     } finally {
       setBusy(false);
     }

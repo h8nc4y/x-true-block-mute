@@ -77,6 +77,44 @@
         </div>
       </section>
 
+      <section class="panel" aria-labelledby="sync-title">
+        <div class="section-heading">
+          <h2 id="sync-title">ブロック・ミュート同期</h2>
+          <p>あなたの X のブロック・ミュート一覧をこの端末に取り込み、フィルタに使います。データは端末内にのみ保存され、外部送信はありません。</p>
+        </div>
+
+        <label class="toggle-row">
+          <span>
+            <span class="control-title">同期を有効にする</span>
+            <span class="control-help">有効中に下のリンクから設定ページを開くと取り込みます。</span>
+          </span>
+          <input id="sync-enabled" type="checkbox">
+        </label>
+
+        <section class="status-panel" aria-live="polite">
+          <div>
+            <span>ブロック</span>
+            <strong id="sync-blocked-count">0件</strong>
+          </div>
+          <div>
+            <span>ミュート</span>
+            <strong id="sync-muted-count">0件</strong>
+          </div>
+          <div>
+            <span>最終同期</span>
+            <strong id="sync-last">未同期</strong>
+          </div>
+        </section>
+
+        <p id="sync-help" class="help-text">手順: ①「同期を有効にする」を ON ②下のリンクを開いて一覧を一番下までスクロール ③ミュートも同様 ④この画面に戻ると件数が増えます。</p>
+        <p class="help-text">
+          <a id="open-blocked" href="https://x.com/settings/blocked/all" target="_blank" rel="noopener">ブロック一覧を開く</a>
+          ・
+          <a id="open-muted" href="https://x.com/settings/muted/all" target="_blank" rel="noopener">ミュート一覧を開く</a>
+        </p>
+        <button id="clear-synced" type="button" class="secondary">同期データを消す</button>
+      </section>
+
       <section class="research-panel" aria-labelledby="research-title">
         <div class="section-heading">
           <h2 id="research-title">F1-A 観測メモ（開発用）</h2>
