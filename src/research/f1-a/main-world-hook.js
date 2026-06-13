@@ -218,44 +218,51 @@
       return Number.isFinite(status) && status > 0 ? `${Math.floor(status / 100)}xx` : "unknown";
     }
 
-    function detectDeepPaginationSignal(root) {
-      // X timeline cursors live inside `instructions[].entries[]` — often the
-      // LAST entry, with `content.cursorType: "Bottom"`. The shapePath scan
-      // below does not reach them (depth limit + only-first-array-element), so
-      // this pass walks all array elements within a bounded node budget and
-      // inspects KEY NAMES only. No value is read or emitted; it returns a
-      // boolean indicating a pagination/cursor field exists.
-      let budget = 4000;
+    function detectDeepFieldSignals(root) {
+      // In X's timeline responses the identity (rest_id / screen_name) and the
+      // pagination cursor (content.cursorType "Bottom") live deep inside
+      // `instructions[].entries[]` — past the shapePath scan's depth limit and
+      // not in the first array element. This pass walks all array elements
+      // within a bounded node budget and inspects KEY NAMES only (no value is
+      // read or emitted), returning which signals exist.
+      let budget = 8000;
       const visited = new WeakSet();
+      const found = { userIdLike: false, handleLike: false, paginationLike: false };
+      const done = () => found.userIdLike && found.handleLike && found.paginationLike;
       function walk(node, depth) {
-        if (budget <= 0 || depth > 12 || node === null || typeof node !== "object") {
-          return false;
-        }
-        if (visited.has(node)) {
-          return false;
+        if (budget <= 0 || depth > 18 || node === null || typeof node !== "object" || visited.has(node)) {
+          return;
         }
         visited.add(node);
         budget -= 1;
         if (Array.isArray(node)) {
           for (const item of node) {
-            if (walk(item, depth + 1)) {
-              return true;
+            walk(item, depth + 1);
+            if (done()) {
+              return;
             }
           }
-          return false;
+          return;
         }
         for (const key of Object.keys(node)) {
           const normalized = String(key).toLowerCase().replace(/[^a-z0-9_]/g, "");
-          if (paginationKeys.has(normalized) || normalized.includes("cursor")) {
-            return true;
+          if (userIdKeys.has(normalized)) {
+            found.userIdLike = true;
           }
-          if (walk(node[key], depth + 1)) {
-            return true;
+          if (handleKeys.has(normalized)) {
+            found.handleLike = true;
+          }
+          if (paginationKeys.has(normalized) || normalized.includes("cursor")) {
+            found.paginationLike = true;
+          }
+          walk(node[key], depth + 1);
+          if (done()) {
+            return;
           }
         }
-        return false;
       }
-      return walk(root, 0);
+      walk(root, 0);
+      return found;
     }
 
     function scanShape(value) {
@@ -317,7 +324,10 @@
       }
 
       visit(value, "$", 0);
-      if (!fieldPresence.paginationLike && detectDeepPaginationSignal(value)) {
+      const deep = detectDeepFieldSignals(value);
+      fieldPresence.userIdLike = fieldPresence.userIdLike || deep.userIdLike;
+      fieldPresence.handleLike = fieldPresence.handleLike || deep.handleLike;
+      if (deep.paginationLike) {
         fieldPresence.cursorLike = true;
         fieldPresence.paginationLike = true;
       }

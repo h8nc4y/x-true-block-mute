@@ -198,6 +198,8 @@ assert(messages.length === 3, "deep timeline cursor fetch should produce a third
 const deep = messages[2].message.observation;
 const deepOutput = JSON.stringify(deep);
 assert(deep.fieldPresence.paginationLike === true, "deep nested timeline cursor (last entry) must set paginationLike");
+assert(deep.fieldPresence.userIdLike === true, "deep nested rest_id must set userIdLike");
+assert(deep.fieldPresence.handleLike === true, "deep nested screen_name must set handleLike");
 assert(!deepOutput.includes("12345678901234567890"), "deep observation must not include raw id");
 assert(!deepOutput.includes("raw_handle_value_should_not_be_saved"), "deep observation must not include raw handle");
 assert(!deepOutput.includes("deep-cursor-value-should-not-be-saved"), "deep observation must not include raw cursor value");
