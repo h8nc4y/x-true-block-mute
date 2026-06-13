@@ -2,9 +2,37 @@
 
 ## Status
 
-Phase 1.5 時点では defer decision。
+2026-06-13 (M3) live 評価により、**F1-A を Phase 2 primary 候補として採用**する。ただし pagination 検出の修正を採用条件とする（下記「Live evaluation result」参照）。
 
-F1-A は MAIN world hook scaffold を追加したが、実 X ページでの endpoint / response shape / pagination / timing は未確認のため、Phase 2 primary としてはまだ採用しない。
+実 X のログイン済みアカウントで blocked / muted 両ページの masked observation を収集し、`evaluate-f1-observation.mjs --live` で判定した。endpoint / response shape / identity（user_id 風・handle 風）は両ページで成立。pagination 検出のみ未成立だが、これはカーソル不在ではなくフックの走査が浅いことが原因と構造分析で判明したため、修正対象として扱う。
+
+## Live evaluation result (2026-06-13, M3)
+
+収集条件: ユーザーのログイン済み Chrome に拡張を Load unpacked し、Claude Code が Chrome MCP で blocked / muted 設定ページを navigate / scroll / フル遷移。observation は 34 件（blocked 17 / muted 17）。`unsafe_summary` ゲートは `unsafeSignals: []`（raw 値の漏えいなし）。
+
+evaluator verdict: `f1a_insufficient`（missing: blocked/muted pagination、SPA continuity）。
+
+masked summary の構造分析（生値なし）で確認できたこと:
+
+- endpoint: 一覧 GraphQL を両ページで捕捉（muted では `MutedAccounts` op 名が残存）。1.1 系の users 応答も併せて捕捉。
+- shape: `$.data.…timeline.timeline.instructions[].entries`、および `$.data.…[].result.rest_id`。X タイムライン型の正規構造。
+- identity: `result.rest_id`（= user_id）と `screen_name`（= handle）。同期の主キー・副キーに必要な情報が揃う。
+- pagination: 未検出（`cursorLike: 0`）。ただし shapePaths が `instructions[].entries` で止まり、その配下（X の `TimelineTimelineCursor` / `cursorType` を持つ cursor エントリ）まで走査していない。X のタイムラインは常に cursor エントリを含むため、**カーソルは存在するがフックの走査深度不足で未検出**と判断する。
+- SPA continuity: 未成立（フル遷移のため hookRunId が blocked/muted で別）。ただし production は manifest の `content_scripts` が両設定ページに document_start で個別注入するため、ページ跨ぎ continuity は本番要件ではない。
+
+採用条件（M4 で実施）:
+
+1. MAIN world hook の shape 走査を `instructions[].entries[]` 配下まで深め、`TimelineTimelineCursor` / `cursorType` / `entryId="cursor-…"` を検出して `paginationLike` を立てる（cursor の有無＝boolean のみ。raw cursor 値は保存しない）。
+2. observation-utils と simulator test を同期更新。
+3. 短時間の live 再評価で `hasPagination` 成立（→ `f1a_viable`）を確認してから production capture を実装する。
+
+不採用に切り替える条件: 上記修正後の live 再評価でも pagination が成立しない、または full-list 取得が安定しない場合は F1-B（表示範囲限定同期）/ F1-D（手動インポート）へ切り替える。
+
+## Status (Phase 1.5 当時の記録)
+
+Phase 1.5 時点では defer decision だった。
+
+F1-A は MAIN world hook scaffold を追加したが、実 X ページでの endpoint / response shape / pagination / timing は未確認のため、Phase 2 primary としてはまだ採用しない、としていた。この保留は 2026-06-13 の live 評価で解除された。
 
 ## Candidates
 
@@ -78,9 +106,11 @@ F1-C は Phase 1.5 では out of scope のまま維持する。
 
 ## Phase 2 recommendation
 
-現時点の推奨は defer decision。
+2026-06-13 (M3) の live 評価により defer を解除し、**F1-A primary（pagination 検出修正を条件）** を推奨する（上記「Live evaluation result」）。以下は当時の defer 判断の記録。
 
-次の実測が揃った場合のみ、F1-A primary を再検討する。
+当時の推奨は defer decision だった。
+
+次の実測が揃った場合のみ、F1-A primary を再検討する、としていた。
 
 - blocked page: endpoint class、shape、user_id-like field、handle-like field、cursor-like field、pagination の masked observation。
 - muted page: endpoint class、shape、user_id-like field、handle-like field、cursor-like field、pagination の masked observation。
