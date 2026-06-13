@@ -144,6 +144,20 @@ async function main() {
   store = await Storage.getEntryStore();
   check(countBySource(store.entries, SYNC_SOURCE) === 0, "clearSyncedEntries removes all synced entries");
   check(countBySource(store.entries, SYNTHETIC_SOURCE) === 2, "synthetic entries survive a synced clear");
+
+  // --- sync state ----------------------------------------------------
+  let sync = await Storage.getSyncState();
+  check(sync.enabled === false && sync.lastSyncedAt === null, "fresh sync state is disabled with no timestamp", sync);
+  await Storage.setSyncEnabled(true);
+  sync = await Storage.getSyncState();
+  check(sync.enabled === true, "setSyncEnabled(true) persists");
+  await Storage.markSynced("2026-06-13T10:00:00.000Z");
+  sync = await Storage.getSyncState();
+  check(sync.lastSyncedAt === "2026-06-13T10:00:00.000Z", "markSynced records lastSyncedAt", sync.lastSyncedAt);
+  check(sync.enabled === true, "markSynced preserves enabled");
+  await Storage.setSyncEnabled(false);
+  sync = await Storage.getSyncState();
+  check(sync.enabled === false && sync.lastSyncedAt === "2026-06-13T10:00:00.000Z", "setSyncEnabled(false) preserves lastSyncedAt", sync);
 }
 
 main()

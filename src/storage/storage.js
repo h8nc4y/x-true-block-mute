@@ -253,6 +253,33 @@
     return setEntryStore(store);
   }
 
+  function normalizeSyncState(value) {
+    const incoming = value && typeof value === "object" ? value : {};
+    return {
+      schemaVersion: SCHEMA_VERSION,
+      enabled: typeof incoming.enabled === "boolean" ? incoming.enabled : false,
+      lastSyncedAt: typeof incoming.lastSyncedAt === "string" ? incoming.lastSyncedAt : null
+    };
+  }
+
+  async function getSyncState() {
+    return normalizeSyncState(await getArea("local", STORAGE_KEYS.SYNC_STATE));
+  }
+
+  async function setSyncEnabled(enabled) {
+    const current = await getSyncState();
+    const next = { ...current, enabled: Boolean(enabled) };
+    await setArea("local", STORAGE_KEYS.SYNC_STATE, next);
+    return next;
+  }
+
+  async function markSynced(syncedAt = new Date().toISOString()) {
+    const current = await getSyncState();
+    const next = { ...current, lastSyncedAt: syncedAt };
+    await setArea("local", STORAGE_KEYS.SYNC_STATE, next);
+    return next;
+  }
+
   async function getF1AResearchState() {
     return normalizeResearchState(await getArea("local", STORAGE_KEYS.F1A_RESEARCH));
   }
@@ -307,6 +334,8 @@
     getF1AResearchState,
     getEntryStore,
     getSettings,
+    getSyncState,
+    markSynced,
     normalizeHandle,
     normalizeEntryStore,
     normalizeResearchState,
@@ -315,6 +344,7 @@
     setEntryStore,
     setF1AResearchEnabled,
     setSettings,
+    setSyncEnabled,
     upsertSyncedEntries
   };
 })();
