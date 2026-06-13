@@ -2,17 +2,15 @@
 
 ## Current status
 
-この repository は現在 Phase 1 / Phase 1.5 の research / prototype 段階です。
+この repository は現在 **Phase 2 実装段階**です。Phase 1 / Phase 1.5（local MV3 shell・popup・storage・synthetic fixture・F1-A research scaffold）は完了し、Phase 2 の production 機能が実装済みです。
 
-- Phase 1 は local MV3 extension shell、popup、storage、synthetic fixture、通常 content-script filter path を扱います。
-- Phase 1.5 は `/settings/blocked/all` と `/settings/muted/all` で masked observation を集める F1-A research scaffold を扱います。
-- 通常の Phase 1 filter content script は X/Twitter ページに広く一致しますが、F1-A settings pages からは除外し、research bridge がそのページを担当します。
-- synthetic home-timeline-style fixture が現在の local verification surface です。real X DOM author matching は未実装で、この phase の範囲外です。
-- Production block/mute list sync、F1-B/F1-C/F1-D、OAuth/API integration、Chrome Web Store preparation、live X verification は未実装です。
+- **production sync 実装済み**: 宣言的 `world:"MAIN"` content script（`/settings/blocked/all`・`/settings/muted/all` 限定）が、ユーザー自身のブロック・ミュート一覧 GraphQL 応答から `user_id`（rest_id）/ `handle`（screen_name）/ `listKind` のみを抽出し、ISOLATED bridge 経由で `chrome.storage.local` の `xtbmEntries` に取り込みます。raw response・cursor 値・表示名・本文は保存しません。実アカウントで blocked 234件 / muted 50件の取り込みを確認済み（件数のみ・2026-06-13）。
+- **reconciliation 実装済み**: 一覧の末尾（完全同期）に到達したときだけ当該 listKind を全置換し、解除済みアカウントを除去します。部分取得時は追加のみです（完全同期検出 = 抽出0件、`Storage.replaceSyncedListKind()`）。
+- **real-DOM author matching 実装済み**: 通常 content script が投稿カードの User-Name 領域に限定して投稿者を判定し、quote / embed の混在を分離します（引用カードは host 投稿を残したままその場で隠します）。実 TL で誤判定なく動作することを確認済み（M5）。
+- popup から同期の有効化・ブロック / ミュート件数・最終同期時刻の確認・同期データ削除ができます。F1-A 観測メモ（開発用）は本番では非表示です（dev フラグ `RESEARCH_UI_ENABLED`、既定 false）。
+- 残作業: 非エンジニア向け UX 仕上げ（M6）と Chrome Web Store 提出準備（M7: icons / version / zip / プライバシーポリシー / 掲載文 / `scripting` 権限の retire）。
 
-X/Twitter でブロック・ミュート済みアカウント由来の情報露出を減らすことを目指す Chrome 拡張です。
-
-Phase 1 では、Chrome に「Load unpacked」で読み込める Manifest V3 拡張として、popup、`chrome.storage`、静的 content script、synthetic fixture による最小 DOM フィルタを用意します。Phase 1.5 では、F1-A 採用判断のための研究用 `MAIN` world hook scaffold と docs を追加します。X 実 DOM の user_id 安定取得と本番用の F1-A / F1-B / F1-C / F1-D 一覧取得処理は未実装です。
+X/Twitter でブロック・ミュート済みアカウント由来の情報露出（RT・引用経由を含む）を減らすことを目指す Chrome 拡張です。データはすべて端末ローカル保存・外部送信なし・権限最小（`storage` + `scripting` + x.com / twitter.com host）を維持します。
 
 ## Phase 0 の範囲
 
@@ -83,7 +81,7 @@ Phase 1 では、Chrome に「Load unpacked」で読み込める Manifest V3 拡
 3. `Load unpacked` をクリックする。
 4. `D:\Agent\Codex\Projects\012_x-true-block-mute\` を選択する。
 5. `x-true-block-mute` が表示され、manifest エラーが出ていないことを確認する。
-6. 拡張アイコンの popup を開き、`通常フィルタ`、`ローカル確認用データ`、`F1-A 観測メモ（開発用）` が表示されることを確認する。
+6. 拡張アイコンの popup を開き、`通常フィルタ`、`ローカル確認用データ`、`ブロック・ミュート同期` が表示されることを確認する（`F1-A 観測メモ（開発用）` は本番では非表示。開発時に確認する場合は `src/shared/constants.js` の `RESEARCH_UI_ENABLED` を `true` にして拡張を再読み込みする）。
 7. 初心者向けの確認は `docs/manual-popup-verification.md` の手順に沿って行う。
 
 ## 現在の manifest 権限
@@ -98,7 +96,7 @@ Phase 1.5 で宣言している権限は次だけです。
   - `https://x.com/*`
   - `https://twitter.com/*`
 
-`storage` は popup と content script が Phase 1 の設定、synthetic test data、Phase 1.5 の sanitized research observation を共有するために使います。`scripting` は設定ページ限定の研究用 `MAIN` world hook 注入に使います。
+`storage` は popup と content script が設定、synthetic test data、本番同期で取り込んだブロック・ミュート対象（`xtbmEntries`）、同期状態（`xtbmSyncState`）、開発用の sanitized research observation を共有するために使います。本番同期は宣言的 `world:"MAIN"` content script で行うため `scripting` を必要としません。`scripting` を使うのは設定ページ限定の開発用 F1-A research 注入だけで、research を retire する M7 で権限ごと削除する予定です。
 
 `webRequest`、`cookies`、`tabs`、`activeTab`、`<all_urls>`、`https://api.x.com/*` は追加していません。
 
@@ -118,7 +116,7 @@ Phase 1.5 で宣言している権限は次だけです。
 - `Entry.listKind` は `"blocked" | "muted" | null`。同期で取得した一覧の種別を表す（schema v2 で追加。旧データ読み込み時は `null`）
 - `Entry.syncedAt` は同期で書き込んだ ISO 文字列、または `null`（schema v2 で追加）
 - Phase 1 synthetic entries は `source: "phase1-synthetic"` と `idResolutionStatus` を持つ
-- 本番同期で取り込むユーザー自身のブロック・ミュート対象は `source: "f1a-sync"` を持つ。`Storage.upsertSyncedEntries()` が user_id 優先（handle 補助）で重複排除し、`Storage.clearSyncedEntries()` が同期分のみ削除する。これらは端末内 `chrome.storage.local` に限り、docs / commit には raw 値を出さない（詳細は `docs/privacy-threat-model.md`）
+- 本番同期で取り込むユーザー自身のブロック・ミュート対象は `source: "f1a-sync"` を持つ。`Storage.upsertSyncedEntries()` が user_id 優先（handle 補助）で重複排除し、`Storage.replaceSyncedListKind()` が完全同期時に当該 listKind を全置換して解除済みアカウントを除去（部分取得時は追加のみ）、`Storage.clearSyncedEntries()` が同期分のみ削除する。これらは端末内 `chrome.storage.local` に限り、docs / commit には raw 値を出さない（詳細は `docs/privacy-threat-model.md`）
 - key: `xtbmF1AResearch`
 - value: `{ schemaVersion: 1, enabled: boolean, observations: Observation[], updatedAt: string | null }`
 - `xtbmF1AResearch.observations` は endpoint class、top-level key、shape path、field presence、count、hook continuity marker だけを持つ masked research summary
@@ -198,13 +196,14 @@ node tests/scripts/evaluate-f1-observation.mjs --live path\to\masked-summary.jso
 - 入力待ちループ、対話式 CLI 待機、foreground dev server で待機しない。検証スクリプトは必ず終了する。
 - 権限は `storage` + `scripting` + x.com/twitter.com host に保つ。追加が必要なら理由・脅威モデル更新・rollback をユーザー承認と共に docs に残す。
 
-## 未確認事項
+## 検証状況
 
-2026-06-13 以降、これらは Claude Code が自動検証（Chrome Load unpacked は Playwright/CDP、live X は Chrome MCP）で確認できますが、実施前の現時点では未確認です。
+2026-06-13 以降、ユーザー承認の下で Claude Code が自動検証（Chrome Load unpacked は Playwright/CDP、live X は Chrome MCP の masked observation）を実施しました。
 
-- Chrome の `Load unpacked` と popup 動作は未確認（M2 で自動検証予定）。
-- X 実 DOM から安定して `user_id` を取得できるかは未確認。実 DOM の投稿者判定、quote / embedded target の除外、関連リンク混在時の handle 判定も未確認（M3 / M5）。
-- 実 X 画面での F1-A endpoint、response shape、pagination、injection timing、SPA navigation 維持は未確認（M3 の live masked summary 評価で判定）。
+- Chrome の `Load unpacked` / popup 動作 / synthetic + 実DOM フィルタは `tests/scripts/verify-extension-load-chrome.mjs`（実 Chromium CDP）で自動検証済み（M2 / M5）。
+- 実 X 画面での F1-A endpoint / response shape / pagination / identity は M3 の live masked summary 評価で `f1a_viable` を確認済み。production sync は実アカウントで件数のみ確認済み（M4、blocked 234 / muted 50）。
+- 実 X DOM の投稿者判定は User-Name 領域限定 + quote / embed 分離で実装・確認済み（M5）。同期の主キー `user_id`（rest_id）と補助キー handle（screen_name）は一覧 GraphQL 応答から取得する。
+- 残: Chrome Web Store 提出（M7）の審査結果は未確認。
 
 ## 関係性の表明
 

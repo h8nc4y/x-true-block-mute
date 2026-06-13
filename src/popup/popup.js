@@ -2,8 +2,10 @@
   "use strict";
 
   const namespace = globalThis.XTrueBlockMute;
-  const { DISPLAY_MODES, ResearchF1A, Storage } = namespace;
+  const { DISPLAY_MODES, ResearchF1A, Storage, STORAGE_KEYS } = namespace;
+  const researchUiEnabled = Boolean(namespace.RESEARCH_UI_ENABLED);
 
+  const researchPanel = document.querySelector(".research-panel");
   const enabledInput = document.querySelector("#enabled");
   const modeInputs = Array.from(document.querySelectorAll("input[name='display-mode']"));
   const filterState = document.querySelector("#filter-state");
@@ -28,6 +30,10 @@
   const clearSyncedButton = document.querySelector("#clear-synced");
   const message = document.querySelector("#message");
   let busy = false;
+
+  if (researchUiEnabled) {
+    researchPanel.hidden = false;
+  }
 
   function formatDateTime(isoString, emptyLabel = "未投入") {
     if (!isoString) {
@@ -93,10 +99,12 @@
     busy = isBusy;
     seedButton.disabled = isBusy;
     clearButton.disabled = isBusy;
-    copyResearchButton.disabled = isBusy || copyResearchButton.dataset.hasObservations !== "true";
-    clearResearchButton.disabled = isBusy;
+    if (researchUiEnabled) {
+      copyResearchButton.disabled = isBusy || copyResearchButton.dataset.hasObservations !== "true";
+      clearResearchButton.disabled = isBusy;
+      researchEnabledInput.disabled = isBusy;
+    }
     enabledInput.disabled = isBusy;
-    researchEnabledInput.disabled = isBusy;
     syncEnabledInput.disabled = isBusy;
     clearSyncedButton.disabled = isBusy;
     for (const input of modeInputs) {
@@ -131,15 +139,17 @@
     entryCount.textContent = formatCount(entryStore.entries.length);
     lastSyntheticUpdate.textContent = formatDateTime(entryStore.lastSyntheticUpdatedAt);
     localTestSummary.textContent = describeLocalTest(entryStore);
-    researchEnabledInput.checked = researchState.enabled;
-    const pageCounts = summarizePageKinds(researchState.observations);
-    researchStatus.textContent = researchState.enabled ? "監視中" : "停止中";
-    researchObservationCount.textContent = formatCount(researchState.observations.length);
-    researchPageCounts.textContent = `${formatCount(pageCounts.blocked)} / ${formatCount(pageCounts.muted)}`;
-    researchUpdatedAt.textContent = formatDateTime(researchState.updatedAt, "未記録");
-    researchNextStep.textContent = describeResearchNextStep(researchState, pageCounts);
-    copyResearchButton.dataset.hasObservations = researchState.observations.length > 0 ? "true" : "false";
-    copyResearchButton.disabled = busy || researchState.observations.length === 0;
+    if (researchUiEnabled) {
+      researchEnabledInput.checked = researchState.enabled;
+      const pageCounts = summarizePageKinds(researchState.observations);
+      researchStatus.textContent = researchState.enabled ? "監視中" : "停止中";
+      researchObservationCount.textContent = formatCount(researchState.observations.length);
+      researchPageCounts.textContent = `${formatCount(pageCounts.blocked)} / ${formatCount(pageCounts.muted)}`;
+      researchUpdatedAt.textContent = formatDateTime(researchState.updatedAt, "未記録");
+      researchNextStep.textContent = describeResearchNextStep(researchState, pageCounts);
+      copyResearchButton.dataset.hasObservations = researchState.observations.length > 0 ? "true" : "false";
+      copyResearchButton.disabled = busy || researchState.observations.length === 0;
+    }
   }
 
   async function updateSettings(patch) {
@@ -189,59 +199,61 @@
     }
   });
 
-  researchEnabledInput.addEventListener("change", async () => {
-    setBusy(true);
-    setMessage("");
-    try {
-      await Storage.setF1AResearchEnabled(researchEnabledInput.checked);
-      await render();
-      setMessage(
-        researchEnabledInput.checked
-          ? "F1-A 観測を開始しました。対象ページを再読み込みしてください。"
-          : "F1-A 観測を停止しました。"
-      );
-    } catch (_error) {
-      setMessage("F1-A 観測設定の保存に失敗しました。");
-    } finally {
-      setBusy(false);
-    }
-  });
-
-  clearResearchButton.addEventListener("click", async () => {
-    setBusy(true);
-    setMessage("");
-    try {
-      await Storage.clearF1AResearchObservations();
-      await render();
-      setMessage("観測メモを消しました。");
-    } catch (_error) {
-      setMessage("観測メモの削除に失敗しました。");
-    } finally {
-      setBusy(false);
-    }
-  });
-
-  copyResearchButton.addEventListener("click", async () => {
-    setBusy(true);
-    setMessage("");
-    try {
-      const researchState = await Storage.getF1AResearchState();
-      const summaryText = JSON.stringify(ResearchF1A.createExportSummary(researchState), null, 2);
-      researchSummaryOutput.hidden = false;
-      researchSummaryOutput.value = summaryText;
-      researchSummaryOutput.select();
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(summaryText);
-      } else {
-        document.execCommand("copy");
+  if (researchUiEnabled) {
+    researchEnabledInput.addEventListener("change", async () => {
+      setBusy(true);
+      setMessage("");
+      try {
+        await Storage.setF1AResearchEnabled(researchEnabledInput.checked);
+        await render();
+        setMessage(
+          researchEnabledInput.checked
+            ? "F1-A 観測を開始しました。対象ページを再読み込みしてください。"
+            : "F1-A 観測を停止しました。"
+        );
+      } catch (_error) {
+        setMessage("F1-A 観測設定の保存に失敗しました。");
+      } finally {
+        setBusy(false);
       }
-      setMessage("安全な要約（masked summary）をコピーしました。raw response は含みません。");
-    } catch (_error) {
-      setMessage("コピーに失敗しました。表示欄から安全な要約だけを手動でコピーしてください。");
-    } finally {
-      setBusy(false);
-    }
-  });
+    });
+
+    clearResearchButton.addEventListener("click", async () => {
+      setBusy(true);
+      setMessage("");
+      try {
+        await Storage.clearF1AResearchObservations();
+        await render();
+        setMessage("観測メモを消しました。");
+      } catch (_error) {
+        setMessage("観測メモの削除に失敗しました。");
+      } finally {
+        setBusy(false);
+      }
+    });
+
+    copyResearchButton.addEventListener("click", async () => {
+      setBusy(true);
+      setMessage("");
+      try {
+        const researchState = await Storage.getF1AResearchState();
+        const summaryText = JSON.stringify(ResearchF1A.createExportSummary(researchState), null, 2);
+        researchSummaryOutput.hidden = false;
+        researchSummaryOutput.value = summaryText;
+        researchSummaryOutput.select();
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(summaryText);
+        } else {
+          document.execCommand("copy");
+        }
+        setMessage("安全な要約（masked summary）をコピーしました。raw response は含みません。");
+      } catch (_error) {
+        setMessage("コピーに失敗しました。表示欄から安全な要約だけを手動でコピーしてください。");
+      } finally {
+        setBusy(false);
+      }
+    });
+  }
 
   syncEnabledInput.addEventListener("change", async () => {
     setBusy(true);
@@ -278,8 +290,32 @@
   render().catch(() => {
     filterState.textContent = "状態: 読み込み失敗";
     localTestSummary.textContent = "Chrome 拡張として読み込んでいない、または storage を読めない可能性があります。";
-    researchStatus.textContent = "読み込み失敗";
-    researchNextStep.textContent = "Chrome の拡張機能画面から再読み込みし、もう一度 popup を開いてください。";
+    if (researchUiEnabled) {
+      researchStatus.textContent = "読み込み失敗";
+      researchNextStep.textContent = "Chrome の拡張機能画面から再読み込みし、もう一度 popup を開いてください。";
+    }
     setMessage("状態の読み込みに失敗しました。Chrome 拡張として読み込んでいるか確認してください。");
   });
+
+  if (globalThis.chrome && chrome.storage && chrome.storage.onChanged) {
+    const watchedKeys = [
+      STORAGE_KEYS.SETTINGS,
+      STORAGE_KEYS.ENTRIES,
+      STORAGE_KEYS.SYNC_STATE,
+      STORAGE_KEYS.F1A_RESEARCH
+    ];
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (busy) {
+        return;
+      }
+      if (areaName !== "local" && areaName !== "sync") {
+        return;
+      }
+      const changedRelevantKey = watchedKeys.some((key) => Object.prototype.hasOwnProperty.call(changes, key));
+      if (!changedRelevantKey) {
+        return;
+      }
+      render().catch(() => {});
+    });
+  }
 })();
