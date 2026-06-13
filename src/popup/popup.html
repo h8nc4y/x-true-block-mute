@@ -115,74 +115,11 @@
         <button id="clear-synced" type="button" class="secondary">同期データを消す</button>
       </section>
 
-      <section class="research-panel" aria-labelledby="research-title" hidden>
-        <div class="section-heading">
-          <h2 id="research-title">F1-A 観測メモ（開発用）</h2>
-          <p>ブロック / ミュート設定ページで、構造だけを安全にメモします。本番同期ではありません。</p>
-        </div>
-
-        <label class="toggle-row compact">
-          <span>
-            <span class="control-title">F1-A 観測を開始</span>
-            <span class="control-help">対象ページを再読み込みすると、masked summary の材料を集めます。</span>
-          </span>
-          <input id="f1a-research-enabled" type="checkbox">
-        </label>
-
-        <div class="status-panel compact" aria-live="polite">
-          <div>
-            <span>監視状態</span>
-            <strong id="f1a-research-status">読み込み中</strong>
-          </div>
-          <div>
-            <span>観測メモ</span>
-            <strong id="f1a-observation-count">0件</strong>
-          </div>
-          <div>
-            <span>ブロック / ミュート</span>
-            <strong id="f1a-page-counts">0件 / 0件</strong>
-          </div>
-          <div>
-            <span>最終更新</span>
-            <strong id="f1a-updated-at">未記録</strong>
-          </div>
-        </div>
-
-        <section class="next-step-panel" aria-labelledby="next-step-title">
-          <h3 id="next-step-title">次に確認すること</h3>
-          <p id="f1a-next-step">状態を読み込み中です。</p>
-        </section>
-
-        <details class="details-panel">
-          <summary>用語と安全ルール</summary>
-          <dl>
-            <div>
-              <dt>masked summary</dt>
-              <dd>個人名、ID、本文、token を入れない安全な構造メモです。</dd>
-            </div>
-            <div>
-              <dt>raw response</dt>
-              <dd>X から返る生データです。保存、コピー、共有しません。</dd>
-            </div>
-            <div>
-              <dt>F1-A</dt>
-              <dd>ブロック / ミュート一覧の取得方法を検討するための研究名です。</dd>
-            </div>
-          </dl>
-        </details>
-
-        <p class="research-note">保存・コピーするのは masked summary のみです。raw response はコピーしません。</p>
-        <button id="copy-f1a-research" type="button" class="secondary">安全な要約をコピー（masked summary）</button>
-        <button id="clear-f1a-research" type="button" class="secondary">観測メモを消す</button>
-        <textarea id="f1a-summary-output" class="summary-output" readonly hidden aria-label="masked summary"></textarea>
-      </section>
-
       <p id="message" class="message" role="status"></p>
       <p class="help-text"><button id="open-options" type="button" class="secondary">詳細設定・プライバシー</button></p>
     </main>
 
     <script src="../shared/constants.js"></script>
-    <script src="../research/f1-a/observation-utils.js"></script>
     <script src="../storage/storage.js"></script>
     <script src="popup.js"></script>
   </body>

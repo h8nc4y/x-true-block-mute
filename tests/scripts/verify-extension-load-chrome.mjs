@@ -162,34 +162,20 @@ function waitForDevToolsPort(userDataDir, timeout = 25000) {
   })();
 }
 
-async function findExtensionId(cdp, timeout = 15000) {
-  const start = Date.now();
-  let seen = [];
-  while (Date.now() - start < timeout) {
-    const { targetInfos } = await cdp.send("Target.getTargets");
-    seen = targetInfos.map((t) => `${t.type}:${t.url}`);
-    for (const t of targetInfos) {
-      const m = /^chrome-extension:\/\/([a-p]{32})\/.*research-background\.js/.exec(t.url);
-      if (m) {
-        return { id: m[1], source: "service_worker" };
-      }
-    }
-    for (const t of targetInfos) {
-      const m = /^chrome-extension:\/\/([a-p]{32})\//.exec(t.url);
-      if (m) {
-        return { id: m[1], source: t.type };
-      }
-    }
-    await sleep(300);
-  }
-  return { id: null, source: "not_found", seen };
+// The extension ships no background service worker (research + scripting were
+// retired in M7), so there is no service-worker target to discover. The unpacked
+// id is deterministic from the absolute path and is confirmed by the popup
+// actually rendering below.
+function findExtensionId(repoRoot) {
+  return { id: computeExtensionId(repoRoot), source: "computed" };
 }
 
-// Chromium's deterministic unpacked-extension id (sha256 of the absolute path,
-// first 32 hex nibbles mapped 0-f -> a-p). Used only as a fallback and always
-// verified by actually loading the popup.
+// Chromium's deterministic unpacked-extension id: sha256 of the absolute path,
+// first 32 hex nibbles mapped 0-f -> a-p. On Windows Chromium hashes the path as
+// UTF-16LE (wide chars); elsewhere as UTF-8. Verified by loading the popup.
 function computeExtensionId(absPath) {
-  const hash = createHash("sha256").update(absPath).digest("hex");
+  const bytes = process.platform === "win32" ? Buffer.from(absPath, "utf16le") : Buffer.from(absPath, "utf8");
+  const hash = createHash("sha256").update(bytes).digest("hex");
   let id = "";
   for (let i = 0; i < 32; i += 1) {
     id += String.fromCharCode(97 + parseInt(hash[i], 16));
@@ -255,15 +241,9 @@ async function main() {
     const ws = await connect(browserWsUrl);
     cdp = new Cdp(ws);
 
-    // --- Check 1: extension loads ---------------------------------------
-    let { id: extensionId, source, seen } = await findExtensionId(cdp);
-    if (!extensionId) {
-      extensionId = computeExtensionId(repoRoot);
-      source = "computed-fallback";
-      console.log(`  note  no extension target found; trying computed id ${extensionId}`);
-      console.log(`  note  targets seen: ${(seen || []).join(", ") || "none"}`);
-    }
-    check(Boolean(extensionId), "extension loaded (chrome-extension target or computed id)", source);
+    // --- Check 1: extension id (deterministic; popup render below proves load) ---
+    const { id: extensionId, source } = findExtensionId(repoRoot);
+    check(Boolean(extensionId), "extension id derived from unpacked path", source);
     console.log(`  note  extension id: ${extensionId} (source: ${source})`);
 
     // --- Check 2 & 3: popup renders and seeding updates the count -------

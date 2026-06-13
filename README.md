@@ -95,19 +95,18 @@ popup の `詳細設定・プライバシー` から設定ページ（`src/optio
 
 ## 現在の manifest 権限
 
-Phase 1.5 で宣言している権限は次だけです。
+宣言している権限は次だけです。
 
 - `permissions`
   - `storage`
-  - `scripting`
 
 - `host_permissions`
   - `https://x.com/*`
   - `https://twitter.com/*`
 
-`storage` は popup と content script が設定、synthetic test data、本番同期で取り込んだブロック・ミュート対象（`xtbmEntries`）、同期状態（`xtbmSyncState`）、開発用の sanitized research observation を共有するために使います。本番同期は宣言的 `world:"MAIN"` content script で行うため `scripting` を必要としません。`scripting` を使うのは設定ページ限定の開発用 F1-A research 注入だけで、research を retire する M7 で権限ごと削除する予定です。
+`storage` は popup・options・content script が設定、synthetic test data、本番同期で取り込んだブロック・ミュート対象（`xtbmEntries`）、同期状態（`xtbmSyncState`）を共有するために使います。本番同期は宣言的 `world:"MAIN"` content script で行うため `scripting` を必要としません。F1-A research の動的注入だけが `scripting` を使っていましたが、M7 で research を retire し `scripting` 権限を削除しました。研究の評価用スクリプト・テスト・判断記録（`docs/decisions/f1-source-selection.md`）はリポジトリに残しますが、出荷パッケージには含めません。
 
-`webRequest`、`cookies`、`tabs`、`activeTab`、`<all_urls>`、`https://api.x.com/*` は追加していません。
+`webRequest`、`cookies`、`tabs`、`activeTab`、`<all_urls>`、`https://api.x.com/*`、`scripting` は宣言していません。
 
 ## Storage schema
 

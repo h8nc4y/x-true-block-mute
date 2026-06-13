@@ -6,7 +6,6 @@
     DEFAULT_SETTINGS,
     DISPLAY_MODES,
     LIST_KINDS,
-    RESEARCH_F1A,
     SCHEMA_VERSION,
     STORAGE_KEYS,
     SYNC_SOURCE,
@@ -80,26 +79,6 @@
       lastSyntheticUpdatedAt:
         typeof incoming.lastSyntheticUpdatedAt === "string" ? incoming.lastSyntheticUpdatedAt : null
     };
-  }
-
-  function getResearchF1A() {
-    const research = namespace.ResearchF1A;
-    if (
-      !research ||
-      typeof research.normalizeObservation !== "function" ||
-      typeof research.normalizeState !== "function"
-    ) {
-      throw new Error("ResearchF1A is unavailable; load observation-utils.js before storage.js");
-    }
-    return research;
-  }
-
-  function normalizeResearchObservation(value) {
-    return getResearchF1A().normalizeObservation(value);
-  }
-
-  function normalizeResearchState(value) {
-    return getResearchF1A().normalizeState(value);
   }
 
   function getArea(areaName, key) {
@@ -304,70 +283,19 @@
     return next;
   }
 
-  async function getF1AResearchState() {
-    return normalizeResearchState(await getArea("local", STORAGE_KEYS.F1A_RESEARCH));
-  }
-
-  async function setF1AResearchEnabled(enabled) {
-    const current = await getF1AResearchState();
-    const nextState = {
-      ...current,
-      enabled: Boolean(enabled),
-      updatedAt: new Date().toISOString()
-    };
-    await setArea("local", STORAGE_KEYS.F1A_RESEARCH, nextState);
-    return nextState;
-  }
-
-  async function clearF1AResearchObservations() {
-    const current = await getF1AResearchState();
-    const nextState = {
-      schemaVersion: SCHEMA_VERSION,
-      enabled: current.enabled,
-      observations: [],
-      updatedAt: new Date().toISOString()
-    };
-    await setArea("local", STORAGE_KEYS.F1A_RESEARCH, nextState);
-    return nextState;
-  }
-
-  async function appendF1AResearchObservation(observation) {
-    const normalizedObservation = normalizeResearchObservation(observation);
-    if (!normalizedObservation) {
-      return getF1AResearchState();
-    }
-    const current = await getF1AResearchState();
-    if (!current.enabled) {
-      return current;
-    }
-    const nextState = {
-      schemaVersion: SCHEMA_VERSION,
-      enabled: true,
-      observations: current.observations.concat(normalizedObservation).slice(-RESEARCH_F1A.MAX_OBSERVATIONS),
-      updatedAt: new Date().toISOString()
-    };
-    await setArea("local", STORAGE_KEYS.F1A_RESEARCH, nextState);
-    return nextState;
-  }
-
   namespace.Storage = {
-    appendF1AResearchObservation,
-    clearF1AResearchObservations,
     clearSyncedEntries,
     clearSyntheticEntries,
-    getF1AResearchState,
     getEntryStore,
     getSettings,
     getSyncState,
     markSynced,
     normalizeHandle,
     normalizeEntryStore,
-    normalizeResearchState,
     normalizeSettings,
     replaceSyncedListKind,
     seedSyntheticEntries,
     setEntryStore,
-    setF1AResearchEnabled,
     setSettings,
     setSyncEnabled,
     upsertSyncedEntries

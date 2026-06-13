@@ -44,8 +44,8 @@ const entries = Object.fromEntries(
 
 const manifest = JSON.parse(entries.manifest);
 assert(
-  JSON.stringify(manifest.permissions) === JSON.stringify(["storage", "scripting"]),
-  "manifest permissions must stay limited to storage and scripting"
+  JSON.stringify(manifest.permissions) === JSON.stringify(["storage"]),
+  "manifest permissions must stay limited to storage (scripting was retired in M7)"
 );
 assert(
   JSON.stringify(manifest.host_permissions) === JSON.stringify(["https://x.com/*", "https://twitter.com/*"]),

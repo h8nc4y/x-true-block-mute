@@ -86,16 +86,13 @@ assertIncludes(
   "README current status",
   failures
 );
+// The shipped popup no longer carries the F1-A research panel (retired in M7);
+// it must still label its local synthetic test data and expose the options page.
 assertIncludes(
   popupHtml,
   [
-    "開発用",
-    "本番同期ではありません",
-    "masked summary のみ",
-    "raw response はコピーしません",
     "ローカル確認用データ",
-    "次に確認すること",
-    "安全な要約をコピー（masked summary）"
+    "詳細設定・プライバシー"
   ],
   "popup UI",
   failures
@@ -114,7 +111,7 @@ assertRegex(
 if (manifest) {
   const permissions = JSON.stringify(manifest.permissions);
   const hosts = JSON.stringify(manifest.host_permissions);
-  if (permissions !== JSON.stringify(["storage", "scripting"])) {
+  if (permissions !== JSON.stringify(["storage"])) {
     failures.push(`manifest permissions changed: ${permissions}`);
   }
   if (hosts !== JSON.stringify(["https://x.com/*", "https://twitter.com/*"])) {

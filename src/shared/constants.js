@@ -27,12 +27,6 @@
     MAX_OBSERVATIONS: 60
   });
 
-  // Dev-only: the F1-A research/observation panel in the popup is hidden for
-  // production. Flip to true and reload the extension to use the research
-  // tooling. Retiring research entirely (and dropping the `scripting`
-  // permission) is planned for a later milestone (M7).
-  namespace.RESEARCH_UI_ENABLED = false;
-
   namespace.DEFAULT_SETTINGS = Object.freeze({
     schemaVersion: namespace.SCHEMA_VERSION,
     enabled: true,

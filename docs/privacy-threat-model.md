@@ -4,6 +4,8 @@
 
 Prepared by Codex on 2026-05-31 for the Phase 2 readiness gate. This document records current privacy boundaries and expected threats for the local prototype. It is not a security audit of live X or Chrome Web Store distribution.
 
+Update (2026-06-14, M7): the F1-A research MAIN-world injection and the `scripting` permission have been retired from the shipped extension. The offline research-evaluation artifacts (`observation-utils.js`, `main-world-hook.js`, the evaluator, the masked-summary fixture, and `docs/decisions/f1-source-selection.md`) are retained in the repository as the decision record but are excluded from the packaged extension. `xtbmF1AResearch` is no longer written by the shipped extension; the research and production (`xtbmEntries`) data classes must remain separate in any future re-introduction. The references below to the MAIN-world hook now describe the production sync capture hook (a declarative `world:"MAIN"` content script), not a dynamically injected research hook.
+
 ## Assets to protect
 
 - X/Twitter account identity and relationship data.
@@ -81,7 +83,8 @@ Remaining risks:
 Current permissions:
 
 - `storage`
-- `scripting`
+
+`scripting` was used only by the retired F1-A research MAIN-world injection and has been removed (M7); the shipped extension requests `storage` only. Production sync uses a declarative `world:"MAIN"` content script, which needs no `scripting` permission.
 
 Current host permissions:
 

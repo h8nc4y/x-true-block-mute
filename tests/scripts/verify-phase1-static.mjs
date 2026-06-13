@@ -2,15 +2,18 @@ import { readFile } from "node:fs/promises";
 import { Script } from "node:vm";
 
 const root = new URL("../../", import.meta.url);
+// observation-utils.js and main-world-hook.js are RETAINED as offline F1-A
+// research-evidence files (exercised by verify-f1a-*.mjs); they are no longer
+// shipped (not in the manifest, excluded from the package). research-background.js
+// and content-bridge.js were deleted when the research injection + `scripting`
+// permission were retired (M7).
 const requiredFiles = [
   "manifest.json",
   "src/shared/constants.js",
   "src/research/f1-a/observation-utils.js",
   "src/storage/storage.js",
-  "src/background/research-background.js",
   "src/content/content-script.js",
   "src/content/content-script.css",
-  "src/research/f1-a/content-bridge.js",
   "src/research/f1-a/main-world-hook.js",
   "src/sync/sync-capture.js",
   "src/sync/sync-hook.js",
@@ -86,34 +89,33 @@ const manifest = JSON.parse(await readText("manifest.json"));
 assert(manifest.manifest_version === 3, "manifest_version must remain 3");
 assert(Array.isArray(manifest.permissions), "permissions must be declared");
 assert(
-  JSON.stringify(manifest.permissions) === JSON.stringify(["storage", "scripting"]),
-  "Phase 1.5 may use only storage and scripting permissions"
+  JSON.stringify(manifest.permissions) === JSON.stringify(["storage"]),
+  "shipped extension must request only the storage permission (scripting retired in M7)"
 );
 assert(
   JSON.stringify(manifest.host_permissions) === JSON.stringify(["https://x.com/*", "https://twitter.com/*"]),
   "host_permissions must remain limited to x.com and twitter.com"
 );
 assert(manifest.action?.default_popup === "src/popup/popup.html", "popup must be registered");
-assert(Array.isArray(manifest.content_scripts) && manifest.content_scripts.length === 3, "expect research bridge, normal filter, and production sync MAIN content scripts");
 assert(
-  manifest.background?.service_worker === "src/background/research-background.js",
-  "Phase 1.5 research background service worker must be registered"
+  !("background" in manifest),
+  "the research background service worker must be removed (no scripting injection)"
 );
+assert(Array.isArray(manifest.content_scripts) && manifest.content_scripts.length === 3, "expect settings ISOLATED sync bridge, normal filter, and production sync MAIN content scripts");
 assert(
   manifest.content_scripts[0].run_at === "document_start" &&
-    manifest.content_scripts[0].js.includes("src/research/f1-a/observation-utils.js") &&
-    manifest.content_scripts[0].js.indexOf("src/research/f1-a/observation-utils.js") <
-      manifest.content_scripts[0].js.indexOf("src/storage/storage.js") &&
-    manifest.content_scripts[0].js.includes("src/research/f1-a/content-bridge.js"),
-  "research bridge must run at document_start with observation-utils before storage"
+    manifest.content_scripts[0].js.includes("src/storage/storage.js") &&
+    manifest.content_scripts[0].js.includes("src/sync/sync-bridge.js") &&
+    !manifest.content_scripts[0].js.includes("src/research/f1-a/observation-utils.js") &&
+    !manifest.content_scripts[0].js.includes("src/research/f1-a/content-bridge.js"),
+  "settings ISOLATED script runs at document_start with storage + sync-bridge and no research modules"
 );
 assert(
   manifest.content_scripts[1].run_at === "document_idle" &&
-    manifest.content_scripts[1].js.includes("src/research/f1-a/observation-utils.js") &&
-    manifest.content_scripts[1].js.indexOf("src/research/f1-a/observation-utils.js") <
-      manifest.content_scripts[1].js.indexOf("src/storage/storage.js") &&
-    manifest.content_scripts[1].js.includes("src/content/content-script.js"),
-  "normal Phase 1 content script must remain document_idle with observation-utils before storage"
+    manifest.content_scripts[1].js.includes("src/storage/storage.js") &&
+    manifest.content_scripts[1].js.includes("src/content/content-script.js") &&
+    !manifest.content_scripts[1].js.includes("src/research/f1-a/observation-utils.js"),
+  "normal filter content script runs at document_idle with storage and no research modules"
 );
 const settingsPageMatches = [
   "https://x.com/settings/blocked/all*",
@@ -121,15 +123,15 @@ const settingsPageMatches = [
   "https://twitter.com/settings/blocked/all*",
   "https://twitter.com/settings/muted/all*"
 ];
-assertSameStringArray(manifest.content_scripts[0].matches, settingsPageMatches, "research bridge must stay limited to settings pages");
+assertSameStringArray(manifest.content_scripts[0].matches, settingsPageMatches, "settings ISOLATED script must stay limited to settings pages");
 assert(
   !("exclude_matches" in manifest.content_scripts[0]),
-  "research bridge must keep settings page access without exclude_matches"
+  "settings ISOLATED script must keep settings page access without exclude_matches"
 );
 assertSameStringArray(
   manifest.content_scripts[1].exclude_matches,
   settingsPageMatches,
-  "normal filter content script must exclude settings pages while research bridge keeps them"
+  "normal filter content script must exclude the settings pages that the ISOLATED sync script handles"
 );
 assert(
   manifest.content_scripts[0].js.includes("src/sync/sync-bridge.js") &&
@@ -176,37 +178,20 @@ assert(!contentScript.includes("fetch("), "production content script must not fe
 assert(!contentScript.includes("XMLHttpRequest"), "production content script must not hook XHR");
 assert(!contentScript.includes("__xTbmOriginalCard"), "content script must not keep unused original-card expando state");
 
-const backgroundScript = await readText("src/background/research-background.js");
 const constantsScript = await readText("src/shared/constants.js");
-const bridgeScript = await readText("src/research/f1-a/content-bridge.js");
 const mainWorldHookScript = await readText("src/research/f1-a/main-world-hook.js");
 const observationUtilsScript = await readText("src/research/f1-a/observation-utils.js");
 const storageScript = await readText("src/storage/storage.js");
-assert(
-  extractLocalConstant(backgroundScript, "MESSAGE_INJECT") ===
-    extractSharedResearchConstant(constantsScript, "MESSAGE_INJECT"),
-  "background MESSAGE_INJECT must match shared RESEARCH_F1A constant"
-);
-assert(
-  extractLocalConstant(backgroundScript, "PAGE_MESSAGE_SOURCE") ===
-    extractSharedResearchConstant(constantsScript, "PAGE_MESSAGE_SOURCE"),
-  "background PAGE_MESSAGE_SOURCE must match shared RESEARCH_F1A constant"
-);
-assert(backgroundScript.includes('world: "MAIN"'), "research injection must target MAIN world");
-assert(backgroundScript.includes("main-world-hook.js"), "background must import the tested main world hook");
+// The research injection + `scripting` permission were retired (M7). The shipped
+// storage no longer carries the research observation API.
+assert(!storageScript.includes("getResearchF1A"), "shipped storage must not retain the research observation API");
+assert(!storageScript.includes("appendF1AResearchObservation"), "shipped storage must not retain research observation writes");
+// observation-utils.js and main-world-hook.js remain as offline research-evidence
+// files; assert they stay internally safe and aligned with each other.
 assert(mainWorldHookScript.includes("window.fetch"), "research hook must wrap fetch");
 assert(mainWorldHookScript.includes("XMLHttpRequest.prototype.open"), "research hook must wrap XMLHttpRequest");
-assert(mainWorldHookScript.includes("window.postMessage"), "MAIN world hook must use page messaging instead of chrome APIs");
-assert(mainWorldHookScript.includes("hookRunId"), "MAIN world hook must tag observations for continuity checks");
-assert(!backgroundScript.includes("chrome.storage"), "MAIN world hook path must not use chrome.storage");
-assert(bridgeScript.includes("appendF1AResearchObservation"), "bridge must persist only normalized research observations");
-assert(storageScript.includes("F1A_RESEARCH"), "research storage must be separate from xtbmEntries");
-assert(
-  storageScript.includes("getResearchF1A().normalizeObservation"),
-  "research storage must use the shared masked observation normalizer"
-);
-assert(storageScript.includes("function getResearchF1A()"), "storage must resolve ResearchF1A lazily at call time");
-assert(!/\bResearchF1A,\s*\n/.test(storageScript), "storage must not destructure ResearchF1A at initial evaluation time");
+assert(mainWorldHookScript.includes("window.postMessage"), "MAIN world research hook must use page messaging instead of chrome APIs");
+assert(mainWorldHookScript.includes("hookRunId"), "MAIN world research hook must tag observations for continuity checks");
 assert(observationUtilsScript.includes("evaluateObservationSummary"), "observation evaluator must be available");
 assert(observationUtilsScript.includes("findUnsafeSummarySignals"), "unsafe summary detection must be available");
 assertSameStringArray(
@@ -219,7 +204,6 @@ assertSameStringArray(
   extractMappedStringArray(observationUtilsScript, "SAFE_ENDPOINT_PATH_SEGMENTS"),
   "MAIN world hook and observation-utils endpoint segment allowlists must stay aligned"
 );
-assert(!storageScript.includes("xtbmEntries") || storageScript.includes("xtbmF1AResearch"), "research observations must not be mixed into xtbmEntries");
 
 const syncHookScript = await readText("src/sync/sync-hook.js");
 const syncCaptureScript = await readText("src/sync/sync-capture.js");
@@ -239,16 +223,17 @@ assert(syncBridgeScript.includes("upsertSyncedEntries") && syncBridgeScript.incl
 const popupHtml = await readText("src/popup/popup.html");
 const popupScripts = Array.from(popupHtml.matchAll(/<script src="([^"]+)"><\/script>/g)).map((match) => match[1]);
 assert(
-  popupScripts.indexOf("../research/f1-a/observation-utils.js") < popupScripts.indexOf("../storage/storage.js"),
-  "popup must load observation-utils before storage"
+  popupScripts.indexOf("../storage/storage.js") < popupScripts.indexOf("popup.js") &&
+    !popupScripts.includes("../research/f1-a/observation-utils.js"),
+  "popup must load storage before popup.js and must not load research observation-utils"
 );
 assert(popupHtml.includes("ローカル確認用データ"), "popup must label local test data clearly");
-assert(popupHtml.includes("次に確認すること"), "popup must explain the next verification step");
-assert(popupHtml.includes("ブロック / ミュート"), "popup must separate blocked and muted observation counts");
-assert(popupHtml.includes("安全な要約をコピー（masked summary）"), "popup must expose masked summary copy flow");
-assert(popupHtml.includes("本番同期ではありません"), "popup must label research flow as non-production sync");
-assert(popupHtml.includes("raw response はコピーしません"), "popup must explicitly say raw response is not copied");
+assert(popupHtml.includes("ブロック・ミュート同期"), "popup must expose the production sync section");
 assert(popupHtml.includes("詳細設定・プライバシー"), "popup must link to the options page");
+assert(
+  !popupHtml.includes("research-panel") && !popupHtml.includes("F1-A 観測メモ"),
+  "popup must not ship the retired research panel"
+);
 
 // M6: options page (entries 管理 / プライバシー説明) registered and self-consistent.
 assert(
@@ -258,8 +243,9 @@ assert(
 const optionsHtml = await readText("src/options/options.html");
 const optionsScripts = Array.from(optionsHtml.matchAll(/<script src="([^"]+)"><\/script>/g)).map((match) => match[1]);
 assert(
-  optionsScripts.indexOf("../research/f1-a/observation-utils.js") < optionsScripts.indexOf("../storage/storage.js"),
-  "options page must load observation-utils before storage"
+  optionsScripts.indexOf("../storage/storage.js") < optionsScripts.indexOf("options.js") &&
+    !optionsScripts.includes("../research/f1-a/observation-utils.js"),
+  "options page must load storage before options.js and must not load research observation-utils"
 );
 for (const needle of [
   "x-true-block-mute 設定",
