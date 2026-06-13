@@ -129,7 +129,7 @@ for (const value of ["GATE-00", "GATE-01", "GATE-02", "GATE-03", "GATE-04", "GAT
 assertIncludes(entries.codexTasks, "VERIFY-00 through VERIFY-05 were implemented in PR #5", "CODEX_TASKS must preserve VERIFY historical status");
 assertIncludes(entries.decisionLog, "Phase 2 remains gated", "DECISION_LOG must record the Phase 2 gate decision");
 assertIncludes(entries.gates, "must not be used as live F1-A proof", "gates must distinguish fixture_pass from live evidence");
-assertIncludes(entries.gates, "Chrome Load unpacked confirmation has not been completed", "gates must keep Chrome confirmation status honest");
+assertIncludes(entries.gates, "verify-extension-load-chrome.mjs", "gates must reference the M2 Chrome verification script");
 assertIncludes(entries.threat, "Do not include raw account identifiers", "threat model must document raw-data reporting boundary");
 assertIncludes(entries.deferred, "Captured responses are not written to `xtbmEntries`", "deferred register must keep production sync out of current scope");
 

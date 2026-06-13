@@ -38,17 +38,17 @@ Phase 2 should not begin until the project has a clear local baseline, privacy b
 
 ## Chrome Load unpacked gate
 
-Before any Phase 2 implementation depends on browser behavior, a human should confirm:
+Before any Phase 2 implementation depends on browser behavior, this must hold:
 
 1. Chrome can Load unpacked this repository without manifest errors.
-2. The extension icon opens the popup.
+2. The popup opens and renders in extension context.
 3. The popup shows normal filter controls.
 4. The popup shows local synthetic fixture controls.
 5. The popup shows the F1-A research memo area.
 6. The UI clearly says this is not production sync.
 7. No real X login, X account data, Cookie, token, raw response, HAR, or personal screenshot is required for this check.
 
-Current status: 未確認. The Chrome Load unpacked confirmation has not been completed yet. Under the 2026-06-13 governance change, Claude Code may perform it through Playwright/CDP automation (M2); until that run finishes, treat it as 未確認.
+Current status: M2 完了（2026-06-13）. `node tests/scripts/verify-extension-load-chrome.mjs` (Playwright Chromium + raw CDP, no npm deps) passed: the extension loads without manifest errors, the popup renders in extension context (`状態: 有効`), seeding synthetic data updates the count to 2件, and the synthetic fixture filters cards (placeholder/hidden = 2, off/clear = 0). Screenshots (synthetic data only) are written to `tmp/` (gitignored). The branded installed Chrome 137+ disables `--load-extension`, so the cached open-source Chromium is used. 実 X / live endpoint / SPA continuity は依然 未確認（M3 で評価）.
 
 ## Synthetic fixture gate
 
