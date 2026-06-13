@@ -12,6 +12,9 @@ const requiredFiles = [
   "src/content/content-script.css",
   "src/research/f1-a/content-bridge.js",
   "src/research/f1-a/main-world-hook.js",
+  "src/sync/sync-capture.js",
+  "src/sync/sync-hook.js",
+  "src/sync/sync-bridge.js",
   "src/popup/popup.html",
   "src/popup/popup.css",
   "src/popup/popup.js",
@@ -88,7 +91,7 @@ assert(
   "host_permissions must remain limited to x.com and twitter.com"
 );
 assert(manifest.action?.default_popup === "src/popup/popup.html", "popup must be registered");
-assert(Array.isArray(manifest.content_scripts) && manifest.content_scripts.length === 2, "Phase 1.5 expects normal and research content scripts");
+assert(Array.isArray(manifest.content_scripts) && manifest.content_scripts.length === 3, "expect research bridge, normal filter, and production sync MAIN content scripts");
 assert(
   manifest.background?.service_worker === "src/background/research-background.js",
   "Phase 1.5 research background service worker must be registered"
@@ -124,6 +127,29 @@ assertSameStringArray(
   manifest.content_scripts[1].exclude_matches,
   settingsPageMatches,
   "normal filter content script must exclude settings pages while research bridge keeps them"
+);
+assert(
+  manifest.content_scripts[0].js.includes("src/sync/sync-bridge.js") &&
+    manifest.content_scripts[0].js.indexOf("src/storage/storage.js") <
+      manifest.content_scripts[0].js.indexOf("src/sync/sync-bridge.js"),
+  "sync bridge must run in the settings-page ISOLATED content script after storage"
+);
+assert(
+  manifest.content_scripts[2].world === "MAIN" &&
+    manifest.content_scripts[2].run_at === "document_start" &&
+    manifest.content_scripts[2].js.includes("src/sync/sync-hook.js") &&
+    manifest.content_scripts[2].js.indexOf("src/sync/sync-capture.js") <
+      manifest.content_scripts[2].js.indexOf("src/sync/sync-hook.js"),
+  "production sync capture must run as a MAIN-world content script with sync-capture before sync-hook"
+);
+assertSameStringArray(
+  manifest.content_scripts[2].matches,
+  settingsPageMatches,
+  "production sync MAIN content script must stay limited to settings pages"
+);
+assert(
+  manifest.minimum_chrome_version === "111",
+  "declarative world: MAIN content scripts require minimum_chrome_version 111"
 );
 
 const manifestText = JSON.stringify(manifest);
@@ -191,6 +217,21 @@ assertSameStringArray(
   "MAIN world hook and observation-utils endpoint segment allowlists must stay aligned"
 );
 assert(!storageScript.includes("xtbmEntries") || storageScript.includes("xtbmF1AResearch"), "research observations must not be mixed into xtbmEntries");
+
+const syncHookScript = await readText("src/sync/sync-hook.js");
+const syncCaptureScript = await readText("src/sync/sync-capture.js");
+const syncBridgeScript = await readText("src/sync/sync-bridge.js");
+const syncSourceMatch = constantsScript.match(/SYNC_MESSAGE_SOURCE\s*=\s*"([^"]+)"/);
+assert(syncSourceMatch, "constants must define SYNC_MESSAGE_SOURCE");
+assert(
+  syncHookScript.includes(`installSyncHook("${syncSourceMatch[1]}")`),
+  "sync-hook auto-install source must match constants SYNC_MESSAGE_SOURCE"
+);
+assert(syncHookScript.includes("SyncCapture") && syncHookScript.includes("window.fetch"), "sync-hook must use SyncCapture and wrap fetch");
+const chromeApiPattern = /chrome\.(storage|runtime|scripting|tabs|cookies|webRequest|action)\b/;
+assert(!chromeApiPattern.test(syncHookScript), "MAIN-world sync hook must not call chrome.* APIs");
+assert(!chromeApiPattern.test(syncCaptureScript), "MAIN-world sync capture must not call chrome.* APIs");
+assert(syncBridgeScript.includes("upsertSyncedEntries") && syncBridgeScript.includes("getSyncState"), "sync bridge must gate persistence on sync state");
 
 const popupHtml = await readText("src/popup/popup.html");
 const popupScripts = Array.from(popupHtml.matchAll(/<script src="([^"]+)"><\/script>/g)).map((match) => match[1]);

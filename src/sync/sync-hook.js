@@ -75,4 +75,10 @@
   }
 
   globalThis.XTrueBlockMuteSyncHook = { installSyncHook };
+
+  // Auto-install when injected as a declarative MAIN-world content script. The
+  // literal must match SYNC_MESSAGE_SOURCE in src/shared/constants.js (asserted
+  // by verify-phase1-static.mjs). MAIN-world scripts cannot read the ISOLATED
+  // namespace constant, so the source is duplicated here intentionally.
+  installSyncHook("x-tbm:sync:capture");
 })();
