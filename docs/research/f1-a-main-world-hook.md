@@ -129,7 +129,7 @@ SPA 遷移で `window` が維持される限り hook は残る想定だが、実
 
 1. Chrome で `chrome://extensions` を開く。
 2. `Developer mode` を有効にする。
-3. `Load unpacked` で `D:\Agent\Codex\Projects\012_x-true-block-mute\` を読み込む。既に読み込み済みなら `Reload` を押す。
+3. `Load unpacked` で拡張のフォルダを読み込む。既に読み込み済みなら `Reload` を押す。
 4. 拡張 popup を開き、`F1-A 観測メモ（開発用）` の `F1-A 観測を開始` を有効にする。
 5. `https://x.com/settings/blocked/all` を開く。ログインが必要な場合は、ユーザーが Chrome 上で直接ログインする。エージェントに password、MFA、Cookie、token を渡さない。
 6. ページを refresh する。

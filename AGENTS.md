@@ -2,7 +2,7 @@
 
 ## Project Rules
 
-このファイルは x-true-block-mute リポジトリの現行運用ルールです。2026-06-13 のガバナンス変更（`docs/DECISION_LOG.md` の同日決定）により、ユーザー本人がチャットで直接承認したタスクを Claude Code が実装します。旧 ChatGPT 承認制と Codex 固有の運用ルールは廃止されました。歴史的記録は `docs/CODEX_TASKS.md` ほかにアーカイブとして残しています。
+このファイルは x-true-block-mute リポジトリの現行運用ルールです。2026-06-13 のガバナンス変更により、ユーザー本人がチャットで直接承認したタスクを Claude Code が実装します。旧 ChatGPT 承認制と Codex 固有の運用ルールは廃止されました。
 
 ### 承認と進め方
 

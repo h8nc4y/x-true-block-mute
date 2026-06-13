@@ -18,7 +18,7 @@
 1. Chrome で `chrome://extensions` を開く。
 2. 右上の `Developer mode` を有効にする。
 3. `Load unpacked` をクリックする。
-4. `D:\Agent\Codex\Projects\012_x-true-block-mute\` を選択する。
+4. この拡張のフォルダ（`manifest.json` がある場所）を選択する。
 5. `x-true-block-mute` が表示され、manifest エラーが出ていないことを確認する。
 6. Chrome の拡張アイコンから `x-true-block-mute` の popup を開く。
 
@@ -59,7 +59,7 @@
 1. popup を開く。
 2. `ローカル確認用データ` の `テストデータを入れる` を押す。
 3. `登録済みの対象` が `0件` 以外になったことを確認する。
-4. `D:\Agent\Codex\Projects\012_x-true-block-mute\tests\fixtures\home-timeline.html` を Chrome にドラッグして開く、または Chrome のアドレス欄に file URL として開く。
+4. リポジトリ内の `tests/fixtures/home-timeline.html` を Chrome にドラッグして開く、または Chrome のアドレス欄に file URL として開く。
 5. fixture 画面のボタンで `説明だけ表示`、`完全に隠す`、`何もしない` を切り替える。
 6. popup の `投稿の扱い` と fixture の表示が対応していることを確認する。
 7. 確認後、popup の `テストデータを消す` を押す。

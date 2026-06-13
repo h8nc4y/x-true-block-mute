@@ -8,7 +8,7 @@ This document is a readiness gate, not approval to implement Phase 2. It must no
 
 ## Purpose
 
-Phase 2 should not begin until the project has a clear local baseline, privacy boundary, deferred-finding register, and repeatable docs consistency check. These gates keep the project reviewable under the current operating rule (2026-06-13, see `docs/DECISION_LOG.md`):
+Phase 2 should not begin until the project has a clear local baseline, privacy boundary, deferred-finding register, and repeatable docs consistency check. These gates keep the project reviewable under the current operating rule (2026-06-13):
 
 - The user is the approval authority. Tasks approved by the user in chat are implemented by Claude Code.
 - Claude Code may automate Chrome Load unpacked / popup / fixture verification (Playwright/CDP) and may drive live X masked-observation collection through the Chrome MCP under user consent.
@@ -34,7 +34,7 @@ Phase 2 should not begin until the project has a clear local baseline, privacy b
 | GATE-02 | Privacy and threat model | Sensitive data, storage, clipboard, docs, logs, and permission boundaries are documented. | Prepared in `docs/privacy-threat-model.md`. |
 | GATE-03 | Deferred findings register | Deferred Claude/user/ChatGPT items are listed without auto-implementation. | Prepared in `docs/deferred-findings-register.md`. |
 | GATE-04 | Docs consistency verification | A local script checks that core docs and permission boundaries stay aligned. | Prepared in `tests/scripts/verify-docs-consistency.mjs`. |
-| GATE-05 | Coordination docs update | `docs/CODEX_TASKS.md` and `docs/DECISION_LOG.md` record this gate pass. | Prepared in this pass. |
+| GATE-05 | Coordination docs update | Governance and tasks are recorded in `AGENTS.md` and `TASKS_BACKLOG.md` (the ChatGPT-era coordination docs were retired). | Done. |
 
 ## Chrome Load unpacked gate
 

@@ -9,10 +9,7 @@ const files = {
   localChrome: "docs/local-chrome-synthetic-verification.md",
   gates: "docs/phase2-readiness-gates.md",
   threat: "docs/privacy-threat-model.md",
-  deferred: "docs/deferred-findings-register.md",
-  triage: "docs/AI_REVIEW_TRIAGE.md",
-  codexTasks: "docs/CODEX_TASKS.md",
-  decisionLog: "docs/DECISION_LOG.md"
+  deferred: "docs/deferred-findings-register.md"
 };
 
 const forbiddenPermissions = [
@@ -121,22 +118,9 @@ for (const value of [
   assertIncludes(entries.deferred, value, `deferred findings register must mention ${value}`);
 }
 
-const coordinationDocs = `${entries.codexTasks}\n${entries.decisionLog}`;
-for (const value of ["GATE-00", "GATE-01", "GATE-02", "GATE-03", "GATE-04", "GATE-05"]) {
-  assertIncludes(coordinationDocs, value, `coordination docs must mention ${value}`);
-}
-
-assertIncludes(entries.codexTasks, "VERIFY-00 through VERIFY-05 were implemented in PR #5", "CODEX_TASKS must preserve VERIFY historical status");
-assertIncludes(entries.decisionLog, "Phase 2 remains gated", "DECISION_LOG must record the Phase 2 gate decision");
 assertIncludes(entries.gates, "must not be used as live F1-A proof", "gates must distinguish fixture_pass from live evidence");
 assertIncludes(entries.gates, "verify-extension-load-chrome.mjs", "gates must reference the M2 Chrome verification script");
 assertIncludes(entries.threat, "Do not include raw account identifiers", "threat model must document raw-data reporting boundary");
 assertIncludes(entries.deferred, "Captured responses are not written to `xtbmEntries`", "deferred register must keep production sync out of current scope");
-
-// 2026-06-13 governance change guards: the ChatGPT-era coordination docs stay archived,
-// not silently restored as current rules.
-assertIncludes(entries.codexTasks, "ARCHIVED (2026-06-13)", "CODEX_TASKS must keep its archived banner");
-assertIncludes(entries.triage, "ARCHIVED (2026-06-13)", "AI_REVIEW_TRIAGE must keep its archived banner");
-assertIncludes(entries.decisionLog, "2026-06-13: User-direct approval replaces ChatGPT-commander governance", "DECISION_LOG must record the governance change");
 
 console.log("Docs consistency verification passed");
