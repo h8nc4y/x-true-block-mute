@@ -425,7 +425,7 @@ async function main() {
     check(optProbe.blocked === "0件" && optProbe.muted === "0件", "options page shows 0 synced entries (none synced yet)", optProbe);
     check(optProbe.emptyShown === true, "options page shows the empty-state when no synced entries", optProbe);
     check(optProbe.privacy === true, "options page states the device-local / no-external-send privacy guarantee", optProbe);
-    check(optProbe.heading.includes("x-true-block-mute 設定"), "options page heading renders", optProbe.heading);
+    check(optProbe.heading.includes("TrueBlock & Mute 設定"), "options page heading renders", optProbe.heading);
     await captureScreenshot(cdp, options.sessionId, path.join(tmpDir, "tb002-options-screenshot.png"));
   } finally {
     await cleanup();

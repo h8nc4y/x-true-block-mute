@@ -157,6 +157,22 @@ assert(
   "declarative world: MAIN content scripts require minimum_chrome_version 111"
 );
 
+// M7: store-ready name, version, and icon set.
+assert(manifest.name === "TrueBlock & Mute", "manifest name must be the store brand name");
+assert(/^\d+\.\d+\.\d+$/.test(manifest.version), "manifest version must be semver (e.g. 1.0.0)");
+const iconSizes = ["16", "32", "48", "128"];
+assert(
+  manifest.icons && iconSizes.every((s) => manifest.icons[s] === `icons/icon-${s}.png`),
+  "manifest must declare 16/32/48/128 icons under icons/"
+);
+assert(
+  manifest.action?.default_icon && iconSizes.every((s) => manifest.action.default_icon[s] === `icons/icon-${s}.png`),
+  "action must declare a matching default_icon set"
+);
+for (const s of iconSizes) {
+  await readText(`icons/icon-${s}.png`);
+}
+
 const manifestText = JSON.stringify(manifest);
 for (const value of prohibitedValues) {
   assert(!manifestText.includes(value), `prohibited permission or host found: ${value}`);
@@ -248,7 +264,7 @@ assert(
   "options page must load storage before options.js and must not load research observation-utils"
 );
 for (const needle of [
-  "x-true-block-mute 設定",
+  "TrueBlock & Mute 設定",
   "プライバシー",
   "外部サーバーへは送信されません",
   "フィルタ対象",

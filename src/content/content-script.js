@@ -120,7 +120,7 @@
     replacement.textContent =
       kind === DISPLAY_MODES.HIDDEN
         ? ""
-        : "この投稿は、ブロックまたはミュート対象のアカウントによるものです（x-true-block-mute）。";
+        : "この投稿は、ブロックまたはミュート対象のアカウントによるものです（TrueBlock & Mute）。";
     return replacement;
   }
 
