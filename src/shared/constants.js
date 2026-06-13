@@ -28,6 +28,14 @@
     displayMode: namespace.DISPLAY_MODES.PLACEHOLDER
   });
 
+  // Production block/mute list entries captured by an F1 source carry this source
+  // tag so they can be refreshed or cleared independently of synthetic test data.
+  namespace.SYNC_SOURCE = "f1a-sync";
+  namespace.LIST_KINDS = Object.freeze({
+    BLOCKED: "blocked",
+    MUTED: "muted"
+  });
+
   namespace.SYNTHETIC_SOURCE = "phase1-synthetic";
   namespace.SYNTHETIC_ENTRIES = Object.freeze([
     {

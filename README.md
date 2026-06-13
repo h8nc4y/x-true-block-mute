@@ -115,7 +115,10 @@ Phase 1.5 で宣言している権限は次だけです。
 - value: `{ schemaVersion: 1, entries: Entry[], lastSyntheticUpdatedAt: string | null }`
 - `Entry.user_id` は存在する場合の primary key として扱う
 - `Entry.handle` は補助キーとして扱う
+- `Entry.listKind` は `"blocked" | "muted" | null`。同期で取得した一覧の種別を表す（schema v2 で追加。旧データ読み込み時は `null`）
+- `Entry.syncedAt` は同期で書き込んだ ISO 文字列、または `null`（schema v2 で追加）
 - Phase 1 synthetic entries は `source: "phase1-synthetic"` と `idResolutionStatus` を持つ
+- 本番同期で取り込むユーザー自身のブロック・ミュート対象は `source: "f1a-sync"` を持つ。`Storage.upsertSyncedEntries()` が user_id 優先（handle 補助）で重複排除し、`Storage.clearSyncedEntries()` が同期分のみ削除する。これらは端末内 `chrome.storage.local` に限り、docs / commit には raw 値を出さない（詳細は `docs/privacy-threat-model.md`）
 - key: `xtbmF1AResearch`
 - value: `{ schemaVersion: 1, enabled: boolean, observations: Observation[], updatedAt: string | null }`
 - `xtbmF1AResearch.observations` は endpoint class、top-level key、shape path、field presence、count、hook continuity marker だけを持つ masked research summary
