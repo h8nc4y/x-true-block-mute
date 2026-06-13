@@ -158,6 +158,40 @@ async function main() {
   await Storage.setSyncEnabled(false);
   sync = await Storage.getSyncState();
   check(sync.enabled === false && sync.lastSyncedAt === "2026-06-13T10:00:00.000Z", "setSyncEnabled(false) preserves lastSyncedAt", sync);
+
+  // --- replace one synced listKind after a complete sync -------------
+  await Storage.clearSyncedEntries();
+  await Storage.upsertSyncedEntries([
+    { user_id: "b1", handle: "blk1", listKind: "blocked" },
+    { user_id: "b2", handle: "blk2", listKind: "blocked" },
+    { user_id: "m1", handle: "mut1", listKind: "muted" }
+  ]);
+  store = await Storage.getEntryStore();
+  check(countBySource(store.entries, SYNC_SOURCE) === 3, "replace setup adds 3 synced entries");
+
+  await Storage.replaceSyncedListKind("blocked", [
+    { user_id: "b1", handle: "blk1", listKind: "blocked" },
+    { user_id: "b3", handle: "blk3", listKind: "blocked" }
+  ]);
+  store = await Storage.getEntryStore();
+  check(!findByUserId(store.entries, "b2"), "replaceSyncedListKind drops stale blocked b2");
+  check(findByUserId(store.entries, "b1")?.listKind === "blocked", "replaceSyncedListKind retains blocked b1");
+  const b3 = findByUserId(store.entries, "b3");
+  check(b3?.listKind === "blocked", "replaceSyncedListKind adds fresh blocked b3", b3);
+  check(findByUserId(store.entries, "m1")?.listKind === "muted", "replaceSyncedListKind leaves muted m1 untouched");
+  check(countBySource(store.entries, SYNTHETIC_SOURCE) === 2, "replaceSyncedListKind preserves synthetic entries");
+  check(typeof b3?.syncedAt === "string" && b3.syncedAt.length > 0, "replaceSyncedListKind stamps b3 syncedAt", b3?.syncedAt);
+
+  await Storage.replaceSyncedListKind("muted", []);
+  store = await Storage.getEntryStore();
+  check(!findByUserId(store.entries, "m1"), "empty complete muted replace removes muted m1");
+  check(findByUserId(store.entries, "b1")?.listKind === "blocked", "empty muted replace leaves blocked b1 untouched");
+
+  const beforeInvalidReplace = store.entries.length;
+  await Storage.replaceSyncedListKind("garbage", [{ user_id: "z1", handle: "z" }]);
+  store = await Storage.getEntryStore();
+  check(store.entries.length === beforeInvalidReplace, "invalid replace listKind is a no-op", store.entries.length);
+  check(!findByUserId(store.entries, "z1"), "invalid replace listKind does not add incoming z1");
 }
 
 main()

@@ -68,14 +68,34 @@ const blockedEntries = [
   { user_id: "9000000000000000001", handle: "synthetic_blocked_a", listKind: "blocked" },
   { user_id: "9000000000000000002", handle: "synthetic_blocked_b", listKind: "blocked" }
 ];
+const mutedEntry = { user_id: "8000000000000000001", handle: "synthetic_muted_a", listKind: "muted" };
 
 async function main() {
-  // sync disabled: messages are ignored
+  // sync-complete with empty staging is a safety no-op: never wipe an existing list
+  await Storage.setSyncEnabled(true);
+  await Storage.upsertSyncedEntries([
+    { user_id: "7000000000000000001", handle: "preexisting_muted", listKind: "muted" }
+  ]);
+  let store = await Storage.getEntryStore();
+  const beforeSafetyCount = store.entries.length;
+  dispatchMessage({ source: SYNC_MESSAGE_SOURCE, kind: "sync-complete", listKind: "muted" });
+  await flush();
+  await flush();
+  await flush();
+  store = await Storage.getEntryStore();
+  check(store.entries.length === beforeSafetyCount, "empty staging completion does not change entry count", store.entries.length);
+  check(
+    store.entries.some((e) => e.user_id === "7000000000000000001" && e.listKind === "muted"),
+    "empty staging completion keeps pre-existing muted entry"
+  );
+  await Storage.clearSyncedEntries();
   await Storage.setSyncEnabled(false);
+
+  // sync disabled: messages are ignored
   dispatchMessage({ source: SYNC_MESSAGE_SOURCE, kind: "sync-entries", listKind: "blocked", entries: blockedEntries });
   await flush();
   await flush();
-  let store = await Storage.getEntryStore();
+  store = await Storage.getEntryStore();
   check(store.entries.length === 0, "sync disabled: nothing persisted", store.entries.length);
 
   // wrong source / kind ignored even when enabled
@@ -103,13 +123,41 @@ async function main() {
     source: SYNC_MESSAGE_SOURCE,
     kind: "sync-entries",
     listKind: "muted",
-    entries: [{ user_id: "8000000000000000001", handle: "synthetic_muted_a", listKind: "muted" }]
+    entries: [mutedEntry]
   });
   await flush();
   await flush();
   await flush();
   store = await Storage.getEntryStore();
   check(store.entries.length === 3, "second list message upserts additively", store.entries.length);
+
+  // full-list completion reconciles a staged listKind, removing stale synced rows only for that list
+  await Storage.upsertSyncedEntries([
+    { user_id: "9000000000000000003", handle: "synthetic_blocked_c", listKind: "blocked" }
+  ]);
+  store = await Storage.getEntryStore();
+  check(
+    store.entries.some((e) => e.user_id === "9000000000000000003"),
+    "reconciliation precondition: stale blocked C is present"
+  );
+  dispatchMessage({ source: SYNC_MESSAGE_SOURCE, kind: "sync-entries", listKind: "blocked", entries: blockedEntries });
+  await flush();
+  await flush();
+  await flush();
+  dispatchMessage({ source: SYNC_MESSAGE_SOURCE, kind: "sync-complete", listKind: "blocked" });
+  await flush();
+  await flush();
+  await flush();
+  store = await Storage.getEntryStore();
+  check(!store.entries.some((e) => e.user_id === "9000000000000000003"), "reconciliation removes stale blocked C");
+  check(
+    blockedEntries.every((expected) => store.entries.some((e) => e.user_id === expected.user_id && e.listKind === "blocked")),
+    "reconciliation retains staged blocked A and B"
+  );
+  check(
+    store.entries.some((e) => e.user_id === mutedEntry.user_id && e.listKind === "muted"),
+    "reconciliation leaves muted entries untouched"
+  );
 }
 
 main()

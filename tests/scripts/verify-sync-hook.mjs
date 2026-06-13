@@ -63,6 +63,39 @@ class FakeXMLHttpRequest {
 }
 
 const blockedBody = await readText("tests/fixtures/blocked-timeline-response.fixture.json");
+const emptyBlockedBody = JSON.stringify({
+  data: {
+    viewer: {
+      timeline: {
+        timeline: {
+          instructions: [
+            {
+              type: "TimelineAddEntries",
+              entries: [
+                {
+                  entryId: "cursor-top-empty",
+                  content: {
+                    entryType: "TimelineTimelineCursor",
+                    cursorType: "Top",
+                    value: "synthetic-empty-top"
+                  }
+                },
+                {
+                  entryId: "cursor-bottom-empty",
+                  content: {
+                    entryType: "TimelineTimelineCursor",
+                    cursorType: "Bottom",
+                    value: "synthetic-empty-bottom"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+});
 const mutedBody = JSON.stringify({
   data: {
     viewer: {
@@ -93,6 +126,7 @@ const location = { origin: "https://x.com", href: "https://x.com/settings/blocke
 const windowObject = {
   fetch: (url) => {
     const text = String(url || "");
+    if (/BlockedAccounts/.test(text) && /tail/.test(text)) return Promise.resolve(new FakeResponse(emptyBlockedBody));
     if (/BlockedAccounts/.test(text)) return Promise.resolve(new FakeResponse(blockedBody));
     if (/MutedAccounts/.test(text)) return Promise.resolve(new FakeResponse(mutedBody));
     return Promise.resolve(new FakeResponse('{"data":{"home":{"entries":[]}}}'));
@@ -149,6 +183,20 @@ const mutedMsgs = messages.filter((m) => m.message.source === "x-tbm:sync:captur
 check(mutedMsgs.length === 1, "one muted sync-entries message posted (XHR)", mutedMsgs.length);
 check((mutedMsgs[0]?.message.entries || []).length === 1, "muted message carries the 1 user entry");
 check(!JSON.stringify(mutedMsgs[0]?.message || {}).includes("synthetic-muted-cursor"), "muted cursor value must not leave the page");
+
+// 4. Empty tail page -> completion signal only, no entries/cursor leakage
+await context.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?cursor=tail");
+await flush();
+await flush();
+const completeMsgs = messages.filter((m) => m.message.source === "x-tbm:sync:capture" && m.message.kind === "sync-complete");
+check(completeMsgs.length === 1, "empty blocked tail posts one sync-complete message", completeMsgs.length);
+check(completeMsgs[0]?.message.listKind === "blocked", "sync-complete is tagged blocked", completeMsgs[0]?.message.listKind);
+check(!("entries" in (completeMsgs[0]?.message || {})), "sync-complete carries no entries property");
+const blockedEntryMsgCount = messages.filter(
+  (m) => m.message.source === "x-tbm:sync:capture" && m.message.kind === "sync-entries" && m.message.listKind === "blocked"
+).length;
+check(blockedEntryMsgCount === 1, "empty blocked tail posts no additional sync-entries", blockedEntryMsgCount);
+check(!JSON.stringify(completeMsgs[0]?.message || {}).includes("synthetic-empty-bottom"), "empty tail cursor value must not leave the page");
 
 if (failures.length > 0) {
   console.error(`\nSync hook verification FAILED: ${failures.length} check(s) failed`);

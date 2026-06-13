@@ -253,6 +253,30 @@
     return setEntryStore(store);
   }
 
+  // Reconcile a full sync of one list: drop every previously synced entry for
+  // this listKind, then upsert the freshly captured set with the same
+  // dedupe/normalize semantics as upsertSyncedEntries. This removes un-blocks /
+  // un-mutes and must only be called when the COMPLETE list was captured (the
+  // sync bridge gates this on reaching the tail). Synthetic data and the other
+  // listKind's synced entries are left untouched. An empty `incomingEntries`
+  // reconciles this listKind to empty (explicit complete clear).
+  async function replaceSyncedListKind(listKind, incomingEntries, syncedAt = new Date().toISOString()) {
+    const kind = normalizeListKind(listKind);
+    if (!kind) {
+      return getEntryStore();
+    }
+    const current = await getEntryStore();
+    const retained = current.entries.filter(
+      (entry) => !(entry.source === SYNC_SOURCE && entry.listKind === kind)
+    );
+    await setEntryStore({
+      schemaVersion: SCHEMA_VERSION,
+      entries: retained,
+      lastSyntheticUpdatedAt: current.lastSyntheticUpdatedAt
+    });
+    return upsertSyncedEntries(incomingEntries, syncedAt);
+  }
+
   function normalizeSyncState(value) {
     const incoming = value && typeof value === "object" ? value : {};
     return {
@@ -340,6 +364,7 @@
     normalizeEntryStore,
     normalizeResearchState,
     normalizeSettings,
+    replaceSyncedListKind,
     seedSyntheticEntries,
     setEntryStore,
     setF1AResearchEnabled,

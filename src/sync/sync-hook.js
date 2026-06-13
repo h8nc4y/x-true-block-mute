@@ -37,6 +37,13 @@
       );
     }
 
+    function postComplete(listKind) {
+      window.postMessage(
+        { source: messageSource, kind: "sync-complete", listKind },
+        location.origin
+      );
+    }
+
     function handleResponse(url, bodyText) {
       const listKind = SyncCapture.listKindFromUrl(url);
       if (!listKind) {
@@ -48,7 +55,15 @@
       } catch (_error) {
         return;
       }
-      postEntries(listKind, SyncCapture.extractSyncEntries(json, listKind));
+      const entries = SyncCapture.extractSyncEntries(json, listKind);
+      if (entries.length === 0) {
+        // 0 users extracted from a list endpoint == end of list reached (tail
+        // page carries only cursor entries). Signal completion so the bridge can
+        // reconcile away accounts that left the list. No ids/cursors are sent.
+        postComplete(listKind);
+        return;
+      }
+      postEntries(listKind, entries);
     }
 
     window.fetch = function wrappedFetch(input, init) {
