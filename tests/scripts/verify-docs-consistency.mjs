@@ -129,8 +129,14 @@ for (const value of ["GATE-00", "GATE-01", "GATE-02", "GATE-03", "GATE-04", "GAT
 assertIncludes(entries.codexTasks, "VERIFY-00 through VERIFY-05 were implemented in PR #5", "CODEX_TASKS must preserve VERIFY historical status");
 assertIncludes(entries.decisionLog, "Phase 2 remains gated", "DECISION_LOG must record the Phase 2 gate decision");
 assertIncludes(entries.gates, "must not be used as live F1-A proof", "gates must distinguish fixture_pass from live evidence");
-assertIncludes(entries.gates, "Codex has not performed this human Chrome Load unpacked confirmation", "gates must keep Chrome human confirmation unconfirmed");
+assertIncludes(entries.gates, "Chrome Load unpacked confirmation has not been completed", "gates must keep Chrome confirmation status honest");
 assertIncludes(entries.threat, "Do not include raw account identifiers", "threat model must document raw-data reporting boundary");
 assertIncludes(entries.deferred, "Captured responses are not written to `xtbmEntries`", "deferred register must keep production sync out of current scope");
+
+// 2026-06-13 governance change guards: the ChatGPT-era coordination docs stay archived,
+// not silently restored as current rules.
+assertIncludes(entries.codexTasks, "ARCHIVED (2026-06-13)", "CODEX_TASKS must keep its archived banner");
+assertIncludes(entries.triage, "ARCHIVED (2026-06-13)", "AI_REVIEW_TRIAGE must keep its archived banner");
+assertIncludes(entries.decisionLog, "2026-06-13: User-direct approval replaces ChatGPT-commander governance", "DECISION_LOG must record the governance change");
 
 console.log("Docs consistency verification passed");

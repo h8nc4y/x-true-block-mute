@@ -8,12 +8,12 @@ This document is a readiness gate, not approval to implement Phase 2. It must no
 
 ## Purpose
 
-Phase 2 should not begin until the project has a clear local baseline, privacy boundary, deferred-finding register, and repeatable docs consistency check. These gates keep the project reviewable while preserving the current operating rule:
+Phase 2 should not begin until the project has a clear local baseline, privacy boundary, deferred-finding register, and repeatable docs consistency check. These gates keep the project reviewable under the current operating rule (2026-06-13, see `docs/DECISION_LOG.md`):
 
-- ChatGPT is the commander for triage.
-- Claude Code findings are advisory until ChatGPT approves them.
-- Codex implements only ChatGPT-approved tasks.
-- Real X, OAuth/API, production sync, packaging, CI, deployment, and Chrome Web Store work remain out of scope unless explicitly approved later.
+- The user is the approval authority. Tasks approved by the user in chat are implemented by Claude Code.
+- Claude Code may automate Chrome Load unpacked / popup / fixture verification (Playwright/CDP) and may drive live X masked-observation collection through the Chrome MCP under user consent.
+- The agent never receives or stores credentials (password, MFA, Cookie, token) and never reads raw X responses; only masked observations leave the page.
+- Chrome Web Store distribution is the final goal; readiness work is in scope. F1-C (OAuth/API) is closed; F1-B/F1-D remain fallbacks if F1-A is not viable.
 
 ## Current confirmed baseline
 
@@ -48,7 +48,7 @@ Before any Phase 2 implementation depends on browser behavior, a human should co
 6. The UI clearly says this is not production sync.
 7. No real X login, X account data, Cookie, token, raw response, HAR, or personal screenshot is required for this check.
 
-Current status: 未確認. Codex has not performed this human Chrome Load unpacked confirmation in this pass.
+Current status: 未確認. The Chrome Load unpacked confirmation has not been completed yet. Under the 2026-06-13 governance change, Claude Code may perform it through Playwright/CDP automation (M2); until that run finishes, treat it as 未確認.
 
 ## Synthetic fixture gate
 
@@ -66,11 +66,11 @@ The synthetic fixture may confirm local parsing and safety boundaries. It does n
 
 ## F1-A masked-summary gate
 
-F1-A can be considered for primary use only after ChatGPT approves a later live masked-summary evaluation path and the user supplies a safe masked summary. Codex must not collect real X data itself.
+F1-A can be considered for primary use after a live masked-summary evaluation. Under the 2026-06-13 governance change, Claude Code may collect the masked summary by driving the user's logged-in Chrome through the Chrome MCP (masked observations only; no raw response, Cookie, or token). The user consents to the session and performs the login; the agent never receives credentials.
 
 Expected evaluator outcomes:
 
-- `f1a_viable`: F1-A may be considered further, but still requires ChatGPT approval before implementation.
+- `f1a_viable`: F1-A may be considered further, but still requires user approval before implementation.
 - `f1a_insufficient`: Do not proceed with F1-A primary; consider F1-B or F1-D fallback.
 - `unsafe_summary`: Stop. Do not share or commit the summary. Delete or quarantine it according to human instructions.
 - `fixture_pass`: Fixture-only evidence. This must not be used as live F1-A proof.
@@ -84,32 +84,29 @@ Phase 2 source selection remains undecided.
 - F1-C: X API / OAuth. Deferred and out of current scope.
 - F1-D: Human import UI. Deferred as a possible privacy-preserving fallback.
 
-No Phase 2 source should be implemented until ChatGPT explicitly approves the selected source, scope, acceptance criteria, and validation commands.
+No Phase 2 source should be implemented until the user approves the selected source, scope, acceptance criteria, and validation commands. The current preference is F1-A primary if the live evaluation is viable, with F1-B/F1-D as fallbacks; F1-C is closed.
 
 ## Stop conditions before Phase 2
 
-Stop and return to ChatGPT/user if the next step would require:
+These remain hard stops even under the 2026-06-13 governance change. Stop and return to the user if the next step would require:
 
-- Real X login by Codex.
-- Accessing `x.com` or `twitter.com` live pages from Codex.
-- Reading or storing Cookie, CSRF token, Authorization header, OAuth token, raw user ID, raw handle, display name, post body, HAR, or personal screenshot.
-- Adding `webRequest`, `cookies`, `tabs`, `activeTab`, `<all_urls>`, or `https://api.x.com/*`.
-- Captured-response-to-`xtbmEntries` production sync.
-- F1-B, F1-C, or F1-D implementation.
-- Chrome Web Store preparation.
-- Package setup, CI setup, deploy, or external dashboard operation.
+- Receiving or storing credentials: password, MFA, Cookie, CSRF token, Authorization header, or OAuth token.
+- Reading or storing, anywhere outside the user's own `xtbmEntries` device storage, a raw user ID, raw handle, display name, post body, raw X response, HAR, or personal screenshot.
+- Capturing or reading raw X response bodies during live verification (only masked observations may leave the page).
+- Adding `webRequest`, `cookies`, `tabs`, `activeTab`, `<all_urls>`, or `https://api.x.com/*` without a written rationale, threat-model update, and user approval.
+- Sending any user data off the device (the extension stays local-only).
 
 ## Human approval required
 
-Human or ChatGPT approval is required before:
+User approval is required before:
 
-- Treating any Claude finding as approved implementation work.
-- Starting real X verification.
-- Using live masked summary evidence.
-- Changing permissions or host permissions.
-- Writing production sync.
-- Creating package, CI, deployment, or store-distribution workflows.
+- Changing manifest permissions or host permissions.
+- Adopting a Phase 2 source (F1-A/F1-B/F1-D) as primary and writing production sync into `xtbmEntries`.
+- Submitting to the Chrome Web Store (developer registration, payment, and final submission are performed by the user).
+- Any deploy, external dashboard, or paid-service usage.
+
+Within these bounds, Claude Code implements the tasks the user has approved in chat, including Chrome and live X verification.
 
 ## Next minimum step
 
-The next minimum step is human Chrome Load unpacked and popup confirmation using `docs/manual-popup-verification.md`. The result should be returned to ChatGPT before Codex proceeds beyond local docs and fixture verification.
+The next minimum step is the M2 Chrome Load unpacked and popup verification — automated by Claude Code via Playwright/CDP, with `docs/manual-popup-verification.md` as the reference checklist. Results are reported as actually measured.

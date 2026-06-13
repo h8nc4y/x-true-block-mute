@@ -123,15 +123,15 @@ SPA 遷移で `window` が維持される限り hook は残る想定だが、実
 - response shape difference: 未確認
 - pagination behavior difference: 未確認
 
-## 手動検証手順
+## 検証手順
 
-この手順は人間がログイン済み Chrome で実施する。Codex はログイン待ち、masked summary 入力待ち、DevTools Network 本文待ちをしない。
+この手順は、ユーザーのログイン済み Chrome で実施する。2026-06-13 のガバナンス変更により、ユーザー同意の下、Claude Code が Chrome MCP でブラウザを操作して実施してもよいし、ユーザーが手動で実施してもよい。エージェントは password、MFA、Cookie、token を受け取らない。raw response、DevTools Network 本文、HAR は読まない・保存しない。成果物は masked summary だけにする。
 
 1. Chrome で `chrome://extensions` を開く。
 2. `Developer mode` を有効にする。
 3. `Load unpacked` で `D:\Agent\Codex\Projects\012_x-true-block-mute\` を読み込む。既に読み込み済みなら `Reload` を押す。
 4. 拡張 popup を開き、`F1-A 観測メモ（開発用）` の `F1-A 観測を開始` を有効にする。
-5. `https://x.com/settings/blocked/all` を開く。ログインが必要な場合は、人間が Chrome 上で直接ログインする。Codex に password、MFA、Cookie、token を渡さない。
+5. `https://x.com/settings/blocked/all` を開く。ログインが必要な場合は、ユーザーが Chrome 上で直接ログインする。エージェントに password、MFA、Cookie、token を渡さない。
 6. ページを refresh する。
 7. 一覧を少し scroll し、追加読み込みが起きるかを見る。
 8. 拡張 popup を開き、`観測メモ` と `ブロック / ミュート` の件数が増えたかだけを見る。

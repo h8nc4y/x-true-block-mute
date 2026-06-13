@@ -158,10 +158,10 @@ node tests/scripts/evaluate-f1-observation.mjs tests/fixtures/f1-a-masked-summar
 node tests/scripts/verify-docs-consistency.mjs
 ```
 
-repo 外の Codex global config / cost guard rules も確認したい場合だけ、明示的に opt-in します。指定しない通常実行では外部チェックは skip reason 付きで省略され、生の外部ファイル内容は出力しません。
+運用ルール（`AGENTS.md`）と docs の整合も次で確認します。
 
 ```powershell
-node tests/scripts/audit-operational-alignment.mjs --global-config path\to\config.toml --cost-guard-rules path\to\cost-guard.rules
+node tests/scripts/audit-operational-alignment.mjs
 ```
 
 `evaluate-f1-observation.mjs` は `--live` を付けた場合だけ、条件充足時に `f1a_viable` を返します。`--live` なしでは fixture 扱いのため、条件が揃っても `fixture_pass` です。
@@ -184,24 +184,24 @@ node tests/scripts/evaluate-f1-observation.mjs --live path\to\masked-summary.jso
 - `docs/research/f1-a-main-world-hook.md`
 - `docs/decisions/f1-source-selection.md`
 
-## Codex operation notes
+## Claude Code operation notes
 
-- Windows Codex App で Codex 向け prompt を作る場合、`/goal` は使わず、通常チャット欄に `Goal` から始まる単一ブロックを渡します。
-- GitHub issue コメント、PR review、人間の X ログイン、masked summary 貼り付けは開発開始条件ではありません。
-- Codex は入力待ちループ、対話式 CLI 待機、foreground dev server、`tail -f`、`watch`、`while true`、`sleep infinity` に入りません。
-- 実 X ログインが必要な検証は未確認として扱い、fixture / simulator / evaluator / docs のローカル検証へ戻ります。
-- remote が未設定の場合は push / PR を推測せず、local commit と報告で完了します。
-- Web UI 変更時は日本語 UI を優先し、可能な範囲で Chrome / Browser / Playwright / headless smoke を確認します。
-- GoogleChrome / modern-web-guidance は frontend 判断で必要な場合だけ利用候補にし、secret、token、OAuth、実データ、個人情報を query に入れません。
-- Taste Skill は Web/UI/design の具体作業で必要な場合だけ、公式・無料・非対話・単一 skill を対象に使います。今回のような instruction / readiness 監査だけでは原則使いません。
-- Agent Governance Toolkit は agent/tool/MCP/API/security 境界のローカル policy lint / verify / red-team / code-level gate が必要な場合だけ使います。Azure、OAuth、secret、cloud、paid、real-data 経路は使いません。
+運用ルールの正本は `AGENTS.md` です。2026-06-13 のガバナンス変更（`docs/DECISION_LOG.md`）以降の要点:
+
+- 報告は日本語、冒頭に日本時間 `YYYY/MM/DD HH:MM:SS`。テスト結果・commit hash・URL を捏造しない。
+- タスクはユーザーがチャットで直接承認したものを実装する。ChatGPT 承認制は廃止。
+- ユーザー同意の下、Claude Code は Chrome MCP でログイン済み Chrome を操作し、設定ページ限定で masked observation を収集してよい。password / MFA / Cookie / token は受け取らない。x.com / twitter.com タブではスクリーンショット・DOM テキスト・network response を読み取らない。
+- Chrome Load unpacked / popup / synthetic fixture の確認は Playwright/CDP 自動化で実施してよい。
+- 入力待ちループ、対話式 CLI 待機、foreground dev server で待機しない。検証スクリプトは必ず終了する。
+- 権限は `storage` + `scripting` + x.com/twitter.com host に保つ。追加が必要なら理由・脅威モデル更新・rollback をユーザー承認と共に docs に残す。
 
 ## 未確認事項
 
-- Chrome UI の `Load unpacked` 手動確認は未確認です。
-- X 実 DOM から安定して `user_id` を取得できるかは未確認です。
-- 実 X DOM の投稿者判定、quote / embedded target の除外、関連リンク混在時の handle 判定は未確認です。
-- 実 X 画面での F1-A endpoint、response shape、pagination、injection timing、SPA navigation 維持は未確認です。
+2026-06-13 以降、これらは Claude Code が自動検証（Chrome Load unpacked は Playwright/CDP、live X は Chrome MCP）で確認できますが、実施前の現時点では未確認です。
+
+- Chrome の `Load unpacked` と popup 動作は未確認（M2 で自動検証予定）。
+- X 実 DOM から安定して `user_id` を取得できるかは未確認。実 DOM の投稿者判定、quote / embedded target の除外、関連リンク混在時の handle 判定も未確認（M3 / M5）。
+- 実 X 画面での F1-A endpoint、response shape、pagination、injection timing、SPA navigation 維持は未確認（M3 の live masked summary 評価で判定）。
 
 ## 関係性の表明
 

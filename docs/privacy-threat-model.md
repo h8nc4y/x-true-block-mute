@@ -29,11 +29,15 @@ Prepared by Codex on 2026-05-31 for the Phase 2 readiness gate. This document re
 
 ## Storage boundary
 
-`xtbmSettings` is for user settings only.
+The repository handles two distinct data classes. They must remain separate.
 
-`xtbmEntries` is the normal block/mute entry store. Captured F1-A responses must not be written directly into `xtbmEntries` during the current research phase.
+**Research observation (`xtbmF1AResearch`)** — masked only. It should contain masked structure only, such as endpoint class, top-level keys, shape path, field presence, counts, and hook continuity markers. No raw value is ever stored here. This is the only class collected during F1-A live evaluation.
 
-`xtbmF1AResearch` is the research-only observation store. It should contain masked structure only, such as endpoint class, top-level keys, shape path, field presence, counts, and hook continuity markers. It must remain separate from `xtbmEntries` until ChatGPT explicitly approves a production sync design.
+**Production entries (`xtbmEntries`)** — the user's own block/mute list, stored locally for the sole purpose of filtering. From Phase 2 (M4) onward, this store holds the user's own raw `user_id` and `handle` values in `chrome.storage.local` on the user's device. This is intentional and necessary for the extension's purpose: the user's list cannot be matched against timeline authors without it. The raw values stay inside device storage only — they are never written to docs, fixtures, logs, commits, clipboard, screenshots, or any off-device destination, and the extension sends no data off the device.
+
+`xtbmSettings` is for user settings only and stays in `chrome.storage.sync`; the entry list is kept in `chrome.storage.local` and is not synced across devices.
+
+During the current research phase, captured F1-A responses are not written into `xtbmEntries`; `xtbmF1AResearch` must remain separate from `xtbmEntries` until the user approves the production sync design (M4).
 
 ## Clipboard boundary
 
@@ -84,7 +88,7 @@ Current host permissions:
 - `https://x.com/*`
 - `https://twitter.com/*`
 
-Forbidden unless later explicitly approved by ChatGPT:
+Forbidden unless later explicitly approved by the user:
 
 - `webRequest`
 - `cookies`
@@ -102,9 +106,9 @@ Any permission expansion must include a written rationale, threat-model update, 
 | Raw X response is copied or committed. | Persistent privacy leak. | Popup/docs say masked summary only; evaluator detects unsafe signals. | Human reporting can still make mistakes. |
 | Research data is mixed into production entries. | Unreviewed sync path and incorrect filtering. | `xtbmF1AResearch` is separate from `xtbmEntries`. | Future Phase 2 code must preserve this boundary. |
 | Permissions expand silently. | Wider access to user data. | Static checks assert allowed permissions. | Review must catch manifest changes. |
-| Live X verification starts too early. | Account/session exposure. | Docs require human confirmation and ChatGPT approval. | Codex must continue avoiding real X. |
-| Clipboard leaks sensitive content. | User may paste secrets into ChatGPT/GitHub. | Copy flow is intended for masked summary only. | Needs human caution during real masked-summary collection. |
-| Claude suggestions are implemented directly. | Scope drift and unapproved risk. | ChatGPT triage remains source of truth. | Future agents must preserve this governance. |
+| Live X verification exposes account data. | Account/session exposure. | Claude Code drives the user's own Chrome under consent; no credentials are received; only masked observations leave the page; x.com tabs are not screenshotted or scraped. | Masking must hold; `unsafe_summary` stops and deletes the summary. |
+| Clipboard leaks sensitive content. | User may paste secrets elsewhere. | Copy flow is intended for masked summary only; masked summary goes to a gitignored temp path and through the `unsafe_summary` gate first. | Needs care during real masked-summary collection. |
+| Production entries leak off-device. | Block/mute list exposure. | `xtbmEntries` raw values stay in `chrome.storage.local` only; no network egress; not synced across devices. | Phase 2 code must preserve local-only storage. |
 
 ## Human reporting rules
 
@@ -120,7 +124,7 @@ Do not include raw account identifiers, raw handles, display names, post text, s
 
 ## Phase 2 privacy gate
 
-Phase 2 implementation is blocked until ChatGPT confirms:
+Phase 2 implementation is blocked until the user confirms:
 
 1. Which source path is approved: F1-A, F1-B, F1-D, or another path.
 2. What data may be stored.
