@@ -28,6 +28,7 @@
   const syncMutedCount = document.querySelector("#sync-muted-count");
   const syncLast = document.querySelector("#sync-last");
   const clearSyncedButton = document.querySelector("#clear-synced");
+  const openOptionsButton = document.querySelector("#open-options");
   const message = document.querySelector("#message");
   let busy = false;
 
@@ -284,6 +285,12 @@
       setMessage("同期データの削除に失敗しました。");
     } finally {
       setBusy(false);
+    }
+  });
+
+  openOptionsButton.addEventListener("click", () => {
+    if (chrome.runtime && chrome.runtime.openOptionsPage) {
+      chrome.runtime.openOptionsPage();
     }
   });
 

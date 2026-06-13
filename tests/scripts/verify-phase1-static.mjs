@@ -18,6 +18,9 @@ const requiredFiles = [
   "src/popup/popup.html",
   "src/popup/popup.css",
   "src/popup/popup.js",
+  "src/options/options.html",
+  "src/options/options.css",
+  "src/options/options.js",
   "tests/fixtures/home-timeline.html",
   "tests/fixtures/f1-a-local-simulator.html",
   "tests/fixtures/f1-a-masked-summary.fixture.json",
@@ -245,5 +248,33 @@ assert(popupHtml.includes("ブロック / ミュート"), "popup must separate b
 assert(popupHtml.includes("安全な要約をコピー（masked summary）"), "popup must expose masked summary copy flow");
 assert(popupHtml.includes("本番同期ではありません"), "popup must label research flow as non-production sync");
 assert(popupHtml.includes("raw response はコピーしません"), "popup must explicitly say raw response is not copied");
+assert(popupHtml.includes("詳細設定・プライバシー"), "popup must link to the options page");
+
+// M6: options page (entries 管理 / プライバシー説明) registered and self-consistent.
+assert(
+  manifest.options_ui?.page === "src/options/options.html" && manifest.options_ui?.open_in_tab === true,
+  "manifest must register the options page (open_in_tab)"
+);
+const optionsHtml = await readText("src/options/options.html");
+const optionsScripts = Array.from(optionsHtml.matchAll(/<script src="([^"]+)"><\/script>/g)).map((match) => match[1]);
+assert(
+  optionsScripts.indexOf("../research/f1-a/observation-utils.js") < optionsScripts.indexOf("../storage/storage.js"),
+  "options page must load observation-utils before storage"
+);
+for (const needle of [
+  "x-true-block-mute 設定",
+  "プライバシー",
+  "外部サーバーへは送信されません",
+  "フィルタ対象",
+  "うまく同期できないとき"
+]) {
+  assert(optionsHtml.includes(needle), `options page must include: ${needle}`);
+}
+const optionsScript = await readText("src/options/options.js");
+assert(
+  optionsScript.includes("clearSyncedEntries") && optionsScript.includes("getEntryStore"),
+  "options page must read entries and offer a synced clear"
+);
+assert(!optionsScript.includes(".innerHTML"), "options page must not inject user data via innerHTML");
 
 console.log("Phase 1.5 static verification passed");

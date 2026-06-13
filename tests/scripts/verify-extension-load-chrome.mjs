@@ -413,6 +413,40 @@ async function main() {
     check(realDomResult.card3 === true, "real-DOM: card-3 (safe author) kept as a post", realDomResult);
     check(realDomResult.card3Quote === true, "real-DOM: card-3's quoted target card is hidden in place", realDomResult);
     check(realDomResult.card5 === true, "real-DOM: card-5 mentions target but safe author -> kept", realDomResult);
+
+    // --- Check 6: options page renders in extension context (M6) --------
+    // The popup already seeded 2 synthetic entries into this profile and no real
+    // sync ran, so the options page must show synthetic=2件, 0 synced entries,
+    // the empty-state, and the device-local privacy statement.
+    const optionsUrl = `chrome-extension://${extensionId}/src/options/options.html`;
+    const options = await openPage(cdp, optionsUrl);
+    const optSynthetic = await pollValue(
+      async () => {
+        const value = await evaluate(
+          cdp,
+          options.sessionId,
+          "document.querySelector('#synthetic-count')?.textContent || ''"
+        );
+        return { ok: value === "2件", value };
+      },
+      { timeout: 8000, desc: "options #synthetic-count to reflect the seeded data" }
+    ).catch((error) => `ERROR: ${error.message}`);
+    check(optSynthetic === "2件", "options page reads storage (synthetic = 2件)", String(optSynthetic));
+
+    const optProbe = await evaluate(
+      cdp,
+      options.sessionId,
+      "({ blocked: document.querySelector('#synced-blocked-count')?.textContent || ''," +
+        " muted: document.querySelector('#synced-muted-count')?.textContent || ''," +
+        " emptyShown: (() => { const el = document.querySelector('#synced-empty'); return Boolean(el) && el.offsetParent !== null; })()," +
+        " privacy: (document.body.textContent || '').includes('外部サーバーへは送信されません')," +
+        " heading: (document.querySelector('h1')?.textContent || '') })"
+    );
+    check(optProbe.blocked === "0件" && optProbe.muted === "0件", "options page shows 0 synced entries (none synced yet)", optProbe);
+    check(optProbe.emptyShown === true, "options page shows the empty-state when no synced entries", optProbe);
+    check(optProbe.privacy === true, "options page states the device-local / no-external-send privacy guarantee", optProbe);
+    check(optProbe.heading.includes("x-true-block-mute 設定"), "options page heading renders", optProbe.heading);
+    await captureScreenshot(cdp, options.sessionId, path.join(tmpDir, "tb002-options-screenshot.png"));
   } finally {
     await cleanup();
   }

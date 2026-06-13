@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>x-true-block-mute 設定</title>
+    <link rel="stylesheet" href="options.css">
+  </head>
+  <body>
+    <main class="options-shell">
+      <header class="app-header">
+        <h1>x-true-block-mute 設定</h1>
+        <p>取り込んだデータの確認・管理と、プライバシーについての説明です。</p>
+      </header>
+
+      <section id="privacy-section" class="panel" aria-labelledby="privacy-title">
+        <div class="section-heading">
+          <h2 id="privacy-title">プライバシー</h2>
+          <p>この拡張がどのデータを、どこに保存するかの説明です。</p>
+        </div>
+        <ul class="claim-list">
+          <li>データはすべてこの端末内（chrome.storage.local）に保存され、外部サーバーへは送信されません。</li>
+          <li>取り込むのはブロック・ミュート対象の user_id・handle・一覧種別（blocked / muted）のみです。表示名・投稿本文・cursor・Cookie・token は保存しません。</li>
+          <li>使用する権限は storage と x.com / twitter.com への接続のみです。</li>
+          <li>取り込んだデータは下の「同期データを消す」でいつでも削除できます。</li>
+        </ul>
+      </section>
+
+      <section id="synced-section" class="panel" aria-labelledby="synced-title">
+        <div class="section-heading">
+          <h2 id="synced-title">フィルタ対象（同期で取り込んだ一覧）</h2>
+          <p>同期で取り込んだブロック・ミュート対象の一覧です。すべてこの端末内のデータです。</p>
+        </div>
+
+        <section class="status-panel" aria-live="polite">
+          <div>
+            <span>ブロック</span>
+            <strong id="synced-blocked-count">0件</strong>
+          </div>
+          <div>
+            <span>ミュート</span>
+            <strong id="synced-muted-count">0件</strong>
+          </div>
+          <div>
+            <span>ローカル確認用データ</span>
+            <strong id="synthetic-count">0件</strong>
+          </div>
+        </section>
+
+        <ul id="synced-list" class="synced-list"></ul>
+        <p id="synced-empty" class="help-text">同期で取り込んだ対象はまだありません。popup から同期を有効にして、ブロック / ミュート一覧を開いてください。</p>
+      </section>
+
+      <section id="manage-section" class="panel" aria-labelledby="manage-title">
+        <div class="section-heading">
+          <h2 id="manage-title">管理</h2>
+          <p>取り込んだデータや、ローカル確認用のテストデータを削除できます。</p>
+        </div>
+
+        <div class="button-grid">
+          <button id="options-clear-synced" type="button" class="secondary">同期データを消す</button>
+          <button id="options-clear-synthetic" type="button" class="secondary">テストデータを消す</button>
+        </div>
+        <p id="options-message" class="message" role="status"></p>
+      </section>
+
+      <section id="troubleshooting-section" class="panel" aria-labelledby="troubleshooting-title">
+        <div class="section-heading">
+          <h2 id="troubleshooting-title">うまく同期できないとき</h2>
+          <p>件数が増えないときは、次の順に確認してください。</p>
+        </div>
+
+        <ol class="troubleshooting-list">
+          <li>popup で「同期を有効にする」が ON か確認</li>
+          <li>ブロック / ミュート一覧を一番下までスクロール</li>
+          <li>ページを再読み込み</li>
+          <li>この設定画面を再読み込み</li>
+        </ol>
+        <p class="help-text">拡張として読み込めていない場合は chrome://extensions で再読み込みしてください。</p>
+      </section>
+    </main>
+
+    <script src="../shared/constants.js"></script>
+    <script src="../research/f1-a/observation-utils.js"></script>
+    <script src="../storage/storage.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>
