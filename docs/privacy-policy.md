@@ -66,7 +66,7 @@ version will be published at the policy URL.
 
 ### Contact
 
-Questions about this policy: **[ADD YOUR CONTACT EMAIL BEFORE PUBLISHING]**
+Questions about this policy: **h8nc4y@gmail.com**
 
 ---
 
@@ -120,4 +120,4 @@ TrueBlock & Mute は、個人データを**収集・送信・販売しません*
 
 ### 連絡先
 
-本ポリシーに関するお問い合わせ: **[公開前に連絡先メールアドレスを記入してください]**
+本ポリシーに関するお問い合わせ: **h8nc4y@gmail.com**
