@@ -79,9 +79,21 @@
   // The first User-Name in DOM order is the top-level author; a quoted tweet's
   // User-Name appears later/nested and is therefore ignored.
   function extractAuthorHandle(card) {
-    const region =
-      card.querySelector('[data-testid="User-Name"]') ||
-      card.querySelector('[data-testid="Tweet-User-Avatar"]');
+    const quotes = findQuoteContainers(card);
+    const inQuote = (el) => quotes.some((quote) => quote.contains(el));
+    let region =
+      Array.from(card.querySelectorAll('[data-testid="User-Name"]')).find((el) => !inQuote(el)) || null;
+    if (!region) {
+      const avatar = card.querySelector('[data-testid="Tweet-User-Avatar"]');
+      if (avatar && !inQuote(avatar)) {
+        region = avatar;
+      }
+    }
+    if (!region) {
+      region =
+        card.querySelector('[data-testid="User-Name"]') ||
+        card.querySelector('[data-testid="Tweet-User-Avatar"]');
+    }
     if (!region) {
       return "";
     }
