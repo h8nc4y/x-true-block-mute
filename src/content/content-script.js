@@ -142,6 +142,14 @@
     }
   }
 
+  function pruneDetachedReplacements() {
+    for (const [card, replacement] of Array.from(replacements.entries())) {
+      if (!replacement.isConnected) {
+        replacements.delete(card);
+      }
+    }
+  }
+
   // A quoted tweet is a clickable container (role="link") that holds its own
   // User-Name. The post author's User-Name lives outside any such container, so
   // these are exactly the embedded quotes. Keep only the outermost ones.
@@ -198,14 +206,15 @@
     }
   }
 
-  function scheduleProcess(root) {
+  function scheduleProcess() {
     if (scheduled) {
       return;
     }
     scheduled = true;
     window.setTimeout(() => {
       scheduled = false;
-      processRoot(root || document.querySelector(ROOT_SELECTORS) || document.body);
+      pruneDetachedReplacements();
+      processRoot(document.querySelector(ROOT_SELECTORS) || document.body);
     }, 80);
   }
 
@@ -230,20 +239,34 @@
     settings = nextSettings;
     rebuildTargets(entryStore);
     restoreAll();
-    scheduleProcess(document.querySelector(ROOT_SELECTORS) || document.body);
+    scheduleProcess();
   }
 
   function startObserver() {
     observer = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
+        let shouldSchedule = false;
         for (const node of mutation.addedNodes) {
           if (node.nodeType === Node.ELEMENT_NODE) {
-            scheduleProcess(node);
+            shouldSchedule = true;
+            break;
           }
+        }
+        if (!shouldSchedule) {
+          for (const node of mutation.removedNodes) {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              shouldSchedule = true;
+              break;
+            }
+          }
+        }
+        if (shouldSchedule) {
+          scheduleProcess();
+          break;
         }
       }
     });
-    observer.observe(document.querySelector(ROOT_SELECTORS) || document.body, {
+    observer.observe(document.body, {
       childList: true,
       subtree: true
     });
