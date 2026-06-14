@@ -1,6 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128" role="img" aria-label="TrueBlock & Mute">
-  <rect x="0" y="0" width="128" height="128" rx="28" ry="28" fill="#2563eb"/>
-  <g fill="none" stroke="#ffffff" stroke-width="20.5" stroke-linecap="round">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7BC400"/>
+      <stop offset="1" stop-color="#3CB8E8"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="128" height="128" rx="28" ry="28" fill="url(#g)"/>
+  <g fill="none" stroke="#143447" stroke-width="20.5" stroke-linecap="round">
     <circle cx="64" cy="64" r="38.4"/>
     <line x1="36.85" y1="36.85" x2="91.15" y2="91.15"/>
   </g>

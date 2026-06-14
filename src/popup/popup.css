@@ -1,24 +1,53 @@
+/* TrueBlock & Mute — popup
+   pixivFANBOX-inspired theme: white base, yellow-green -> light-blue gradient
+   accent, soft rounded cards, generous spacing. Friendly for VTuber / 配信者. */
+
+:root {
+  /* FANBOX-style accent gradient (yellow-green -> light blue). */
+  --grad-green: #7bc400;
+  --grad-blue: #3cb8e8;
+  --accent-gradient: linear-gradient(135deg, var(--grad-green) 0%, var(--grad-blue) 100%);
+  /* Text that sits on top of the bright gradient. Dark slate-teal keeps WCAG
+     AA (>= 5.7:1) across the whole gradient sweep, where white text cannot. */
+  --on-accent: #143447;
+  /* Solid accent for links / secondary-button text (AA on white). */
+  --accent-ink: #0f7aac;
+
+  --bg-page: #f4fbf6;
+  --surface: #ffffff;
+  --surface-tint: #f7fbf8;
+  --border-soft: #e3eef0;
+  --border-softer: #edf3f0;
+
+  --text: #3a3f47;
+  --text-strong: #222a30;
+  --text-muted: #5e6672;
+  --text-help: #6a7280;
+
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 10px;
+  --shadow-card: 0 1px 2px rgba(60, 90, 70, 0.05), 0 6px 16px rgba(60, 110, 130, 0.06);
+  --shadow-accent: 0 6px 16px rgba(60, 160, 200, 0.28);
+}
+
 * {
   box-sizing: border-box;
 }
 
 body {
-  width: 360px;
+  width: 372px;
   margin: 0;
-  color: #202124;
-  background: #f7f9fb;
-  font: 14px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--text);
+  background: var(--bg-page);
+  font: 14px/1.55 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    "Hiragino Kaku Gothic ProN", "Noto Sans JP", Meiryo, sans-serif;
 }
 
 .popup-shell {
   display: grid;
-  gap: 12px;
-  padding: 16px;
-}
-
-.app-header {
-  display: grid;
-  gap: 2px;
+  gap: 14px;
+  padding: 14px;
 }
 
 h1,
@@ -28,45 +57,60 @@ p {
   margin: 0;
 }
 
-h1 {
-  font-size: 18px;
-  line-height: 1.2;
+/* ---- Header band: the gradient accent ---- */
+.app-header {
+  display: grid;
+  gap: 4px;
+  padding: 18px 18px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--accent-gradient);
+  color: var(--on-accent);
+  box-shadow: var(--shadow-accent);
+}
+
+.app-header h1 {
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+}
+
+.app-header p {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--on-accent);
+  opacity: 0.86;
 }
 
 h2 {
-  margin: 0;
   font-size: 15px;
+  font-weight: 800;
+  color: var(--text-strong);
 }
 
 h3 {
   font-size: 13px;
+  font-weight: 700;
 }
 
-header p,
-.status-panel span,
 .section-heading p,
+.status-panel span,
 .control-help,
 .help-text,
-.research-note,
 .message {
-  color: #5f6368;
+  color: var(--text-muted);
   font-size: 12px;
 }
 
-.panel,
-.toggle-row,
-fieldset,
-.status-panel {
-  border: 1px solid #d9e2ea;
-  border-radius: 8px;
-  background: #fff;
-}
-
-.panel,
-.research-panel {
+/* ---- Cards ---- */
+.panel {
   display: grid;
-  gap: 10px;
-  padding: 12px;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
 }
 
 .section-heading {
@@ -74,31 +118,51 @@ fieldset,
   gap: 3px;
 }
 
+/* ---- Toggle rows ---- */
 .toggle-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 12px;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-softer);
+  border-radius: var(--radius-md);
+  background: var(--surface-tint);
   font-weight: 700;
 }
 
+/* ---- Option group ---- */
 fieldset {
   display: grid;
   gap: 8px;
   margin: 0;
-  padding: 10px 12px 12px;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--border-softer);
+  border-radius: var(--radius-md);
+  background: var(--surface-tint);
 }
 
 legend {
-  padding: 0 4px;
-  font-weight: 700;
+  padding: 0 6px;
+  font-weight: 800;
+  color: var(--text-strong);
 }
 
 label {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: 10px;
   cursor: pointer;
+}
+
+fieldset > label {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  transition: background-color 0.12s ease;
+}
+
+fieldset > label:hover {
+  background: rgba(60, 184, 232, 0.08);
 }
 
 .control-title,
@@ -108,40 +172,43 @@ label {
 
 .control-title {
   font-weight: 700;
+  color: var(--text-strong);
 }
 
 .control-help {
   font-weight: 400;
 }
 
+/* ---- Form controls: tint with the accent ---- */
+input[type="checkbox"],
+input[type="radio"] {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  accent-color: var(--grad-blue);
+  cursor: pointer;
+}
+
+input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  margin-top: 0;
+}
+
+input:focus-visible {
+  outline: 2px solid var(--grad-blue);
+  outline-offset: 2px;
+}
+
+/* ---- Status panels (key/value rows) ---- */
 .status-panel {
   display: grid;
-  gap: 8px;
-  padding: 10px 12px;
-}
-
-.research-panel {
-  display: grid;
   gap: 10px;
-  border: 1px solid #d7dbdc;
-  border-radius: 8px;
-  background: #fff;
-}
-
-.research-note {
-  margin: 0;
-}
-
-.compact {
-  font-size: 12px;
-}
-
-.toggle-row.compact {
-  padding: 8px 10px;
-}
-
-.status-panel.compact {
-  padding: 8px 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-softer);
+  border-radius: var(--radius-md);
+  background: var(--surface-tint);
 }
 
 .status-panel div {
@@ -151,76 +218,90 @@ label {
   gap: 12px;
 }
 
-.next-step-panel,
-.details-panel {
-  border-left: 3px solid #2f6f9f;
-  padding: 8px 10px;
-  background: #f2f7fb;
+.status-panel strong {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text-strong);
 }
 
-.next-step-panel {
-  display: grid;
-  gap: 3px;
-}
-
-.details-panel summary {
-  cursor: pointer;
-  font-weight: 700;
-}
-
-.details-panel dl {
-  display: grid;
-  gap: 8px;
-  margin: 8px 0 0;
-}
-
-.details-panel dt {
-  font-weight: 700;
-}
-
-.details-panel dd {
-  margin: 0;
-  color: #5f6368;
-  font-size: 12px;
-}
-
+/* ---- Buttons ---- */
 .button-grid {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 8px;
+  gap: 10px;
 }
 
 button {
-  min-height: 36px;
+  min-height: 40px;
+  padding: 0 16px;
   border: 0;
-  border-radius: 8px;
-  background: #174ea6;
-  color: #fff;
-  font-weight: 700;
+  border-radius: 999px;
+  background: var(--accent-gradient);
+  color: var(--on-accent);
+  font-weight: 800;
+  font-size: 13.5px;
   cursor: pointer;
+  box-shadow: 0 4px 12px rgba(60, 160, 200, 0.22);
+  transition: transform 0.1s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+}
+
+button:hover {
+  box-shadow: var(--shadow-accent);
+  transform: translateY(-1px);
+}
+
+button:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(60, 160, 200, 0.2);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent-ink);
+  outline-offset: 2px;
 }
 
 button.secondary {
-  border: 1px solid #c8d2dc;
-  background: #fff;
-  color: #174ea6;
+  border: 1.5px solid #cfe6ec;
+  background: var(--surface);
+  color: var(--accent-ink);
+  box-shadow: none;
+}
+
+button.secondary:hover {
+  background: #f0fafd;
+  border-color: var(--grad-blue);
+  box-shadow: 0 2px 8px rgba(60, 160, 200, 0.12);
 }
 
 button:disabled {
   cursor: wait;
-  opacity: 0.7;
+  opacity: 0.55;
+  transform: none;
+  box-shadow: none;
 }
 
-.summary-output {
-  min-height: 96px;
-  width: 100%;
-  resize: vertical;
-  border: 1px solid #d9e2ea;
-  border-radius: 8px;
-  padding: 8px;
-  font: 11px/1.4 ui-monospace, "Cascadia Mono", Consolas, monospace;
+/* ---- Links ---- */
+a {
+  color: var(--accent-ink);
+  font-weight: 700;
+  text-underline-offset: 2px;
+}
+
+a:hover {
+  color: #0c6491;
+}
+
+/* ---- Help / message ---- */
+.help-text {
+  line-height: 1.65;
 }
 
 .message {
   min-height: 18px;
+  font-weight: 600;
+}
+
+/* "詳細設定・プライバシー" stays a quiet full-width secondary button. */
+.help-text > #open-options {
+  width: 100%;
 }
