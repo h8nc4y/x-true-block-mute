@@ -18,12 +18,11 @@ import path from "node:path";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const iconsDir = path.join(scriptDir, "..", "icons");
 
-// Brand palette: pixivFANBOX-style yellow-green -> light-blue diagonal gradient
-// (no X/Twitter colors or marks). The prohibition mark is dark slate so it stays
-// legible across the whole bright gradient.
-const BG0 = [123, 196, 0]; // #7BC400 (top-left)
-const BG1 = [60, 184, 232]; // #3CB8E8 (bottom-right)
-const FG = [20, 52, 71]; // #143447 dark slate ring + slash
+// Brand palette: わんコメ (OneComme) style — solid orange field with a dark-navy
+// prohibition mark (no X/Twitter colors or marks). Dark navy stays legible on the
+// orange (white text fails contrast on #f08300).
+const BG = [240, 131, 0]; // #f08300 OneComme orange
+const FG = [16, 36, 69]; // #102445 dark navy ring + slash
 const SIZES = [16, 32, 48, 128];
 const SS = 4; // supersampling factor for anti-aliasing
 
@@ -85,11 +84,9 @@ function renderSize(size) {
         hi[i + 2] = FG[2];
         hi[i + 3] = 255;
       } else if (inside) {
-        // diagonal (~135deg) lerp from BG0 (top-left) to BG1 (bottom-right)
-        const t = Math.min(1, Math.max(0, (x + y) / (2 * S)));
-        hi[i] = Math.round(BG0[0] + (BG1[0] - BG0[0]) * t);
-        hi[i + 1] = Math.round(BG0[1] + (BG1[1] - BG0[1]) * t);
-        hi[i + 2] = Math.round(BG0[2] + (BG1[2] - BG0[2]) * t);
+        hi[i] = BG[0];
+        hi[i + 1] = BG[1];
+        hi[i + 2] = BG[2];
         hi[i + 3] = 255;
       } else {
         hi[i + 3] = 0; // transparent outside the rounded square
