@@ -111,8 +111,41 @@
     return entries;
   }
 
+  function hasTimelineEntries(json) {
+    const visited = new WeakSet();
+    let budget = 20000;
+
+    function walk(node, depth) {
+      if (budget <= 0 || depth > 20 || node === null || typeof node !== "object" || visited.has(node)) {
+        return false;
+      }
+      visited.add(node);
+      budget -= 1;
+      if (typeof node.entryId === "string" || typeof node.cursorType === "string") {
+        return true;
+      }
+      if (Array.isArray(node)) {
+        for (const item of node) {
+          if (walk(item, depth + 1)) {
+            return true;
+          }
+        }
+        return false;
+      }
+      for (const key of Object.keys(node)) {
+        if (walk(node[key], depth + 1)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    return walk(json, 0);
+  }
+
   namespace.SyncCapture = {
     extractSyncEntries,
+    hasTimelineEntries,
     listKindFromUrl,
     normalizeHandle
   };

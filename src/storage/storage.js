@@ -13,6 +13,14 @@
     SYNTHETIC_SOURCE
   } = namespace;
 
+  let entryWriteLane = Promise.resolve();
+
+  function runExclusive(task) {
+    const run = entryWriteLane.then(task, task);
+    entryWriteLane = run.then(() => undefined, () => undefined);
+    return run;
+  }
+
   function hasChromeStorage() {
     return Boolean(globalThis.chrome && chrome.storage && chrome.storage.local && chrome.storage.sync);
   }
@@ -135,7 +143,7 @@
     return store;
   }
 
-  async function seedSyntheticEntries() {
+  async function seedSyntheticEntriesCore() {
     const current = await getEntryStore();
     const nonSynthetic = current.entries.filter((entry) => entry.source !== SYNTHETIC_SOURCE);
     const store = {
@@ -146,7 +154,11 @@
     return setEntryStore(store);
   }
 
-  async function clearSyntheticEntries() {
+  async function seedSyntheticEntries() {
+    return runExclusive(seedSyntheticEntriesCore);
+  }
+
+  async function clearSyntheticEntriesCore() {
     const current = await getEntryStore();
     const store = {
       schemaVersion: SCHEMA_VERSION,
@@ -156,6 +168,18 @@
     return setEntryStore(store);
   }
 
+  async function clearSyntheticEntries() {
+    return runExclusive(clearSyntheticEntriesCore);
+  }
+
+  function idKey(listKind, userId) {
+    return `${listKind || ""}|${userId}`;
+  }
+
+  function handleKey(listKind, handle) {
+    return `${listKind || ""}|${handle}`;
+  }
+
   // Merge a freshly synced batch of the user's own block/mute list into the
   // normal entry store. Matching prefers the stable user_id and falls back to handle,
   // so a handle-only entry is upgraded in place (not duplicated) once a user_id
@@ -163,16 +187,16 @@
   // list are NOT removed here. Full-list reconciliation (handling un-blocks)
   // depends on whether the source can read the complete list and is deferred to
   // the production sync step after the F1 source is chosen.
-  async function upsertSyncedEntries(incomingEntries, syncedAt = new Date().toISOString()) {
+  async function upsertSyncedEntriesCore(incomingEntries, syncedAt = new Date().toISOString()) {
     const current = await getEntryStore();
     const byUserId = new Map();
     const byHandle = new Map();
     for (const entry of current.entries) {
       if (entry.user_id) {
-        byUserId.set(entry.user_id, entry);
+        byUserId.set(idKey(entry.listKind, entry.user_id), entry);
       }
       if (entry.handle) {
-        byHandle.set(entry.handle, entry);
+        byHandle.set(handleKey(entry.listKind, entry.handle), entry);
       }
     }
 
@@ -183,17 +207,17 @@
         continue;
       }
       const match =
-        (candidate.user_id && byUserId.get(candidate.user_id)) ||
-        (candidate.handle && byHandle.get(candidate.handle)) ||
+        (candidate.user_id && byUserId.get(idKey(candidate.listKind, candidate.user_id))) ||
+        (candidate.handle && byHandle.get(handleKey(candidate.listKind, candidate.handle))) ||
         null;
       if (match) {
         if (candidate.user_id) {
           match.user_id = candidate.user_id;
-          byUserId.set(candidate.user_id, match);
+          byUserId.set(idKey(candidate.listKind, candidate.user_id), match);
         }
         if (candidate.handle) {
           match.handle = candidate.handle;
-          byHandle.set(candidate.handle, match);
+          byHandle.set(handleKey(candidate.listKind, candidate.handle), match);
         }
         if (candidate.listKind) {
           match.listKind = candidate.listKind;
@@ -206,10 +230,10 @@
       } else {
         current.entries.push(candidate);
         if (candidate.user_id) {
-          byUserId.set(candidate.user_id, candidate);
+          byUserId.set(idKey(candidate.listKind, candidate.user_id), candidate);
         }
         if (candidate.handle) {
-          byHandle.set(candidate.handle, candidate);
+          byHandle.set(handleKey(candidate.listKind, candidate.handle), candidate);
         }
       }
     }
@@ -222,7 +246,11 @@
     return setEntryStore(store);
   }
 
-  async function clearSyncedEntries() {
+  async function upsertSyncedEntries(incomingEntries, syncedAt = new Date().toISOString()) {
+    return runExclusive(() => upsertSyncedEntriesCore(incomingEntries, syncedAt));
+  }
+
+  async function clearSyncedEntriesCore() {
     const current = await getEntryStore();
     const store = {
       schemaVersion: SCHEMA_VERSION,
@@ -232,6 +260,10 @@
     return setEntryStore(store);
   }
 
+  async function clearSyncedEntries() {
+    return runExclusive(clearSyncedEntriesCore);
+  }
+
   // Reconcile a full sync of one list: drop every previously synced entry for
   // this listKind, then upsert the freshly captured set with the same
   // dedupe/normalize semantics as upsertSyncedEntries. This removes un-blocks /
@@ -239,7 +271,7 @@
   // sync bridge gates this on reaching the tail). Synthetic data and the other
   // listKind's synced entries are left untouched. An empty `incomingEntries`
   // reconciles this listKind to empty (explicit complete clear).
-  async function replaceSyncedListKind(listKind, incomingEntries, syncedAt = new Date().toISOString()) {
+  async function replaceSyncedListKindCore(listKind, incomingEntries, syncedAt = new Date().toISOString()) {
     const kind = normalizeListKind(listKind);
     if (!kind) {
       return getEntryStore();
@@ -253,7 +285,11 @@
       entries: retained,
       lastSyntheticUpdatedAt: current.lastSyntheticUpdatedAt
     });
-    return upsertSyncedEntries(incomingEntries, syncedAt);
+    return upsertSyncedEntriesCore(incomingEntries, syncedAt);
+  }
+
+  async function replaceSyncedListKind(listKind, incomingEntries, syncedAt = new Date().toISOString()) {
+    return runExclusive(() => replaceSyncedListKindCore(listKind, incomingEntries, syncedAt));
   }
 
   function normalizeSyncState(value) {

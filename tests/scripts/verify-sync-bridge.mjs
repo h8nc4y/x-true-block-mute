@@ -16,6 +16,12 @@ async function readText(path) {
 function flush() {
   return new Promise((resolve) => setImmediate(resolve));
 }
+async function flushStorage() {
+  await flush();
+  await flush();
+  await flush();
+  await flush();
+}
 
 const failures = [];
 function check(condition, label, detail) {
@@ -31,11 +37,13 @@ const stores = { local: {}, sync: {} };
 function area(name) {
   return {
     get(key, callback) {
-      callback({ [key]: stores[name][key] });
+      Promise.resolve().then(() => callback({ [key]: stores[name][key] }));
     },
     set(next, callback) {
-      for (const [key, value] of Object.entries(next)) stores[name][key] = value;
-      callback();
+      Promise.resolve().then(() => {
+        for (const [key, value] of Object.entries(next)) stores[name][key] = value;
+        callback();
+      });
     }
   };
 }
@@ -69,6 +77,8 @@ const blockedEntries = [
   { user_id: "9000000000000000002", handle: "synthetic_blocked_b", listKind: "blocked" }
 ];
 const mutedEntry = { user_id: "8000000000000000001", handle: "synthetic_muted_a", listKind: "muted" };
+const concurrentBlockedA = { user_id: "9000000000000000101", handle: "synthetic_blocked_concurrent_a", listKind: "blocked" };
+const concurrentBlockedB = { user_id: "9000000000000000102", handle: "synthetic_blocked_concurrent_b", listKind: "blocked" };
 
 async function main() {
   // sync-complete with empty staging is a safety no-op: never wipe an existing list
@@ -79,9 +89,7 @@ async function main() {
   let store = await Storage.getEntryStore();
   const beforeSafetyCount = store.entries.length;
   dispatchMessage({ source: SYNC_MESSAGE_SOURCE, kind: "sync-complete", listKind: "muted" });
-  await flush();
-  await flush();
-  await flush();
+  await flushStorage();
   store = await Storage.getEntryStore();
   check(store.entries.length === beforeSafetyCount, "empty staging completion does not change entry count", store.entries.length);
   check(
@@ -93,8 +101,7 @@ async function main() {
 
   // sync disabled: messages are ignored
   dispatchMessage({ source: SYNC_MESSAGE_SOURCE, kind: "sync-entries", listKind: "blocked", entries: blockedEntries });
-  await flush();
-  await flush();
+  await flushStorage();
   store = await Storage.getEntryStore();
   check(store.entries.length === 0, "sync disabled: nothing persisted", store.entries.length);
 
@@ -102,21 +109,29 @@ async function main() {
   await Storage.setSyncEnabled(true);
   dispatchMessage({ source: "someone-else", kind: "sync-entries", listKind: "blocked", entries: blockedEntries });
   dispatchMessage({ source: SYNC_MESSAGE_SOURCE, kind: "not-sync", entries: blockedEntries });
-  await flush();
-  await flush();
+  await flushStorage();
   store = await Storage.getEntryStore();
   check(store.entries.length === 0, "foreign source / wrong kind ignored", store.entries.length);
 
   // sync enabled, correct message: entries persisted + lastSyncedAt set
   dispatchMessage({ source: SYNC_MESSAGE_SOURCE, kind: "sync-entries", listKind: "blocked", entries: blockedEntries });
-  await flush();
-  await flush();
-  await flush();
+  await flushStorage();
   store = await Storage.getEntryStore();
   check(store.entries.length === 2, "sync enabled: 2 entries persisted", store.entries.length);
   check(store.entries.every((e) => e.source === "f1a-sync" && e.listKind === "blocked"), "persisted entries tagged f1a-sync / blocked");
   const sync = await Storage.getSyncState();
   check(typeof sync.lastSyncedAt === "string", "lastSyncedAt recorded after a successful sync", sync.lastSyncedAt);
+
+  // back-to-back async writes for the same listKind must not clobber each other
+  dispatchMessage({ source: SYNC_MESSAGE_SOURCE, kind: "sync-entries", listKind: "blocked", entries: [concurrentBlockedA] });
+  dispatchMessage({ source: SYNC_MESSAGE_SOURCE, kind: "sync-entries", listKind: "blocked", entries: [concurrentBlockedB] });
+  await flushStorage();
+  store = await Storage.getEntryStore();
+  check(
+    store.entries.some((e) => e.user_id === concurrentBlockedA.user_id) &&
+      store.entries.some((e) => e.user_id === concurrentBlockedB.user_id),
+    "back-to-back same-listKind sync-entries writes preserve both entries"
+  );
 
   // a second message with a muted entry upserts alongside (additive)
   dispatchMessage({
@@ -125,11 +140,9 @@ async function main() {
     listKind: "muted",
     entries: [mutedEntry]
   });
-  await flush();
-  await flush();
-  await flush();
+  await flushStorage();
   store = await Storage.getEntryStore();
-  check(store.entries.length === 3, "second list message upserts additively", store.entries.length);
+  check(store.entries.length === 5, "second list message upserts additively", store.entries.length);
 
   // full-list completion reconciles a staged listKind, removing stale synced rows only for that list
   await Storage.upsertSyncedEntries([
@@ -141,13 +154,9 @@ async function main() {
     "reconciliation precondition: stale blocked C is present"
   );
   dispatchMessage({ source: SYNC_MESSAGE_SOURCE, kind: "sync-entries", listKind: "blocked", entries: blockedEntries });
-  await flush();
-  await flush();
-  await flush();
+  await flushStorage();
   dispatchMessage({ source: SYNC_MESSAGE_SOURCE, kind: "sync-complete", listKind: "blocked" });
-  await flush();
-  await flush();
-  await flush();
+  await flushStorage();
   store = await Storage.getEntryStore();
   check(!store.entries.some((e) => e.user_id === "9000000000000000003"), "reconciliation removes stale blocked C");
   check(

@@ -28,11 +28,12 @@ function flush() {
 }
 
 class FakeResponse {
-  constructor(body) {
+  constructor(body, status = 200) {
     this.body = body;
+    this.status = status;
   }
   clone() {
-    return new FakeResponse(this.body);
+    return new FakeResponse(this.body, this.status);
   }
   text() {
     return Promise.resolve(this.body);
@@ -44,6 +45,7 @@ class FakeXMLHttpRequest {
     this.listeners = {};
     this.responseType = "";
     this.responseText = "";
+    this.status = 200;
   }
   addEventListener(type, listener) {
     (this.listeners[type] = this.listeners[type] || []).push(listener);
@@ -63,6 +65,13 @@ class FakeXMLHttpRequest {
 }
 
 const blockedBody = await readText("tests/fixtures/blocked-timeline-response.fixture.json");
+const graphQLErrorBody = JSON.stringify({
+  errors: [{ message: "Rate limit exceeded", code: 88 }],
+  data: { viewer: null }
+});
+const transientBlockedBody = JSON.stringify({
+  data: { viewer: { timeline: { timeline: { instructions: [] } } } }
+});
 const emptyBlockedBody = JSON.stringify({
   data: {
     viewer: {
@@ -126,6 +135,9 @@ const location = { origin: "https://x.com", href: "https://x.com/settings/blocke
 const windowObject = {
   fetch: (url) => {
     const text = String(url || "");
+    if (/BlockedAccounts/.test(text) && /error/.test(text)) return Promise.resolve(new FakeResponse(graphQLErrorBody));
+    if (/BlockedAccounts/.test(text) && /transient/.test(text)) return Promise.resolve(new FakeResponse(transientBlockedBody));
+    if (/BlockedAccounts/.test(text) && /non-2xx/.test(text)) return Promise.resolve(new FakeResponse(blockedBody, 503));
     if (/BlockedAccounts/.test(text) && /tail/.test(text)) return Promise.resolve(new FakeResponse(emptyBlockedBody));
     if (/BlockedAccounts/.test(text)) return Promise.resolve(new FakeResponse(blockedBody));
     if (/MutedAccounts/.test(text)) return Promise.resolve(new FakeResponse(mutedBody));
@@ -197,6 +209,27 @@ const blockedEntryMsgCount = messages.filter(
 ).length;
 check(blockedEntryMsgCount === 1, "empty blocked tail posts no additional sync-entries", blockedEntryMsgCount);
 check(!JSON.stringify(completeMsgs[0]?.message || {}).includes("synthetic-empty-bottom"), "empty tail cursor value must not leave the page");
+
+// 5. GraphQL error envelope -> ignored, no completion/reconcile signal
+const beforeGraphQLError = messages.length;
+await context.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?case=error");
+await flush();
+await flush();
+check(messages.length === beforeGraphQLError, "GraphQL error envelope posts no sync message", messages.length);
+
+// 6. Transient empty/malformed timeline body without cursor entries -> ignored
+const beforeTransient = messages.length;
+await context.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?case=transient");
+await flush();
+await flush();
+check(messages.length === beforeTransient, "empty body without timeline entries posts no sync-complete", messages.length);
+
+// 7. Non-2xx list response -> ignored
+const beforeNon2xx = messages.length;
+await context.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?case=non-2xx");
+await flush();
+await flush();
+check(messages.length === beforeNon2xx, "non-2xx list response posts no sync message", messages.length);
 
 if (failures.length > 0) {
   console.error(`\nSync hook verification FAILED: ${failures.length} check(s) failed`);

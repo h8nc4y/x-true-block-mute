@@ -116,6 +116,23 @@ async function main() {
   check(store.entries.length === 4, "handle-only entry upgrades in place, not duplicated", store.entries.length);
   check(findByHandle(store.entries, "bob")?.user_id === "u2", "bob is upgraded with a user_id");
 
+  // --- same account can exist independently in blocked and muted ------
+  await Storage.upsertSyncedEntries([{ user_id: "u_dual", handle: "dual", listKind: "muted" }]);
+  await Storage.upsertSyncedEntries([{ user_id: "u_dual", handle: "dual", listKind: "blocked" }]);
+  store = await Storage.getEntryStore();
+  const dualEntries = store.entries.filter(
+    (entry) => entry.source === SYNC_SOURCE && entry.user_id === "u_dual" && entry.handle === "dual"
+  );
+  check(dualEntries.length === 2, "same user_id+handle can be stored once per listKind", dualEntries);
+  check(
+    dualEntries.filter((entry) => entry.listKind === "blocked").length === 1,
+    "same account has one blocked synced entry"
+  );
+  check(
+    dualEntries.filter((entry) => entry.listKind === "muted").length === 1,
+    "same account has one muted synced entry"
+  );
+
   // --- invalid listKind is rejected ----------------------------------
   await Storage.upsertSyncedEntries([{ user_id: "u3", handle: "carol", listKind: "garbage" }]);
   store = await Storage.getEntryStore();

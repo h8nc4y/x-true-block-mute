@@ -44,9 +44,12 @@
       );
     }
 
-    function handleResponse(url, bodyText) {
+    function handleResponse(url, bodyText, status) {
       const listKind = SyncCapture.listKindFromUrl(url);
       if (!listKind) {
+        return;
+      }
+      if (typeof status === "number" && (status < 200 || status >= 300)) {
         return;
       }
       let json;
@@ -55,22 +58,29 @@
       } catch (_error) {
         return;
       }
-      const entries = SyncCapture.extractSyncEntries(json, listKind);
-      if (entries.length === 0) {
-        // 0 users extracted from a list endpoint == end of list reached (tail
-        // page carries only cursor entries). Signal completion so the bridge can
-        // reconcile away accounts that left the list. No ids/cursors are sent.
-        postComplete(listKind);
+      if (json && Array.isArray(json.errors) && json.errors.length > 0) {
         return;
       }
-      postEntries(listKind, entries);
+      const entries = SyncCapture.extractSyncEntries(json, listKind);
+      if (entries.length > 0) {
+        postEntries(listKind, entries);
+        return;
+      }
+      if (SyncCapture.hasTimelineEntries(json)) {
+        // Tail pages carry cursor entries but no users. Signal completion so the
+        // bridge can reconcile away accounts that left the list. No ids/cursors
+        // are sent.
+        postComplete(listKind);
+      }
     }
 
     window.fetch = function wrappedFetch(input, init) {
       const result = originalFetch.apply(this, arguments);
       const url = typeof input === "string" ? input : input && input.url;
       result
-        .then((response) => response.clone().text().then((text) => handleResponse(url || location.href, text)))
+        .then((response) =>
+          response.clone().text().then((text) => handleResponse(url || location.href, text, response.status))
+        )
         .catch(() => {});
       return result;
     };
@@ -80,7 +90,7 @@
       this.addEventListener("loadend", function onLoadEnd() {
         try {
           const body = this.responseType === "json" ? JSON.stringify(this.response) : this.responseText;
-          handleResponse(this.__xTbmSyncUrl, body || "");
+          handleResponse(this.__xTbmSyncUrl, body || "", this.status);
         } catch (_error) {
           /* ignore unreadable responses */
         }
