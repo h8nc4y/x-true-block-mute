@@ -207,8 +207,15 @@ async function prepareProfile(cdp, extensionId) {
   const popup = await openPage(cdp, popupUrl);
   await waitForFilterState(cdp, popup.sessionId);
 
-  await click(cdp, popup.sessionId, "#seed-synthetic");
-  await waitForText(cdp, popup.sessionId, "#entry-count", "2件", "popup #entry-count to reach 2件");
+  // v1.1: the local sample/test panel (incl. #seed-synthetic / #entry-count) is
+  // hidden from end users, so seed sample data via the Storage API in the popup's
+  // extension context instead of clicking the now-gated button.
+  await evaluate(
+    cdp,
+    popup.sessionId,
+    "window.XTrueBlockMute.Storage.seedSyntheticEntries().then(() => true)",
+    true
+  );
 
   await click(cdp, popup.sessionId, "input[name='display-mode'][value='placeholder']");
   await pollValue(

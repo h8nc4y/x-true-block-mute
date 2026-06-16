@@ -35,6 +35,13 @@
   box-sizing: border-box;
 }
 
+/* The `hidden` attribute must win over the `.panel { display: grid }` rule below
+   (otherwise the dev-only sample panel, gated off via LOCAL_TEST_UI_ENABLED, would
+   still render for end users). */
+[hidden] {
+  display: none !important;
+}
+
 body {
   width: 372px;
   margin: 0;

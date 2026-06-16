@@ -295,6 +295,15 @@ async function main() {
     ).catch((error) => `ERROR: ${error.message}`);
     check(syncToggled === true, "enabling sync persists (checkbox stays checked after render)", String(syncToggled));
 
+    // The dev-only sample/test-data panel must be hidden from end users (gated off
+    // by LOCAL_TEST_UI_ENABLED). offsetParent === null confirms it is not rendered.
+    const devPanelHidden = await evaluate(
+      cdp,
+      popup.sessionId,
+      "(() => { const el = document.querySelector(\"[aria-labelledby='local-test-title']\"); return Boolean(el) && el.offsetParent === null; })()"
+    );
+    check(devPanelHidden === true, "dev-only sample-data panel is hidden from end users", String(devPanelHidden));
+
     // --- Check 4: synthetic fixture filters cards -----------------------
     const fixtureUrl = pathToFileURL(
       path.join(repoRoot, "tests", "fixtures", "home-timeline.html")
