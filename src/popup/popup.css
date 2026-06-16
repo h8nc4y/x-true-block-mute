@@ -82,6 +82,16 @@ p {
   opacity: 0.86;
 }
 
+/* Plain-language one-liner for first-time / non-engineer users. Sits as quieter
+   body text under the bold subtitle, still on the orange header band. */
+.app-header .app-intro {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.6;
+  opacity: 0.92;
+}
+
 h2 {
   font-size: 15px;
   font-weight: 800;

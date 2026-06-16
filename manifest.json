@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TrueBlock & Mute",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "minimum_chrome_version": "111",
   "description": "X (Twitter) で、自分のブロック・ミュート済みアカウント由来の投稿（リポスト・引用経由を含む）を非表示にします。データは端末内のみ・外部送信なし。",
   "permissions": [

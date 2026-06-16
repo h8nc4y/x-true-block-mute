@@ -10,7 +10,7 @@ account owner.
 ## Basics
 
 - **Name:** TrueBlock & Mute
-- **Category:** Productivity
+- **Category:** ソーシャルネットワーク (Social Network) — matches the live listing
 - **Default language:** 日本語 (Japanese); English copy is provided below as well.
 - **Package:** `dist/TrueBlock-Mute-v<version>.zip` (built with `node scripts/build-package.mjs`)
 - **Privacy policy URL:** `https://h8nc4y.github.io/x-true-block-mute/privacy-policy.html` （GitHub Pages /docs で公開・到達確認済み 2026-06-14）
@@ -32,41 +32,47 @@ Hide posts from accounts you've blocked or muted on X — including via reposts 
 
 ### 日本語
 
-X (Twitter) では、ブロック・ミュートしたアカウントでも、他人のリポストや引用を通じて
-タイムラインに表示されてしまうことがあります。TrueBlock & Mute は、**あなた自身の**
-ブロック・ミュート一覧を端末内に取り込み、その一覧に含まれるアカウント由来の投稿を
-（リポスト・引用経由を含めて）タイムラインから非表示にします。
+「ブロックもミュートもしたのに、他の人がリポスト（リツイート）や引用をすると、その人の投稿がまたタイムラインに出てきてしまう」——X (Twitter) でよくあるこの困りごとを解消する拡張機能です。
 
-**特長**
-- あなたのブロック / ミュート一覧に基づくフィルタ（リポスト・引用カードにも対応）
-- 表示方法を選べます: 完全に隠す / 説明だけ表示 / 何もしない
-- データはすべて端末内（ローカル）に保存。外部サーバーへの送信は一切ありません
-- 解析・トラッキング・広告なし。要求する権限は最小限（ストレージと x.com / twitter.com のみ）
+TrueBlock & Mute は、**あなたがすでにブロック・ミュートしているアカウント**の投稿を、リポストや引用で再表示される分も含めて、タイムラインから自動で隠します。新しく誰かをブロックするものではありません。あなたが「もう見たくない」と決めた相手を、より確実に見えなくするだけです。
 
-**使い方**
-1. 拡張のポップアップで「同期を有効にする」をオンにします。
-2. ブロック一覧 / ミュート一覧の設定ページを開き、一番下までスクロールします。
-3. タイムラインに戻ると、対象アカウント由来の投稿が非表示になります。
+**できること**
+- あなたのブロック・ミュート一覧に載っている人の投稿を非表示（リポスト・引用での再表示にも対応）
+- 隠し方を選べます：「完全に隠す」／「（対象の投稿だと）説明だけ表示」／「何もしない」
+- データはすべてあなたのパソコンの中だけに保存。外部のサーバーには一切送信しません
+- 解析・追跡・広告なし。使う権限は最小限（保存領域と x.com / twitter.com だけ）
+
+**使い方（かんたん3ステップ）**
+1. 拡張アイコンをクリックしてポップアップを開き、「同期を有効にする」をオンにします。
+   →「同期」とは、あなた自身のブロック・ミュート一覧をこの拡張に読み込むこと。これで「誰を隠せばよいか」を覚えます。
+2. ポップアップの「ブロック一覧を開く」「ミュート一覧を開く」リンクから設定ページを開き、**一番下までゆっくりスクロール**します（全員分を読み込むため）。
+3. タイムラインに戻ると、その人たちの投稿が消えています。以後は自動で隠れます。
+
+※ ブロック・ミュートする相手を増やしたら、また同じ手順で一覧を開いてスクロールすると最新の状態に更新されます。
+※ 取り込んだ一覧の確認・削除や設定は、ポップアップの「詳細設定・プライバシー」から行えます。
 
 本拡張は X Corp. および Twitter とは提携・承認関係にありません。
 
 ### English
 
-On X (Twitter), accounts you've blocked or muted can still reach your timeline
-through other people's reposts and quotes. TrueBlock & Mute imports **your own**
-block/mute lists onto your device and hides posts from those accounts — including
-posts surfaced via reposts and quotes.
+You blocked or muted someone — but when other people repost or quote them, their posts show up in your timeline again. TrueBlock & Mute fixes this everyday X (Twitter) annoyance.
 
-**Features**
-- Filtering based on your own block/mute lists (handles reposts and quoted cards)
-- Choose how matched posts are shown: hide completely / show a short notice / do nothing
-- All data is stored locally on your device — nothing is ever sent to any server
+It automatically hides posts from accounts **you have already blocked or muted**, including when they reappear via someone else's repost or quote. It does not block anyone new — it just makes the people you've already decided not to see disappear more reliably.
+
+**What it does**
+- Hides posts from people on your block/mute lists (including reposts and quotes of them)
+- Choose how they're hidden: hide completely / show a short "hidden" notice / do nothing
+- All data stays only on your own computer — nothing is ever sent to any server
 - No analytics, tracking, or ads; minimal permissions (storage and x.com / twitter.com only)
 
-**How to use**
-1. Turn on "sync" in the extension popup.
-2. Open your Blocked / Muted accounts settings pages and scroll to the bottom.
-3. Return to your timeline — posts from those accounts are now hidden.
+**How to use (3 easy steps)**
+1. Click the extension icon to open the popup and turn on "Enable sync."
+   → "Sync" simply means loading your own block/mute lists into the extension so it knows who to hide.
+2. Use the "Open blocked list" / "Open muted list" links in the popup, then slowly scroll to the very bottom of each settings page (so everyone is loaded).
+3. Go back to your timeline — those people's posts are now gone, and stay hidden automatically.
+
+Tip: after you block or mute more people, just open the lists and scroll again to refresh.
+You can review or delete the imported list anytime via "詳細設定・プライバシー" (Details & privacy) in the popup.
 
 This extension is not affiliated with or endorsed by X Corp. or Twitter.
 

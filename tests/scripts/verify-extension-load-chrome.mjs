@@ -263,26 +263,16 @@ async function main() {
     ).catch((error) => `ERROR: ${error.message}`);
     check(filterState === "状態: 有効", 'popup renders in extension context (#filter-state = "状態: 有効")', String(filterState));
 
-    const initialCount = await evaluate(
+    // v1.1: the local sample/test-data panel (incl. #seed-synthetic and #entry-count)
+    // is hidden from end users, so seed the extension's storage programmatically via
+    // the Storage API in the popup's extension context instead of clicking the button.
+    const seededCount = await evaluate(
       cdp,
       popup.sessionId,
-      "document.querySelector('#entry-count')?.textContent || ''"
-    );
-    check(initialCount === "0件", "fresh profile starts with 0 entries", String(initialCount));
-
-    await evaluate(cdp, popup.sessionId, "document.querySelector('#seed-synthetic').click()");
-    const seededCount = await pollValue(
-      async () => {
-        const value = await evaluate(
-          cdp,
-          popup.sessionId,
-          "document.querySelector('#entry-count')?.textContent || ''"
-        );
-        return { ok: value === "2件", value };
-      },
-      { timeout: 6000, desc: "popup #entry-count to reach 2件" }
+      "window.XTrueBlockMute.Storage.seedSyntheticEntries().then(() => window.XTrueBlockMute.Storage.getEntryStore()).then((store) => store.entries.length)",
+      true
     ).catch((error) => `ERROR: ${error.message}`);
-    check(seededCount === "2件", "seeding synthetic data updates popup to 2件", String(seededCount));
+    check(seededCount === 2, "seeding sample data persists 2 synthetic entries", String(seededCount));
 
     await captureScreenshot(cdp, popup.sessionId, path.join(tmpDir, "tb002-popup-screenshot.png"));
 

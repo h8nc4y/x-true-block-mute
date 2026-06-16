@@ -3,7 +3,9 @@
 
   const namespace = globalThis.XTrueBlockMute;
   const { DISPLAY_MODES, Storage, STORAGE_KEYS } = namespace;
+  const localTestUiEnabled = Boolean(namespace.LOCAL_TEST_UI_ENABLED);
 
+  const localTestSection = document.querySelector("[aria-labelledby='local-test-title']");
   const enabledInput = document.querySelector("#enabled");
   const modeInputs = Array.from(document.querySelectorAll("input[name='display-mode']"));
   const filterState = document.querySelector("#filter-state");
@@ -20,6 +22,10 @@
   const openOptionsButton = document.querySelector("#open-options");
   const message = document.querySelector("#message");
   let busy = false;
+
+  if (localTestUiEnabled) {
+    localTestSection.hidden = false;
+  }
 
   function formatDateTime(isoString, emptyLabel = "未投入") {
     if (!isoString) {
@@ -48,8 +54,10 @@
 
   function setBusy(isBusy) {
     busy = isBusy;
-    seedButton.disabled = isBusy;
-    clearButton.disabled = isBusy;
+    if (localTestUiEnabled) {
+      seedButton.disabled = isBusy;
+      clearButton.disabled = isBusy;
+    }
     enabledInput.disabled = isBusy;
     syncEnabledInput.disabled = isBusy;
     clearSyncedButton.disabled = isBusy;
@@ -81,9 +89,11 @@
       input.checked = input.value === settings.displayMode;
     }
     filterState.textContent = settings.enabled ? "状態: 有効" : "状態: 停止中";
-    entryCount.textContent = formatCount(entryStore.entries.length);
-    lastSyntheticUpdate.textContent = formatDateTime(entryStore.lastSyntheticUpdatedAt);
-    localTestSummary.textContent = describeLocalTest(entryStore);
+    if (localTestUiEnabled) {
+      entryCount.textContent = formatCount(entryStore.entries.length);
+      lastSyntheticUpdate.textContent = formatDateTime(entryStore.lastSyntheticUpdatedAt);
+      localTestSummary.textContent = describeLocalTest(entryStore);
+    }
   }
 
   async function updateSettings(patch) {
@@ -105,33 +115,35 @@
     });
   }
 
-  seedButton.addEventListener("click", async () => {
-    setBusy(true);
-    setMessage("");
-    try {
-      await Storage.seedSyntheticEntries();
-      await render();
-      setMessage("ローカル確認用のテストデータを入れました。fixture ページで表示の変化を確認してください。");
-    } catch (_error) {
-      setMessage("テストデータ投入に失敗しました。");
-    } finally {
-      setBusy(false);
-    }
-  });
+  if (localTestUiEnabled) {
+    seedButton.addEventListener("click", async () => {
+      setBusy(true);
+      setMessage("");
+      try {
+        await Storage.seedSyntheticEntries();
+        await render();
+        setMessage("ローカル確認用のテストデータを入れました。fixture ページで表示の変化を確認してください。");
+      } catch (_error) {
+        setMessage("テストデータ投入に失敗しました。");
+      } finally {
+        setBusy(false);
+      }
+    });
 
-  clearButton.addEventListener("click", async () => {
-    setBusy(true);
-    setMessage("");
-    try {
-      await Storage.clearSyntheticEntries();
-      await render();
-      setMessage("ローカル確認用のテストデータを消しました。");
-    } catch (_error) {
-      setMessage("テストデータの削除に失敗しました。");
-    } finally {
-      setBusy(false);
-    }
-  });
+    clearButton.addEventListener("click", async () => {
+      setBusy(true);
+      setMessage("");
+      try {
+        await Storage.clearSyntheticEntries();
+        await render();
+        setMessage("ローカル確認用のテストデータを消しました。");
+      } catch (_error) {
+        setMessage("テストデータの削除に失敗しました。");
+      } finally {
+        setBusy(false);
+      }
+    });
+  }
 
   syncEnabledInput.addEventListener("change", async () => {
     setBusy(true);
@@ -173,7 +185,9 @@
 
   render().catch(() => {
     filterState.textContent = "状態: 読み込み失敗";
-    localTestSummary.textContent = "Chrome 拡張として読み込んでいない、または storage を読めない可能性があります。";
+    if (localTestUiEnabled) {
+      localTestSummary.textContent = "Chrome 拡張として読み込んでいない、または storage を読めない可能性があります。";
+    }
     setMessage("状態の読み込みに失敗しました。Chrome 拡張として読み込んでいるか確認してください。");
   });
 

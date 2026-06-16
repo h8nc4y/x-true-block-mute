@@ -41,6 +41,10 @@
     MUTED: "muted"
   });
 
+  // Dev-only: the local sample/test-data panel is hidden for end users; flip to
+  // true and reload to use it.
+  namespace.LOCAL_TEST_UI_ENABLED = false;
+
   namespace.SYNTHETIC_SOURCE = "phase1-synthetic";
   namespace.SYNTHETIC_ENTRIES = Object.freeze([
     {

@@ -11,12 +11,13 @@
       <header class="app-header">
         <h1>TrueBlock & Mute</h1>
         <p>ブロック・ミュート同期とフィルタ設定</p>
+        <p class="app-intro">X のタイムラインから、あなたがブロック・ミュートした人の投稿を自動で隠します（他の人のリポストや引用で表示される分も含みます）。</p>
       </header>
 
       <section class="panel" aria-labelledby="filter-title">
         <div class="section-heading">
           <h2 id="filter-title">通常フィルタ</h2>
-          <p>登録済みのテスト対象を、タイムライン上でどう扱うかを確認します。</p>
+          <p>対象アカウント（あなたがブロック・ミュートした相手）の投稿を、タイムラインでどう表示するか選びます。</p>
         </div>
 
         <label class="toggle-row">
@@ -53,7 +54,7 @@
         </fieldset>
       </section>
 
-      <section class="panel" aria-labelledby="local-test-title">
+      <section class="panel" aria-labelledby="local-test-title" hidden>
         <div class="section-heading">
           <h2 id="local-test-title">ローカル確認用データ</h2>
           <p>実アカウントを使わず、fixture だけで通常フィルタを確認します。</p>
@@ -80,7 +81,7 @@
       <section class="panel" aria-labelledby="sync-title">
         <div class="section-heading">
           <h2 id="sync-title">ブロック・ミュート同期</h2>
-          <p>あなたの X のブロック・ミュート一覧をこの端末に取り込み、フィルタに使います。データは端末内にのみ保存され、外部送信はありません。</p>
+          <p>あなたの X のブロック・ミュート一覧をこの端末に読み込んで、フィルタの対象にします。読み込んだ一覧はこの端末の中だけに保存され、外部に送られることはありません。</p>
         </div>
 
         <label class="toggle-row">
