@@ -3,12 +3,20 @@
    rounded cards, generous spacing. Friendly for VTuber / 配信者. */
 
 :root {
-  /* OneComme brand orange (sampled from onecomme.com: --ifm-color-primary). */
+  /* OneComme brand orange (sampled from onecomme.com: --ifm-color-primary).
+     Kept for SMALL non-text accents only — checkbox/radio fill, focus rings,
+     list markers — where the brighter pop reads well and contrast rules for
+     text don't apply. */
   --accent: #f08300;
   --accent-hover: #ee9528; /* OneComme --ifm-color-primary-light */
-  /* Text that sits on top of the bright orange surface. OneComme's own dark
-     navy contrast ink keeps WCAG AA (5.85:1 on #f08300) where white fails. */
-  --on-accent: #102445;
+  /* Deeper burnt-orange for TEXT-BEARING orange surfaces (header band + solid
+     primary buttons). hsl(28,100%,36%) — same warm family as --accent, just
+     darker. White text reaches WCAG AA here (4.81:1) where it fails on the
+     bright --accent (only 2.64:1). */
+  --accent-strong: #b85600;
+  --accent-strong-hover: #a44e00; /* button hover; white 5.73:1 */
+  /* White text now sits on the deepened orange surfaces. */
+  --on-accent: #ffffff;
   /* Deep orange for links / secondary-button text (5.34:1 on white = AA). */
   --accent-ink: #a85400;
   --accent-ink-hover: #8f4700;
@@ -70,7 +78,7 @@ p {
   gap: 4px;
   padding: 18px 18px 16px;
   border-radius: var(--radius-lg);
-  background: var(--accent);
+  background: var(--accent-strong);
   color: var(--on-accent);
   box-shadow: var(--shadow-accent);
 }
@@ -86,7 +94,8 @@ p {
   font-size: 12.5px;
   font-weight: 600;
   color: var(--on-accent);
-  opacity: 0.86;
+  /* No opacity: faded white on the deep orange would drop below WCAG AA
+     (0.86 -> ~3.97:1). Hierarchy is carried by the lighter font-weight. */
 }
 
 /* Plain-language one-liner for first-time / non-engineer users. Sits as quieter
@@ -96,7 +105,8 @@ p {
   font-size: 12px;
   font-weight: 500;
   line-height: 1.6;
-  opacity: 0.92;
+  /* Solid white (no opacity) so this normal-size text keeps WCAG AA on the
+     deep orange band. */
 }
 
 h2 {
@@ -253,7 +263,7 @@ button {
   padding: 0 16px;
   border: 0;
   border-radius: 999px;
-  background: var(--accent);
+  background: var(--accent-strong);
   color: var(--on-accent);
   font-weight: 800;
   font-size: 13.5px;
@@ -264,7 +274,7 @@ button {
 }
 
 button:hover {
-  background: var(--accent-hover);
+  background: var(--accent-strong-hover);
   box-shadow: var(--shadow-accent);
   transform: translateY(-1px);
 }

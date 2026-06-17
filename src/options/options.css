@@ -3,10 +3,19 @@
    rounded cards. Centered page (max-width ~640px). */
 
 :root {
-  /* OneComme brand orange (sampled from onecomme.com: --ifm-color-primary). */
+  /* OneComme brand orange (sampled from onecomme.com: --ifm-color-primary).
+     Kept for SMALL non-text accents only — checkbox/radio fill, focus rings,
+     list markers — where the brighter pop reads well and text-contrast rules
+     don't apply. */
   --accent: #f08300;
   --accent-hover: #ee9528; /* OneComme --ifm-color-primary-light */
-  --on-accent: #102445; /* OneComme dark contrast ink: 5.85:1 on #f08300 */
+  /* Deeper burnt-orange for TEXT-BEARING orange surfaces (header band + solid
+     primary buttons). hsl(28,100%,36%) — same warm family as --accent, just
+     darker. White text reaches WCAG AA here (4.81:1) where it fails on the
+     bright --accent (only 2.64:1). */
+  --accent-strong: #b85600;
+  --accent-strong-hover: #a44e00; /* button hover; white 5.73:1 */
+  --on-accent: #ffffff; /* white text on the deepened orange surfaces */
   --accent-ink: #a85400; /* deep orange for links/text: 5.34:1 on white */
   --accent-ink-hover: #8f4700;
 
@@ -64,7 +73,7 @@ p {
   gap: 6px;
   padding: 28px 28px 26px;
   border-radius: 20px;
-  background: var(--accent);
+  background: var(--accent-strong);
   color: var(--on-accent);
   box-shadow: var(--shadow-accent);
 }
@@ -80,7 +89,8 @@ p {
   font-size: 13.5px;
   font-weight: 600;
   color: var(--on-accent);
-  opacity: 0.88;
+  /* No opacity: faded white on the deep orange would drop below WCAG AA
+     (0.88 -> ~4.09:1). Hierarchy is carried by the lighter font-weight. */
 }
 
 h2 {
@@ -246,7 +256,7 @@ button {
   padding: 0 18px;
   border: 0;
   border-radius: 999px;
-  background: var(--accent);
+  background: var(--accent-strong);
   color: var(--on-accent);
   font-weight: 800;
   font-size: 14px;
@@ -257,7 +267,7 @@ button {
 }
 
 button:hover {
-  background: var(--accent-hover);
+  background: var(--accent-strong-hover);
   box-shadow: var(--shadow-accent);
   transform: translateY(-1px);
 }
