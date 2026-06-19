@@ -2,15 +2,15 @@
 
 ## Current status
 
-この repository は現在 **Phase 2 実装段階**です。Phase 1 / Phase 1.5（local MV3 shell・popup・storage・synthetic fixture・F1-A research scaffold）は完了し、Phase 2 の production 機能が実装済みです。
+この repository は現在 **Chrome Web Store 審査結果待ち**です。Phase 1 / Phase 1.5（local MV3 shell・popup・storage・synthetic fixture・F1-A research scaffold）、Phase 2 の production 機能、M7 の提出準備は実装済みです。
 
 - **production sync 実装済み**: 宣言的 `world:"MAIN"` content script（`/settings/blocked/all`・`/settings/muted/all` 限定）が、ユーザー自身のブロック・ミュート一覧 GraphQL 応答から `user_id`（rest_id）/ `handle`（screen_name）/ `listKind` のみを抽出し、ISOLATED bridge 経由で `chrome.storage.local` の `xtbmEntries` に取り込みます。raw response・cursor 値・表示名・本文は保存しません。実アカウントで blocked 234件 / muted 50件の取り込みを確認済み（件数のみ・2026-06-13）。
 - **reconciliation 実装済み**: 一覧の末尾（完全同期）に到達したときだけ当該 listKind を全置換し、解除済みアカウントを除去します。部分取得時は追加のみです（完全同期検出 = 抽出0件、`Storage.replaceSyncedListKind()`）。
 - **real-DOM author matching 実装済み**: 通常 content script が投稿カードの User-Name 領域に限定して投稿者を判定し、quote / embed の混在を分離します（引用カードは host 投稿を残したままその場で隠します）。実 TL で誤判定なく動作することを確認済み（M5）。
 - popup から同期の有効化・ブロック / ミュート件数・最終同期時刻の確認・同期データ削除ができます。F1-A 観測メモ（開発用）は本番では非表示です（dev フラグ `RESEARCH_UI_ENABLED`、既定 false）。
-- 残作業: 非エンジニア向け UX 仕上げ（M6）と Chrome Web Store 提出準備（M7: icons / version / zip / プライバシーポリシー / 掲載文 / `scripting` 権限の retire）。
+- 残作業: Chrome Web Store 審査結果の確認と、却下時の理由別修正。審査中の zip が現行 1.1.1 かどうかは未確認です。
 
-X/Twitter でブロック・ミュート済みアカウント由来の情報露出（RT・引用経由を含む）を減らすことを目指す Chrome 拡張です。データはすべて端末ローカル保存・外部送信なし・権限最小（`storage` + `scripting` + x.com / twitter.com host）を維持します。
+X/Twitter でブロック・ミュート済みアカウント由来の情報露出（RT・引用経由を含む）を減らすことを目指す Chrome 拡張です。データはすべて端末ローカル保存・外部送信なし・権限最小（`storage` + x.com / twitter.com host）を維持します。
 
 ## Phase 0 の範囲
 
@@ -195,14 +195,14 @@ node tests/scripts/evaluate-f1-observation.mjs --live path\to\masked-summary.jso
 
 ## Claude Code operation notes
 
-運用ルールの正本は `AGENTS.md` です。2026-06-13 のガバナンス変更以降の要点:
+運用ルールは現行のユーザー指示と `AGENTS.md` の不変条件を優先します。2026-06-13 以降の要点:
 
 - 報告は日本語、冒頭に日本時間 `YYYY/MM/DD HH:MM:SS`。テスト結果・commit hash・URL を捏造しない。
 - タスクはユーザーがチャットで直接承認したものを実装する。ChatGPT 承認制は廃止。
 - ユーザー同意の下、Claude Code は Chrome MCP でログイン済み Chrome を操作し、設定ページ限定で masked observation を収集してよい。password / MFA / Cookie / token は受け取らない。x.com / twitter.com タブではスクリーンショット・DOM テキスト・network response を読み取らない。
 - Chrome Load unpacked / popup / synthetic fixture の確認は Playwright/CDP 自動化で実施してよい。
 - 入力待ちループ、対話式 CLI 待機、foreground dev server で待機しない。検証スクリプトは必ず終了する。
-- 権限は `storage` + `scripting` + x.com/twitter.com host に保つ。追加が必要なら理由・脅威モデル更新・rollback をユーザー承認と共に docs に残す。
+- 権限は `storage` + x.com/twitter.com host に保つ。`scripting` は M7 で retire 済みです。追加が必要なら理由・脅威モデル更新・rollback をユーザー承認と共に docs に残す。
 
 ## 検証状況
 
