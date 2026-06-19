@@ -2,9 +2,9 @@
 
 ## Status
 
-Prepared by Codex on 2026-05-31 from local repository inspection and ChatGPT-approved GATE-00 through GATE-05 scope.
+Prepared by Codex on 2026-05-31 from local repository inspection and ChatGPT-approved GATE-00 through GATE-05 scope. Updated 2026-06-19 to reflect the v1.1 / M7 state.
 
-This document is a readiness gate, not approval to implement Phase 2. It must not be treated as evidence that Chrome Load unpacked, popup human confirmation, real X login, real X DOM behavior, or F1-A live endpoints have been verified.
+This document is a readiness gate and historical decision record. Current status statements below supersede the original pre-Phase-2 uncertainty, but they are still not permission to change product scope, permissions, data source, or distribution flow without the active human gates.
 
 ## Purpose
 
@@ -18,41 +18,41 @@ Phase 2 should not begin until the project has a clear local baseline, privacy b
 ## Current confirmed baseline
 
 - The repository is a Chrome Manifest V3 extension for reducing exposure to blocked or muted X/Twitter accounts.
-- The current phase is Phase 1 / Phase 1.5 research and prototype work.
-- Manifest permissions are limited to `storage` and `scripting`.
+- The current phase is v1.1 / M7 Chrome Web Store review wait; Phase 2 production sync and filtering are implemented.
+- Manifest permissions are limited to `storage`.
 - Host permissions are limited to `https://x.com/*` and `https://twitter.com/*`.
-- Local synthetic fixture and F1-A masked-summary evaluator paths exist.
-- `xtbmF1AResearch` is separate from normal `xtbmEntries`.
+- Local synthetic fixture, production sync extraction, bridge, storage schema, and packaging verification paths exist.
+- `xtbmF1AResearch` remains separate from normal `xtbmEntries`; research UI and dynamic `scripting` injection are retired from the shipped extension.
 - `fixture_pass` from `tests/scripts/evaluate-f1-observation.mjs` is fixture-only evidence and is not proof that F1-A is viable on live X.
 
 ## Gate summary
 
 | Gate | Name | Required before Phase 2 | Current status |
 | --- | --- | --- | --- |
-| GATE-00 | Post-merge baseline confirmation | `main` baseline, branch, diff, local static checks, and merged review context are known. | Prepared in this pass. |
-| GATE-01 | Phase 2 readiness gate | This document exists and separates allowed local work from deferred implementation. | Prepared in this pass. |
-| GATE-02 | Privacy and threat model | Sensitive data, storage, clipboard, docs, logs, and permission boundaries are documented. | Prepared in `docs/privacy-threat-model.md`. |
-| GATE-03 | Deferred findings register | Deferred Claude/user/ChatGPT items are listed without auto-implementation. | Prepared in `docs/deferred-findings-register.md`. |
-| GATE-04 | Docs consistency verification | A local script checks that core docs and permission boundaries stay aligned. | Prepared in `tests/scripts/verify-docs-consistency.mjs`. |
+| GATE-00 | Post-merge baseline confirmation | `main` baseline, branch, diff, local static checks, and merged review context are known. | Done. |
+| GATE-01 | Phase 2 readiness gate | This document exists and separates allowed local work from deferred implementation. | Done; retained as historical gate record. |
+| GATE-02 | Privacy and threat model | Sensitive data, storage, clipboard, docs, logs, and permission boundaries are documented. | Done in `docs/privacy-threat-model.md`; updated through M7. |
+| GATE-03 | Deferred findings register | Deferred Claude/user/ChatGPT items are listed without auto-implementation. | Done in `docs/deferred-findings-register.md`; resolved items are marked. |
+| GATE-04 | Docs consistency verification | A local script checks that core docs and permission boundaries stay aligned. | Done in `tests/scripts/verify-docs-consistency.mjs`. |
 | GATE-05 | Coordination docs update | Governance and tasks are recorded in `AGENTS.md` and `TASKS_BACKLOG.md` (the ChatGPT-era coordination docs were retired). | Done. |
 
 ## Chrome Load unpacked gate
 
-Before any Phase 2 implementation depends on browser behavior, this must hold:
+Before browser-dependent changes are accepted, this must hold:
 
 1. Chrome can Load unpacked this repository without manifest errors.
 2. The popup opens and renders in extension context.
 3. The popup shows normal filter controls.
 4. The popup shows local synthetic fixture controls.
-5. The popup shows the F1-A research memo area.
-6. The UI clearly says this is not production sync.
+5. The shipped popup does not expose the retired F1-A research memo area.
+6. The UI clearly separates local synthetic test data from production sync.
 7. No real X login, X account data, Cookie, token, raw response, HAR, or personal screenshot is required for this check.
 
-Current status: M2 完了（2026-06-13）. `node tests/scripts/verify-extension-load-chrome.mjs` (Playwright Chromium + raw CDP, no npm deps) passed: the extension loads without manifest errors, the popup renders in extension context (`状態: 有効`), seeding synthetic data updates the count to 2件, and the synthetic fixture filters cards (placeholder/hidden = 2, off/clear = 0). Screenshots (synthetic data only) are written to `tmp/` (gitignored). The branded installed Chrome 137+ disables `--load-extension`, so the cached open-source Chromium is used. 実 X / live endpoint / SPA continuity は依然 未確認（M3 で評価）.
+Current status: M2 完了（2026-06-13） and refreshed through M7. `node tests/scripts/verify-extension-load-chrome.mjs` (Playwright Chromium + raw CDP, no npm deps) passed for extension load, popup, options, synthetic fixture filtering, and the storage-only/background-less package state. Screenshots use synthetic data only and are written to `tmp/` (gitignored). The branded installed Chrome 137+ disables `--load-extension`, so the cached open-source Chromium is used. Chrome Web Store review result remains 未確認.
 
 ## Synthetic fixture gate
 
-Before Phase 2 relies on filtering behavior, keep the local synthetic fixture path healthy:
+Keep the local synthetic fixture path healthy:
 
 ```powershell
 node tests/scripts/verify-phase1-static.mjs
@@ -66,27 +66,27 @@ The synthetic fixture may confirm local parsing and safety boundaries. It does n
 
 ## F1-A masked-summary gate
 
-F1-A can be considered for primary use after a live masked-summary evaluation. Under the 2026-06-13 governance change, Claude Code may collect the masked summary by driving the user's logged-in Chrome through the Chrome MCP (masked observations only; no raw response, Cookie, or token). The user consents to the session and performs the login; the agent never receives credentials.
+F1-A was selected as the primary source after live masked-summary evaluation in M3. Under the 2026-06-13 governance change, Claude Code may collect masked summaries by driving the user's logged-in Chrome through the Chrome MCP (masked observations only; no raw response, Cookie, or token). The user consents to the session and performs the login; the agent never receives credentials. Future live checks must still pass the same `unsafe_summary` gate before any summary is shared.
 
 Expected evaluator outcomes:
 
-- `f1a_viable`: F1-A may be considered further, but still requires user approval before implementation.
+- `f1a_viable`: F1-A may be considered further, but still requires user approval before new implementation.
 - `f1a_insufficient`: Do not proceed with F1-A primary; consider F1-B or F1-D fallback.
 - `unsafe_summary`: Stop. Do not share or commit the summary. Delete or quarantine it according to human instructions.
 - `fixture_pass`: Fixture-only evidence. This must not be used as live F1-A proof.
 
 ## Source selection gate
 
-Phase 2 source selection remains undecided.
+Phase 2 source selection is decided for v1.1: F1-A settings-page sync is the primary path.
 
-- F1-A: Settings-page observed response shape, masked summary only. Live viability is 未確認.
-- F1-B: Real DOM extraction. Deferred because real-DOM author matching is 未確認 and privacy-sensitive.
+- F1-A: Settings-page observed response shape, masked summary only for validation; production extraction stores only `user_id` / `handle` / `listKind` locally.
+- F1-B: Real DOM extraction. Closed as a fallback for now because F1-A is viable and less UI-fragile for list acquisition.
 - F1-C: X API / OAuth. Deferred and out of current scope.
-- F1-D: Human import UI. Deferred as a possible privacy-preserving fallback.
+- F1-D: Human import UI. Closed as a fallback for now; revisit only with a new product decision.
 
-No Phase 2 source should be implemented until the user approves the selected source, scope, acceptance criteria, and validation commands. The current preference is F1-A primary if the live evaluation is viable, with F1-B/F1-D as fallbacks; F1-C is closed.
+No new source should be implemented until the user approves the selected source, scope, acceptance criteria, and validation commands. F1-C remains closed.
 
-## Stop conditions before Phase 2
+## Stop conditions for future source/permission changes
 
 These remain hard stops even under the 2026-06-13 governance change. Stop and return to the user if the next step would require:
 
@@ -101,7 +101,7 @@ These remain hard stops even under the 2026-06-13 governance change. Stop and re
 User approval is required before:
 
 - Changing manifest permissions or host permissions.
-- Adopting a Phase 2 source (F1-A/F1-B/F1-D) as primary and writing production sync into `xtbmEntries`.
+- Adopting a new source (F1-B/F1-D/other) or changing what production sync writes into `xtbmEntries`.
 - Submitting to the Chrome Web Store (developer registration, payment, and final submission are performed by the user).
 - Any deploy, external dashboard, or paid-service usage.
 
@@ -109,4 +109,4 @@ Within these bounds, Claude Code implements the tasks the user has approved in c
 
 ## Next minimum step
 
-The next minimum step is the M2 Chrome Load unpacked and popup verification — automated by Claude Code via Playwright/CDP, with `docs/manual-popup-verification.md` as the reference checklist. Results are reported as actually measured.
+The next minimum step is owner-side Chrome Web Store review tracking. Agent-safe work while review is pending is limited to documentation consistency, local validation maintenance, and scoped code health work that does not change permissions, data source, privacy posture, or distribution state.

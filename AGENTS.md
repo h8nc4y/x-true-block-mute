@@ -2,7 +2,7 @@
 
 ## Project Rules
 
-このファイルは x-true-block-mute リポジトリの現行運用ルールです。2026-06-13 のガバナンス変更により、ユーザー本人がチャットで直接承認したタスクを Claude Code が実装します。旧 ChatGPT 承認制と Codex 固有の運用ルールは廃止されました。
+このファイルは x-true-block-mute リポジトリの共通運用ルールです。Codex の自律開発では現行のユーザー指示とハンドオフを優先し、本ファイルはデータ保護・権限境界・検証報告の不変条件を補完します。2026-06-13 のガバナンス変更により、ユーザー本人がチャットで直接承認したタスクを Claude Code が実装します。旧 ChatGPT 承認制は廃止されました。
 
 ### 承認と進め方
 
@@ -29,9 +29,9 @@
 
 ### 権限最小化
 
-- manifest の `permissions` は `storage` と `scripting` まで、`host_permissions` は `https://x.com/*` と `https://twitter.com/*` までに保つ。
-- `webRequest`、`cookies`、`tabs`、`activeTab`、`<all_urls>`、`https://api.x.com/*` は追加しない。Phase 2 で必要性が出た場合は、理由・脅威モデル更新・手動確認手順・rollback をユーザー承認と共に docs に残してから追加する。
-- 宣言的 `content_scripts` の `"world": "MAIN"`（設定ページ限定）へ移行して `scripting` を削除できるかを M4 で検証する。
+- manifest の `permissions` は `storage` のみ、`host_permissions` は `https://x.com/*` と `https://twitter.com/*` までに保つ。`scripting` は M7 で retire 済みであり、本番同期は宣言的 `world:"MAIN"` content script で行う。
+- `webRequest`、`cookies`、`tabs`、`activeTab`、`<all_urls>`、`https://api.x.com/*` は追加しない。将来必要性が出た場合は、理由・脅威モデル更新・手動確認手順・rollback をユーザー承認と共に docs に残してから追加する。
+- `scripting`、`webRequest`、`cookies`、`tabs`、`activeTab`、`<all_urls>`、`https://api.x.com/*` などの権限再追加は、理由・脅威モデル更新・手動確認手順・rollback をユーザー承認と共に docs に残してから行う。
 
 ### 報告と検証
 
