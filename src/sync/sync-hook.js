@@ -27,6 +27,24 @@
     const originalFetch = window.fetch;
     const originalOpen = XMLHttpRequest.prototype.open;
 
+    function requestUrlFromInput(input) {
+      if (typeof input === "string") {
+        return input;
+      }
+      if (input && typeof input.url === "string") {
+        return input.url;
+      }
+      return String(input || location.href);
+    }
+
+    function isSettingsListPage() {
+      return /\/settings\/(?:blocked|muted)\/all(?:[/?#]|$)/i.test(String(location.href || ""));
+    }
+
+    function shouldReadListResponse(url) {
+      return isSettingsListPage() && Boolean(SyncCapture.listKindFromUrl(url));
+    }
+
     function postEntries(listKind, entries) {
       if (!entries || entries.length === 0) {
         return;
@@ -76,19 +94,27 @@
 
     window.fetch = function wrappedFetch(input, init) {
       const result = originalFetch.apply(this, arguments);
-      const url = typeof input === "string" ? input : input && input.url;
-      result
-        .then((response) =>
-          response.clone().text().then((text) => handleResponse(url || location.href, text, response.status))
-        )
-        .catch(() => {});
+      const url = requestUrlFromInput(input);
+      // Gate before clone().text() so off-settings and non-list X responses are never read by this hook.
+      if (shouldReadListResponse(url)) {
+        result
+          .then((response) =>
+            response.clone().text().then((text) => handleResponse(url, text, response.status))
+          )
+          .catch(() => {});
+      }
       return result;
     };
 
     XMLHttpRequest.prototype.open = function wrappedOpen(method, url) {
-      this.__xTbmSyncUrl = String(url || location.href);
+      this.__xTbmSyncUrl = requestUrlFromInput(url);
+      this.__xTbmSyncShouldRead = shouldReadListResponse(this.__xTbmSyncUrl);
       this.addEventListener("loadend", function onLoadEnd() {
         try {
+          // Avoid touching responseText unless this XHR started on a settings list endpoint.
+          if (!this.__xTbmSyncShouldRead) {
+            return;
+          }
           const body = this.responseType === "json" ? JSON.stringify(this.response) : this.responseText;
           handleResponse(this.__xTbmSyncUrl, body || "", this.status);
         } catch (_error) {

@@ -28,14 +28,18 @@ function flush() {
 }
 
 class FakeResponse {
-  constructor(body, status = 200) {
+  constructor(body, status = 200, { onText } = {}) {
     this.body = body;
     this.status = status;
+    this.onText = onText;
   }
   clone() {
-    return new FakeResponse(this.body, this.status);
+    return new FakeResponse(this.body, this.status, { onText: this.onText });
   }
   text() {
+    if (this.onText) {
+      this.onText();
+    }
     return Promise.resolve(this.body);
   }
 }
@@ -44,8 +48,18 @@ class FakeXMLHttpRequest {
   constructor() {
     this.listeners = {};
     this.responseType = "";
-    this.responseText = "";
+    this._responseText = "";
+    this.onResponseTextRead = null;
     this.status = 200;
+  }
+  get responseText() {
+    if (this.onResponseTextRead) {
+      this.onResponseTextRead();
+    }
+    return this._responseText;
+  }
+  set responseText(value) {
+    this._responseText = value;
   }
   addEventListener(type, listener) {
     (this.listeners[type] = this.listeners[type] || []).push(listener);
@@ -131,6 +145,9 @@ const mutedBody = JSON.stringify({
 });
 
 const messages = [];
+let nonListTextReadCount = 0;
+let nonListXhrTextReadCount = 0;
+let offSettingsListTextReadCount = 0;
 const location = { origin: "https://x.com", href: "https://x.com/settings/blocked/all" };
 const windowObject = {
   fetch: (url) => {
@@ -139,9 +156,24 @@ const windowObject = {
     if (/BlockedAccounts/.test(text) && /transient/.test(text)) return Promise.resolve(new FakeResponse(transientBlockedBody));
     if (/BlockedAccounts/.test(text) && /non-2xx/.test(text)) return Promise.resolve(new FakeResponse(blockedBody, 503));
     if (/BlockedAccounts/.test(text) && /tail/.test(text)) return Promise.resolve(new FakeResponse(emptyBlockedBody));
+    if (/BlockedAccounts/.test(text) && /off-settings/.test(text)) {
+      return Promise.resolve(
+        new FakeResponse(blockedBody, 200, {
+          onText: () => {
+            offSettingsListTextReadCount += 1;
+          }
+        })
+      );
+    }
     if (/BlockedAccounts/.test(text)) return Promise.resolve(new FakeResponse(blockedBody));
     if (/MutedAccounts/.test(text)) return Promise.resolve(new FakeResponse(mutedBody));
-    return Promise.resolve(new FakeResponse('{"data":{"home":{"entries":[]}}}'));
+    return Promise.resolve(
+      new FakeResponse('{"data":{"home":{"entries":[]}}}', 200, {
+        onText: () => {
+          nonListTextReadCount += 1;
+        }
+      })
+    );
   },
   postMessage: (message, targetOrigin) => {
     messages.push({ message, targetOrigin });
@@ -178,12 +210,22 @@ check(blockedStr.includes("9000000000000000001"), "entries intentionally include
 check(!blockedStr.includes("synthetic-bottom-cursor"), "cursor value must not leave the page");
 check(!blockedStr.includes("Synthetic Blocked"), "display names must not leave the page");
 
+const beforeOffSettings = messages.length;
+location.href = "https://x.com/home";
+await context.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?case=off-settings");
+await flush();
+await flush();
+check(messages.length === beforeOffSettings, "off-settings list endpoint posts no sync message", messages.length - beforeOffSettings);
+check(offSettingsListTextReadCount === 0, "off-settings list endpoint response body is not read", offSettingsListTextReadCount);
+location.href = "https://x.com/settings/blocked/all";
+
 // 2. Non-list endpoint -> ignored
 await context.window.fetch("https://x.com/i/api/graphql/abc/HomeTimeline?variables=x");
 await flush();
 await flush();
 const total = messages.filter((m) => m.message.source === "x-tbm:sync:capture").length;
 check(total === 1, "non-list endpoint produces no sync message", total);
+check(nonListTextReadCount === 0, "non-list fetch response body is not read", nonListTextReadCount);
 
 // 3. Muted endpoint via XHR
 const xhr = new context.XMLHttpRequest();
@@ -195,6 +237,16 @@ const mutedMsgs = messages.filter((m) => m.message.source === "x-tbm:sync:captur
 check(mutedMsgs.length === 1, "one muted sync-entries message posted (XHR)", mutedMsgs.length);
 check((mutedMsgs[0]?.message.entries || []).length === 1, "muted message carries the 1 user entry");
 check(!JSON.stringify(mutedMsgs[0]?.message || {}).includes("synthetic-muted-cursor"), "muted cursor value must not leave the page");
+
+const xhrHome = new context.XMLHttpRequest();
+xhrHome.open("GET", "https://x.com/i/api/graphql/abc/HomeTimeline?variables=x");
+xhrHome.responseText = '{"data":{"home":{"entries":[]}}}';
+xhrHome.onResponseTextRead = () => {
+  nonListXhrTextReadCount += 1;
+};
+xhrHome.dispatch("loadend");
+await flush();
+check(nonListXhrTextReadCount === 0, "non-list XHR response body is not read", nonListXhrTextReadCount);
 
 // 4. Empty tail page -> completion signal only, no entries/cursor leakage
 await context.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?cursor=tail");
