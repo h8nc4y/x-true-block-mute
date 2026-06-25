@@ -38,7 +38,13 @@
     }
 
     function isSettingsListPage() {
-      return /\/settings\/(?:blocked|muted)\/all(?:[/?#]|$)/i.test(String(location.href || ""));
+      // クエリ文字列内の偽 settings パスではなく、実際の pathname だけで判定する。
+      try {
+        const pageUrl = new URL(String(location.href || ""), location.origin);
+        return /^\/settings\/(?:blocked|muted)\/all$/i.test(pageUrl.pathname);
+      } catch (_error) {
+        return false;
+      }
     }
 
     function shouldReadListResponse(url) {

@@ -148,6 +148,7 @@ const messages = [];
 let nonListTextReadCount = 0;
 let nonListXhrTextReadCount = 0;
 let offSettingsListTextReadCount = 0;
+let queryOnlySettingsPathTextReadCount = 0;
 const location = { origin: "https://x.com", href: "https://x.com/settings/blocked/all" };
 const windowObject = {
   fetch: (url) => {
@@ -156,6 +157,15 @@ const windowObject = {
     if (/BlockedAccounts/.test(text) && /transient/.test(text)) return Promise.resolve(new FakeResponse(transientBlockedBody));
     if (/BlockedAccounts/.test(text) && /non-2xx/.test(text)) return Promise.resolve(new FakeResponse(blockedBody, 503));
     if (/BlockedAccounts/.test(text) && /tail/.test(text)) return Promise.resolve(new FakeResponse(emptyBlockedBody));
+    if (/BlockedAccounts/.test(text) && /query-settings-path/.test(text)) {
+      return Promise.resolve(
+        new FakeResponse(blockedBody, 200, {
+          onText: () => {
+            queryOnlySettingsPathTextReadCount += 1;
+          }
+        })
+      );
+    }
     if (/BlockedAccounts/.test(text) && /off-settings/.test(text)) {
       return Promise.resolve(
         new FakeResponse(blockedBody, 200, {
@@ -217,6 +227,22 @@ await flush();
 await flush();
 check(messages.length === beforeOffSettings, "off-settings list endpoint posts no sync message", messages.length - beforeOffSettings);
 check(offSettingsListTextReadCount === 0, "off-settings list endpoint response body is not read", offSettingsListTextReadCount);
+
+const beforeQueryOnlySettingsPath = messages.length;
+location.href = "https://x.com/home?next=/settings/blocked/all";
+await context.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?case=query-settings-path");
+await flush();
+await flush();
+check(
+  messages.length === beforeQueryOnlySettingsPath,
+  "query-only settings path posts no sync message",
+  messages.length - beforeQueryOnlySettingsPath
+);
+check(
+  queryOnlySettingsPathTextReadCount === 0,
+  "query-only settings path response body is not read",
+  queryOnlySettingsPathTextReadCount
+);
 location.href = "https://x.com/settings/blocked/all";
 
 // 2. Non-list endpoint -> ignored
@@ -227,7 +253,8 @@ const total = messages.filter((m) => m.message.source === "x-tbm:sync:capture").
 check(total === 1, "non-list endpoint produces no sync message", total);
 check(nonListTextReadCount === 0, "non-list fetch response body is not read", nonListTextReadCount);
 
-// 3. Muted endpoint via XHR
+// 3. Muted endpoint via XHR after same-document settings SPA navigation.
+location.href = "https://x.com/settings/muted/all?src=spa";
 const xhr = new context.XMLHttpRequest();
 xhr.open("GET", "https://x.com/i/api/graphql/abc/MutedAccounts?variables=x");
 xhr.responseText = mutedBody;
@@ -237,6 +264,7 @@ const mutedMsgs = messages.filter((m) => m.message.source === "x-tbm:sync:captur
 check(mutedMsgs.length === 1, "one muted sync-entries message posted (XHR)", mutedMsgs.length);
 check((mutedMsgs[0]?.message.entries || []).length === 1, "muted message carries the 1 user entry");
 check(!JSON.stringify(mutedMsgs[0]?.message || {}).includes("synthetic-muted-cursor"), "muted cursor value must not leave the page");
+location.href = "https://x.com/settings/blocked/all";
 
 const xhrHome = new context.XMLHttpRequest();
 xhrHome.open("GET", "https://x.com/i/api/graphql/abc/HomeTimeline?variables=x");

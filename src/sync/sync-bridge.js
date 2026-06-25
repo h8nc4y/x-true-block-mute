@@ -22,6 +22,67 @@
 
   // listKind -> Map<dedupeKey, entry>; lives for the page's lifetime.
   const staging = new Map();
+  // storage 境界へ渡す前に、MAIN hook 由来の3項目だけへ絞り直す。
+  const USER_ID_PATTERN = /^[0-9]{1,30}$/;
+  const HANDLE_PATTERN = /^[a-z0-9_]{1,15}$/;
+
+  function normalizeListKind(value) {
+    return value === "blocked" || value === "muted" ? value : null;
+  }
+
+  function currentPageListKind() {
+    // 現在ページの pathname だけで listKind を決め、query 由来の偽パスを同期対象にしない。
+    try {
+      const pageUrl = new URL(String(location.href || ""), location.origin);
+      if (/^\/settings\/blocked\/all$/i.test(pageUrl.pathname)) {
+        return "blocked";
+      }
+      if (/^\/settings\/muted\/all$/i.test(pageUrl.pathname)) {
+        return "muted";
+      }
+    } catch (_error) {
+      // URL が読めない状態では page-origin message を保存対象にしない。
+    }
+    return null;
+  }
+
+  function acceptedMessageListKind(data) {
+    // message の listKind と表示中ページが食い違う場合は、同一 origin でも破棄する。
+    const listKind = normalizeListKind(data && data.listKind);
+    if (!listKind || listKind !== currentPageListKind()) {
+      return null;
+    }
+    return listKind;
+  }
+
+  function sanitizeSyncEntry(entry, listKind) {
+    // page message は入力境界として扱い、余分な字段や壊れた値を storage 前に落とす。
+    if (!entry || typeof entry !== "object") {
+      return null;
+    }
+    if (entry.listKind !== undefined && entry.listKind !== listKind) {
+      return null;
+    }
+    const userId = typeof entry.user_id === "string" ? entry.user_id.trim() : "";
+    const handle = typeof entry.handle === "string" ? entry.handle.trim().toLowerCase() : "";
+    if (userId && !USER_ID_PATTERN.test(userId)) {
+      return null;
+    }
+    if (handle && !HANDLE_PATTERN.test(handle)) {
+      return null;
+    }
+    if (!userId && !handle) {
+      return null;
+    }
+    return { user_id: userId || null, handle: handle || null, listKind };
+  }
+
+  function sanitizeSyncEntries(listKind, entries) {
+    if (!Array.isArray(entries)) {
+      return [];
+    }
+    return entries.map((entry) => sanitizeSyncEntry(entry, listKind)).filter(Boolean);
+  }
 
   function stageEntries(listKind, entries) {
     if (!listKind) {
@@ -54,14 +115,20 @@
     if (event.source !== window) {
       return;
     }
+    if (event.origin && event.origin !== location.origin) {
+      return;
+    }
     const data = event.data;
     if (!data || data.source !== SYNC_MESSAGE_SOURCE) {
       return;
     }
-    const listKind = data.listKind;
+    const listKind = acceptedMessageListKind(data);
+    if (!listKind) {
+      return;
+    }
 
     if (data.kind === "sync-entries") {
-      const entries = Array.isArray(data.entries) ? data.entries : [];
+      const entries = sanitizeSyncEntries(listKind, data.entries);
       if (entries.length === 0) {
         return;
       }
