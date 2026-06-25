@@ -48,6 +48,11 @@ function area(name) {
   };
 }
 const chrome = { runtime: { lastError: null }, storage: { local: area("local"), sync: area("sync") } };
+const location = { origin: "https://x.com", href: "https://x.com/settings/blocked/all" };
+function setLocation(href) {
+  location.href = href;
+  location.origin = new URL(href).origin;
+}
 
 const messageListeners = [];
 const windowObject = {
@@ -55,12 +60,16 @@ const windowObject = {
     if (type === "message") messageListeners.push(listener);
   }
 };
-function dispatchMessage(data) {
-  const event = { data, source: windowObject };
+function dispatchMessage(data, overrides = {}) {
+  const event = {
+    data,
+    source: overrides.source ?? windowObject,
+    origin: overrides.origin ?? location.origin
+  };
   for (const listener of messageListeners) listener(event);
 }
 
-const context = createContext({ console, Date, URL, chrome, window: windowObject });
+const context = createContext({ console, Date, URL, chrome, location, window: windowObject });
 context.globalThis = context;
 for (const file of [
   "src/shared/constants.js",
@@ -73,12 +82,12 @@ for (const file of [
 const { Storage, SYNC_MESSAGE_SOURCE } = context.XTrueBlockMute;
 
 const blockedEntries = [
-  { user_id: "9000000000000000001", handle: "synthetic_blocked_a", listKind: "blocked" },
-  { user_id: "9000000000000000002", handle: "synthetic_blocked_b", listKind: "blocked" }
+  { user_id: "9000000000000000001", handle: "blocked_a", listKind: "blocked" },
+  { user_id: "9000000000000000002", handle: "blocked_b", listKind: "blocked" }
 ];
-const mutedEntry = { user_id: "8000000000000000001", handle: "synthetic_muted_a", listKind: "muted" };
-const concurrentBlockedA = { user_id: "9000000000000000101", handle: "synthetic_blocked_concurrent_a", listKind: "blocked" };
-const concurrentBlockedB = { user_id: "9000000000000000102", handle: "synthetic_blocked_concurrent_b", listKind: "blocked" };
+const mutedEntry = { user_id: "8000000000000000001", handle: "muted_a", listKind: "muted" };
+const concurrentBlockedA = { user_id: "9000000000000000101", handle: "blocked_conc_a", listKind: "blocked" };
+const concurrentBlockedB = { user_id: "9000000000000000102", handle: "blocked_conc_b", listKind: "blocked" };
 
 async function main() {
   // sync-complete with empty staging is a safety no-op: never wipe an existing list
@@ -105,13 +114,25 @@ async function main() {
   store = await Storage.getEntryStore();
   check(store.entries.length === 0, "sync disabled: nothing persisted", store.entries.length);
 
-  // wrong source / kind ignored even when enabled
+  // wrong source / kind / origin / page scope ignored even when enabled
   await Storage.setSyncEnabled(true);
   dispatchMessage({ source: "someone-else", kind: "sync-entries", listKind: "blocked", entries: blockedEntries });
-  dispatchMessage({ source: SYNC_MESSAGE_SOURCE, kind: "not-sync", entries: blockedEntries });
+  dispatchMessage({ source: SYNC_MESSAGE_SOURCE, kind: "not-sync", listKind: "blocked", entries: blockedEntries });
+  dispatchMessage(
+    { source: SYNC_MESSAGE_SOURCE, kind: "sync-entries", listKind: "blocked", entries: blockedEntries },
+    { origin: "https://evil.example" }
+  );
+  setLocation("https://x.com/home?next=/settings/blocked/all");
+  dispatchMessage({ source: SYNC_MESSAGE_SOURCE, kind: "sync-entries", listKind: "blocked", entries: blockedEntries });
+  setLocation("https://x.com/settings/blocked/all");
+  dispatchMessage({ source: SYNC_MESSAGE_SOURCE, kind: "sync-entries", listKind: "muted", entries: [mutedEntry] });
+  dispatchMessage({ source: SYNC_MESSAGE_SOURCE, kind: "sync-entries", listKind: "blocked", entries: [
+    { user_id: "not numeric", handle: "bad-handle!", listKind: "blocked", label: "drop me" },
+    { user_id: "9000000000000000999", handle: "mismatch", listKind: "muted" }
+  ] });
   await flushStorage();
   store = await Storage.getEntryStore();
-  check(store.entries.length === 0, "foreign source / wrong kind ignored", store.entries.length);
+  check(store.entries.length === 0, "foreign source / wrong kind / forged scope ignored", store.entries.length);
 
   // sync enabled, correct message: entries persisted + lastSyncedAt set
   dispatchMessage({ source: SYNC_MESSAGE_SOURCE, kind: "sync-entries", listKind: "blocked", entries: blockedEntries });
@@ -134,6 +155,7 @@ async function main() {
   );
 
   // a second message with a muted entry upserts alongside (additive)
+  setLocation("https://x.com/settings/muted/all");
   dispatchMessage({
     source: SYNC_MESSAGE_SOURCE,
     kind: "sync-entries",
@@ -145,8 +167,9 @@ async function main() {
   check(store.entries.length === 5, "second list message upserts additively", store.entries.length);
 
   // full-list completion reconciles a staged listKind, removing stale synced rows only for that list
+  setLocation("https://x.com/settings/blocked/all");
   await Storage.upsertSyncedEntries([
-    { user_id: "9000000000000000003", handle: "synthetic_blocked_c", listKind: "blocked" }
+    { user_id: "9000000000000000003", handle: "blocked_c", listKind: "blocked" }
   ]);
   store = await Storage.getEntryStore();
   check(
