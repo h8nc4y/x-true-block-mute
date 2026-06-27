@@ -202,7 +202,7 @@ node tests/scripts/evaluate-f1-observation.mjs --live path\to\masked-summary.jso
 運用ルールは現行のユーザー指示と `AGENTS.md` の不変条件を優先します。2026-06-13 以降の要点:
 
 - 報告は日本語、冒頭に日本時間 `YYYY/MM/DD HH:MM:SS`。テスト結果・commit hash・URL を捏造しない。
-- タスクはユーザーがチャットで直接承認したものを実装する。ChatGPT 承認制は廃止。
+- 現行ユーザー指示と人間承認ゲートに従い、通常の docs・test・code 健全性作業は自走する。旧 ChatGPT 承認制は廃止。
 - ユーザー同意の下、Claude Code は Chrome MCP でログイン済み Chrome を操作し、設定ページ限定で masked observation を収集してよい。password / MFA / Cookie / token は受け取らない。x.com / twitter.com タブではスクリーンショット・DOM テキスト・network response を読み取らない。
 - Chrome Load unpacked / popup / synthetic fixture の確認は Playwright/CDP 自動化で実施してよい。
 - 入力待ちループ、対話式 CLI 待機、foreground dev server で待機しない。検証スクリプトは必ず終了する。
