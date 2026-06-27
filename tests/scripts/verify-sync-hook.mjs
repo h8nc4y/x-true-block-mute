@@ -44,38 +44,40 @@ class FakeResponse {
   }
 }
 
-class FakeXMLHttpRequest {
-  constructor() {
-    this.listeners = {};
-    this.responseType = "";
-    this._responseText = "";
-    this.onResponseTextRead = null;
-    this.status = 200;
-  }
-  get responseText() {
-    if (this.onResponseTextRead) {
-      this.onResponseTextRead();
+function createFakeXMLHttpRequestClass() {
+  return class FakeXMLHttpRequest {
+    constructor() {
+      this.listeners = {};
+      this.responseType = "";
+      this._responseText = "";
+      this.onResponseTextRead = null;
+      this.status = 200;
     }
-    return this._responseText;
-  }
-  set responseText(value) {
-    this._responseText = value;
-  }
-  addEventListener(type, listener) {
-    (this.listeners[type] = this.listeners[type] || []).push(listener);
-  }
-  getResponseHeader() {
-    return "application/json";
-  }
-  open(method, url) {
-    this.method = method;
-    this.url = url;
-  }
-  dispatch(type) {
-    for (const listener of this.listeners[type] || []) {
-      listener.call(this);
+    get responseText() {
+      if (this.onResponseTextRead) {
+        this.onResponseTextRead();
+      }
+      return this._responseText;
     }
-  }
+    set responseText(value) {
+      this._responseText = value;
+    }
+    addEventListener(type, listener) {
+      (this.listeners[type] = this.listeners[type] || []).push(listener);
+    }
+    getResponseHeader() {
+      return "application/json";
+    }
+    open(method, url) {
+      this.method = method;
+      this.url = url;
+    }
+    dispatch(type) {
+      for (const listener of this.listeners[type] || []) {
+        listener.call(this);
+      }
+    }
+  };
 }
 
 const blockedBody = await readText("tests/fixtures/blocked-timeline-response.fixture.json");
@@ -172,6 +174,7 @@ const mutedBody = JSON.stringify({
 const messages = [];
 let nonListTextReadCount = 0;
 let nonListXhrTextReadCount = 0;
+let offSettingsXhrTextReadCount = 0;
 let offSettingsListTextReadCount = 0;
 let queryOnlySettingsPathTextReadCount = 0;
 const location = { origin: "https://x.com", href: "https://x.com/settings/blocked/all" };
@@ -222,7 +225,7 @@ const context = createContext({
   URL,
   location,
   window: windowObject,
-  XMLHttpRequest: FakeXMLHttpRequest
+  XMLHttpRequest: createFakeXMLHttpRequestClass()
 });
 context.globalThis = context;
 
@@ -313,6 +316,28 @@ xhrHome.dispatch("loadend");
 await flush();
 check(nonListXhrTextReadCount === 0, "non-list XHR response body is not read", nonListXhrTextReadCount);
 
+const beforeOffSettingsXhr = messages.length;
+location.href = "https://x.com/home";
+const xhrOffSettings = new context.XMLHttpRequest();
+xhrOffSettings.open("GET", "https://x.com/i/api/graphql/abc/BlockedAccounts?case=off-settings-xhr");
+xhrOffSettings.responseText = blockedBody;
+xhrOffSettings.onResponseTextRead = () => {
+  offSettingsXhrTextReadCount += 1;
+};
+xhrOffSettings.dispatch("loadend");
+await flush();
+check(
+  messages.length === beforeOffSettingsXhr,
+  "off-settings list XHR posts no sync message",
+  messages.length - beforeOffSettingsXhr
+);
+check(
+  offSettingsXhrTextReadCount === 0,
+  "off-settings list XHR response body is not read",
+  offSettingsXhrTextReadCount
+);
+location.href = "https://x.com/settings/blocked/all";
+
 // 4. Top-only cursor page -> ignored, not treated as full-list completion
 const beforeTopOnly = messages.length;
 await context.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?case=top-only");
@@ -354,6 +379,69 @@ await context.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?case
 await flush();
 await flush();
 check(messages.length === beforeNon2xx, "non-2xx list response posts no sync message", messages.length);
+
+// 9. Injection order resilience -> missing SyncCapture must not poison the install guard.
+// Declarative content scripts list sync-capture before sync-hook, but this regression keeps
+// the lifecycle contract explicit: a transient missing dependency leaves the hook retryable.
+const deferredMessages = [];
+let deferredListTextReadCount = 0;
+const deferredLocation = { origin: "https://x.com", href: "https://x.com/settings/blocked/all" };
+const deferredContext = createContext({
+  console,
+  JSON,
+  URL,
+  location: deferredLocation,
+  window: {
+    fetch: () =>
+      Promise.resolve(
+        new FakeResponse(blockedBody, 200, {
+          onText: () => {
+            deferredListTextReadCount += 1;
+          }
+        })
+      ),
+    postMessage: (message, targetOrigin) => {
+      deferredMessages.push({ message, targetOrigin });
+    }
+  },
+  XMLHttpRequest: createFakeXMLHttpRequestClass()
+});
+deferredContext.globalThis = deferredContext;
+const deferredOriginalFetch = deferredContext.window.fetch;
+const deferredOriginalXhrOpen = deferredContext.XMLHttpRequest.prototype.open;
+new Script(await readText("src/sync/sync-hook.js"), { filename: "src/sync/sync-hook.js" }).runInContext(
+  deferredContext
+);
+check(
+  deferredContext.window.fetch === deferredOriginalFetch,
+  "missing SyncCapture leaves fetch unwrapped",
+  deferredContext.window.fetch.name
+);
+check(
+  deferredContext.XMLHttpRequest.prototype.open === deferredOriginalXhrOpen,
+  "missing SyncCapture leaves XMLHttpRequest.open unwrapped"
+);
+check(!deferredContext.window.__xTbmSyncHookInstalled, "missing SyncCapture does not mark sync hook installed");
+
+new Script(await readText("src/sync/sync-capture.js"), { filename: "src/sync/sync-capture.js" }).runInContext(
+  deferredContext
+);
+deferredContext.XTrueBlockMuteSyncHook.installSyncHook("x-tbm:sync:capture");
+check(deferredContext.window.fetch !== deferredOriginalFetch, "sync hook can install after SyncCapture becomes available");
+check(
+  deferredContext.XMLHttpRequest.prototype.open !== deferredOriginalXhrOpen,
+  "sync hook wraps XMLHttpRequest.open after deferred install"
+);
+await deferredContext.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?case=deferred-install");
+await flush();
+await flush();
+check(deferredListTextReadCount === 1, "deferred install reads eligible list response once", deferredListTextReadCount);
+check(
+  deferredMessages.filter((m) => m.message.source === "x-tbm:sync:capture" && m.message.kind === "sync-entries")
+    .length === 1,
+  "deferred install posts one sync-entries message",
+  deferredMessages
+);
 
 if (failures.length > 0) {
   console.error(`\nSync hook verification FAILED: ${failures.length} check(s) failed`);
