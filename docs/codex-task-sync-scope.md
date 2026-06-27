@@ -9,6 +9,10 @@
 この委譲タスク仕様は 2026-06-21 時点の履歴資料です。sync hook response scope hardening は `d3ef0f8` として PR #10 (`95bf09b`) に含まれ、現行 `main` へ統合済みです。
 以後の作業は、このファイルを新規実装指示としてではなく、実 X 応答 shape や Chrome Web Store 審査対応を再確認する前提資料として参照してください。secret、raw X response、実ユーザー一覧、追加権限、外部送信、Store提出/審査操作のゲートは現行 `AGENTS.md` と `TASKS_BACKLOG.md` を優先します。
 
+## 2026/06/27 Codex補足
+
+本タスクの path-scoped 抽出は `test/sync-extraction-negative-regression` ブランチで実装しました。`extractSyncEntries` は list timeline `entries[].content.itemContent.user_results.result` 配下を対象にし、viewer/globalObjects 等の list 外 user-like object を無視する negative regression を追加済みです。実 X 応答 shape に対する妥当性は引き続き未確認です。
+
 ## Goal
 本番 sync 抽出が BlockedAccounts/MutedAccounts 応答内の「任意の user オブジェクト」を取り込む over-broad walk を、list timeline entry / user_results 配下のみを辿る path-scoped 抽出に絞り、list 外ユーザー（ビューア自身・suggested・quoted 作者等）の誤取り込みを防ぐ。併せて回帰テストを追加する。
 
