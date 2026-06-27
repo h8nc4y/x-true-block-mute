@@ -227,10 +227,21 @@ const context = createContext({
 context.globalThis = context;
 
 new Script(await readText("src/sync/sync-capture.js"), { filename: "src/sync/sync-capture.js" }).runInContext(context);
+const originalFetch = context.window.fetch;
+const originalXhrOpen = context.XMLHttpRequest.prototype.open;
+
 new Script(await readText("src/sync/sync-hook.js"), { filename: "src/sync/sync-hook.js" }).runInContext(context);
+const fetchAfterAutoInstall = context.window.fetch;
+const xhrOpenAfterAutoInstall = context.XMLHttpRequest.prototype.open;
+check(fetchAfterAutoInstall !== originalFetch, "sync hook auto-install wraps fetch once");
+check(xhrOpenAfterAutoInstall !== originalXhrOpen, "sync hook auto-install wraps XMLHttpRequest.open once");
 
 context.XTrueBlockMuteSyncHook.installSyncHook("x-tbm:sync:capture");
-context.XTrueBlockMuteSyncHook.installSyncHook("x-tbm:sync:capture"); // idempotency
+check(context.window.fetch === fetchAfterAutoInstall, "installSyncHook does not wrap fetch more than once");
+check(
+  context.XMLHttpRequest.prototype.open === xhrOpenAfterAutoInstall,
+  "installSyncHook does not wrap XMLHttpRequest.open more than once"
+);
 
 // 1. List endpoint (fetch) -> entries posted
 await context.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?variables=x");
