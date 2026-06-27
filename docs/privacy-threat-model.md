@@ -23,8 +23,8 @@ Update (2026-06-14, M7): the F1-A research MAIN-world injection and the `scripti
 | Chrome extension runtime | MV3 extension loaded locally by a human. | Mis-scoped permissions can expose more data than intended. |
 | `chrome.storage.sync` | Stores `xtbmSettings`. | Settings sync may reveal user preferences across browsers. |
 | `chrome.storage.local` normal data | Stores `xtbmEntries`. | Production entries could reveal block/mute targets if mishandled. |
-| `chrome.storage.local` research data | Stores `xtbmF1AResearch`. | Research observations must remain separate from production entries. |
-| MAIN-world hook | Used only for Phase 1.5 settings-page research scaffold. | Page-context hooks can accidentally capture or expose sensitive response data. |
+| Retired `chrome.storage.local` research data | `xtbmF1AResearch` is retained only as a historical/research data class; the shipped extension no longer writes it. | Future research re-introduction must keep masked observations separate from production entries. |
+| MAIN-world hook | Production sync capture runs as a declarative settings-page `world:"MAIN"` content script. | Page-context hooks can accidentally capture or expose sensitive response data if URL and endpoint gates drift. |
 | Clipboard | Popup may copy masked summaries only. | Users could accidentally copy raw data if UI or docs are unclear. |
 | Repository docs and fixtures | Should contain only synthetic data, masked summaries, and policy text. | Committing raw data would create persistent leakage. |
 | External services | Not used in this pass. | OAuth/API/cloud usage can expose tokens or incur cost. |
@@ -39,7 +39,7 @@ The repository handles two distinct data classes. They must remain separate.
 
 `xtbmSettings` is for user settings only and stays in `chrome.storage.sync`; the entry list is kept in `chrome.storage.local` and is not synced across devices.
 
-During the current research phase, captured F1-A responses are not written into `xtbmEntries`; `xtbmF1AResearch` must remain separate from `xtbmEntries` until the user approves the production sync design (M4).
+The production sync design is approved and implemented for the F1-A path. Future research or data-source work must still keep masked/research observations separate from `xtbmEntries` until a new user-approved scope explicitly promotes that path.
 
 ## Clipboard boundary
 
@@ -64,19 +64,19 @@ If a file appears to contain secrets or real account data, report only the file 
 
 ## MAIN-world hook risks
 
-The Phase 1.5 MAIN-world hook is high-risk because it wraps `fetch` and `XMLHttpRequest` in the page context. Current mitigations:
+The production MAIN-world hook is high-risk because it wraps `fetch` and `XMLHttpRequest` in the page context on X settings-list pages. Current mitigations:
 
-- The research bridge is limited to settings pages.
-- The normal content script excludes those settings pages.
-- The hook posts normalized observations rather than raw response data.
-- The bridge persists observations through `appendF1AResearchObservation`.
-- The evaluator distinguishes `fixture_pass`, `f1a_viable`, `f1a_insufficient`, and `unsafe_summary`.
+- Declarative content scripts limit the sync bridge and MAIN-world hook to `/settings/blocked/all` and `/settings/muted/all` on x.com/twitter.com.
+- The normal timeline content script excludes those settings pages.
+- The hook gates response-body reads behind the actual settings pathname and recognized block/mute list endpoints before calling `clone().text()` or `responseText`.
+- The hook posts only `sync-entries` (`user_id`, `handle`, `listKind`) or `sync-complete` (`listKind` only); cursor values, display names, post bodies, and raw response bodies do not leave the page context.
+- The ISOLATED bridge persists only when local sync is enabled and keeps staging/reconcile safety checks separate from the MAIN-world wrapper.
 
 Remaining risks:
 
-- Hook teardown and long-lived SPA behavior are not productionized.
-- Live endpoint shape, pagination, injection timing, and continuity are 未確認.
-- Human-provided masked summaries may still accidentally include sensitive data.
+- Explicit teardown is intentionally not used for the declarative production hook; idempotency, dependency ordering, and long-lived SPA behavior must remain covered by local lifecycle tests.
+- X endpoint shape and Chrome Web Store review result can change outside this repository and remain 未確認 until safely re-verified.
+- Human reports or future research summaries may still accidentally include sensitive data if the reporting rules are ignored.
 
 ## Permission boundary
 
@@ -107,11 +107,11 @@ Any permission expansion must include a written rationale, threat-model update, 
 | Threat | Impact | Current mitigation | Remaining gap |
 | --- | --- | --- | --- |
 | Raw X response is copied or committed. | Persistent privacy leak. | Popup/docs say masked summary only; evaluator detects unsafe signals. | Human reporting can still make mistakes. |
-| Research data is mixed into production entries. | Unreviewed sync path and incorrect filtering. | `xtbmF1AResearch` is separate from `xtbmEntries`. | Future Phase 2 code must preserve this boundary. |
+| Research data is mixed into production entries. | Unreviewed data source or incorrect filtering. | `xtbmF1AResearch` remains a retired/masked data class and production sync writes only approved `xtbmEntries`. | Future research re-introduction must preserve this boundary. |
 | Permissions expand silently. | Wider access to user data. | Static checks assert allowed permissions. | Review must catch manifest changes. |
 | Live X verification exposes account data. | Account/session exposure. | Claude Code drives the user's own Chrome under consent; no credentials are received; only masked observations leave the page; x.com tabs are not screenshotted or scraped. | Masking must hold; `unsafe_summary` stops and deletes the summary. |
 | Clipboard leaks sensitive content. | User may paste secrets elsewhere. | Copy flow is intended for masked summary only; masked summary goes to a gitignored temp path and through the `unsafe_summary` gate first. | Needs care during real masked-summary collection. |
-| Production entries leak off-device. | Block/mute list exposure. | `xtbmEntries` raw values stay in `chrome.storage.local` only; no network egress; not synced across devices. | Phase 2 code must preserve local-only storage. |
+| Production entries leak off-device. | Block/mute list exposure. | `xtbmEntries` raw values stay in `chrome.storage.local` only; no network egress; not synced across devices. | Future code must preserve local-only storage. |
 
 ## Human reporting rules
 
@@ -125,14 +125,14 @@ When reporting Chrome or X observations, include only:
 
 Do not include raw account identifiers, raw handles, display names, post text, screenshots, HAR files, Cookies, tokens, OAuth credentials, raw response bodies, or personal account data.
 
-## Phase 2 privacy gate
+## Future data-source and permission gate
 
-Phase 2 implementation is blocked until the user confirms:
+The current approved production source is F1-A settings-page sync with local-only `xtbmEntries`. Any future source path, permission expansion, or off-device operation is blocked until the user confirms:
 
-1. Which source path is approved: F1-A, F1-B, F1-D, or another path.
-2. What data may be stored.
-3. Whether data stays local-only.
-4. How deletion and reset work.
+1. Which new source path is approved: F1-B, F1-D, API/OAuth, or another path.
+2. What data may be stored and how it differs from current `user_id` / `handle` / `listKind` entries.
+3. Whether all data stays local-only.
+4. How deletion, reset, and rollback work.
 5. Which validation commands and manual checks are required.
-6. Whether additional permissions are allowed.
-7. Whether a human has completed Chrome Load unpacked and popup confirmation.
+6. Whether additional permissions are allowed and how they are justified.
+7. Whether a human has completed the necessary Chrome or Chrome Web Store verification.
