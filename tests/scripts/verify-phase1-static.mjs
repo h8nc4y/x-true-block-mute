@@ -33,6 +33,7 @@ const requiredFiles = [
   "tests/scripts/verify-f1a-observation-safety.mjs"
 ];
 const prohibitedValues = [
+  "scripting",
   "webRequest",
   "cookies",
   "tabs",
