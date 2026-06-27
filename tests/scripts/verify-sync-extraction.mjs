@@ -58,13 +58,51 @@ check(!serialized.includes("synthetic-bottom-cursor"), "cursor value must not ap
 check(!serialized.includes("synthetic-top-cursor"), "top cursor value must not appear in entries");
 check(!serialized.includes("Synthetic Blocked"), "display names must not appear in entries");
 
+function timelineUserEntry(entryId, restId, screenName) {
+  return {
+    entryId,
+    content: {
+      entryType: "TimelineTimelineItem",
+      itemContent: {
+        itemType: "TimelineUser",
+        user_results: { result: { rest_id: restId, legacy: { screen_name: screenName } } }
+      }
+    }
+  };
+}
+
+function timelineResponse(entriesForList, extraViewerFields = {}) {
+  return {
+    data: {
+      viewer: {
+        timeline: { timeline: { instructions: [{ entries: entriesForList }] } },
+        ...extraViewerFields
+      }
+    }
+  };
+}
+
 // dedupe: feeding the same response twice through extraction is per-call, but a
 // response repeating a user collapses to one entry.
-const dupFixture = { users: [
-  { rest_id: "111", legacy: { screen_name: "dup" } },
-  { rest_id: "111", legacy: { screen_name: "dup" } }
-] };
-check(SyncCapture.extractSyncEntries(dupFixture, "muted").length === 1, "duplicate rest_id within a response collapses to one");
+const dupFixture = timelineResponse([
+  timelineUserEntry("user-111-a", "111", "dup"),
+  timelineUserEntry("user-111-b", "111", "dup")
+]);
+check(SyncCapture.extractSyncEntries(dupFixture, "muted").length === 1, "duplicate rest_id within list entries collapses to one");
+
+// GraphQL responses can carry unrelated user objects outside the list timeline.
+// リスト instruction 配下ではない user-like object は、候補の見た目が一致しても保存対象にしない。
+const mixedUsersFixture = timelineResponse([timelineUserEntry("user-777", "777", "list_member")], {
+  globalObjects: {
+    users: {
+      "999": { rest_id: "999", legacy: { screen_name: "not_in_blocked_list" } }
+    }
+  },
+  user: { result: { rest_id: "888", legacy: { screen_name: "viewer_account" } } }
+});
+const mixedUsers = SyncCapture.extractSyncEntries(mixedUsersFixture, "blocked");
+check(mixedUsers.length === 1, "unrelated non-list user objects are ignored", mixedUsers);
+check(mixedUsers[0] && mixedUsers[0].user_id === "777", "list timeline user remains captured", mixedUsers[0]);
 
 if (failures.length > 0) {
   console.error(`\nSync extraction verification FAILED: ${failures.length} check(s) failed`);

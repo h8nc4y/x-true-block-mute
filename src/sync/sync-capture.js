@@ -86,6 +86,47 @@
       });
     }
 
+    function userResultFromItemContent(itemContent) {
+      if (!itemContent || typeof itemContent !== "object") {
+        return null;
+      }
+      // X の TimelineUser 以外に user_results が混ざった場合は、list 対象として扱わない。
+      if (itemContent.itemType && itemContent.itemType !== "TimelineUser") {
+        return null;
+      }
+      const userResults = itemContent.user_results;
+      if (!userResults || typeof userResults !== "object") {
+        return null;
+      }
+      return userResults.result && typeof userResults.result === "object" ? userResults.result : null;
+    }
+
+    function addFromTimelineEntry(entry) {
+      if (!entry || typeof entry !== "object" || typeof entry.entryId !== "string") {
+        return;
+      }
+      const content = entry.content;
+      if (!content || typeof content !== "object") {
+        return;
+      }
+      // list timeline item 以外の cursor/social context は、user-like 値を持っていても無視する。
+      if (!content.entryType || content.entryType === "TimelineTimelineItem") {
+        const result = userResultFromItemContent(content.itemContent);
+        if (result) {
+          addUser(readRestId(result), readScreenName(result));
+        }
+      }
+      // Timeline module 形の保険。対象は module item 内の TimelineUser だけに限定する。
+      if (Array.isArray(content.items)) {
+        for (const item of content.items) {
+          const itemResult = userResultFromItemContent(item && item.item && item.item.itemContent);
+          if (itemResult) {
+            addUser(readRestId(itemResult), readScreenName(itemResult));
+          }
+        }
+      }
+    }
+
     function walk(node, depth) {
       if (budget <= 0 || depth > 20 || node === null || typeof node !== "object" || visited.has(node)) {
         return;
@@ -98,9 +139,11 @@
         }
         return;
       }
-      const restId = readRestId(node);
-      if (restId) {
-        addUser(restId, readScreenName(node));
+      // 応答全体の user-like object ではなく、list timeline の entries 配下だけを抽出対象にする。
+      if (Array.isArray(node.entries)) {
+        for (const entry of node.entries) {
+          addFromTimelineEntry(entry);
+        }
       }
       for (const key of Object.keys(node)) {
         walk(node[key], depth + 1);
