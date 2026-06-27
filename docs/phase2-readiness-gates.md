@@ -2,7 +2,7 @@
 
 ## Status
 
-Prepared by Codex on 2026-05-31 from local repository inspection and ChatGPT-approved GATE-00 through GATE-05 scope. Updated 2026-06-19 to reflect the v1.1 / M7 state.
+Prepared by Codex on 2026-05-31 from local repository inspection and the original GATE-00 through GATE-05 scope. Updated 2026-06-27 to reflect the v1.1 / M7 state and the current autonomous-user-instruction wording.
 
 This document is a readiness gate and historical decision record. Current status statements below supersede the original pre-Phase-2 uncertainty, but they are still not permission to change product scope, permissions, data source, or distribution flow without the active human gates.
 
@@ -10,10 +10,10 @@ This document is a readiness gate and historical decision record. Current status
 
 Phase 2 should not begin until the project has a clear local baseline, privacy boundary, deferred-finding register, and repeatable docs consistency check. These gates keep the project reviewable under the current operating rule (2026-06-13):
 
-- The user is the approval authority. Tasks approved by the user in chat are implemented by Claude Code.
+- The user remains the approval authority for human-gated changes. Within the current user-authorized autonomous loop, Codex / Claude Code may implement local docs, tests, and code-health tasks.
 - Claude Code may automate Chrome Load unpacked / popup / fixture verification (Playwright/CDP) and may drive live X masked-observation collection through the Chrome MCP under user consent.
 - The agent never receives or stores credentials (password, MFA, Cookie, token) and never reads raw X responses; only masked observations leave the page.
-- Chrome Web Store distribution is the final goal; readiness work is in scope. F1-C (OAuth/API) is closed; F1-B/F1-D remain fallbacks if F1-A is not viable.
+- Chrome Web Store distribution is the final goal; readiness work is in scope. F1-C (OAuth/API) is closed; F1-B/F1-D are closed fallback options unless a new human-approved source decision supersedes F1-A.
 
 ## Current confirmed baseline
 
@@ -70,7 +70,7 @@ F1-A was selected as the primary source after live masked-summary evaluation in 
 
 Expected evaluator outcomes:
 
-- `f1a_viable`: F1-A may be considered further, but still requires user approval before new implementation.
+- `f1a_viable`: Historical live evidence allowed F1-A to become the v1.1 primary path; any new source/scope-changing implementation still requires user approval.
 - `f1a_insufficient`: Do not proceed with F1-A primary; consider F1-B or F1-D fallback.
 - `unsafe_summary`: Stop. Do not share or commit the summary. Delete or quarantine it according to human instructions.
 - `fixture_pass`: Fixture-only evidence. This must not be used as live F1-A proof.
@@ -84,7 +84,7 @@ Phase 2 source selection is decided for v1.1: F1-A settings-page sync is the pri
 - F1-C: X API / OAuth. Deferred and out of current scope.
 - F1-D: Human import UI. Closed as a fallback for now; revisit only with a new product decision.
 
-No new source should be implemented until the user approves the selected source, scope, acceptance criteria, and validation commands. F1-C remains closed.
+No new source should be implemented until the user approves the selected source, scope, acceptance criteria, and validation commands. F1-B/F1-D remain closed fallbacks for the current v1.1 path, and F1-C remains closed.
 
 ## Stop conditions for future source/permission changes
 
@@ -105,7 +105,7 @@ User approval is required before:
 - Submitting to the Chrome Web Store (developer registration, payment, and final submission are performed by the user).
 - Any deploy, external dashboard, or paid-service usage.
 
-Within these bounds, Claude Code implements the tasks the user has approved in chat, including Chrome and live X verification.
+Within these bounds, Codex / Claude Code may implement current user-authorized local work. Chrome verification and live X verification still follow the masked-observation and human-gate rules above.
 
 ## Next minimum step
 
