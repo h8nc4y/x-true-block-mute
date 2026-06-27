@@ -118,7 +118,15 @@ if (manifest) {
     failures.push(`manifest host_permissions changed: ${hosts}`);
   }
   const manifestText = JSON.stringify(manifest);
-  for (const prohibited of ["webRequest", "cookies", "tabs", "activeTab", "<all_urls>", "https://api.x.com/*"]) {
+  for (const prohibited of [
+    "scripting",
+    "webRequest",
+    "cookies",
+    "tabs",
+    "activeTab",
+    "<all_urls>",
+    "https://api.x.com/*"
+  ]) {
     if (manifestText.includes(prohibited)) {
       failures.push(`manifest contains prohibited permission or host: ${prohibited}`);
     }
