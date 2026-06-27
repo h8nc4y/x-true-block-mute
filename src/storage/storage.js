@@ -183,10 +183,9 @@
   // Merge a freshly synced batch of the user's own block/mute list into the
   // normal entry store. Matching prefers the stable user_id and falls back to handle,
   // so a handle-only entry is upgraded in place (not duplicated) once a user_id
-  // becomes available. This is additive only: accounts that disappeared from the
-  // list are NOT removed here. Full-list reconciliation (handling un-blocks)
-  // depends on whether the source can read the complete list and is deferred to
-  // the production sync step after the F1 source is chosen.
+  // becomes available. This path is intentionally additive; full-list cleanup is
+  // handled by replaceSyncedListKind() only after the sync bridge has staged a
+  // non-empty complete-list capture for one listKind.
   async function upsertSyncedEntriesCore(incomingEntries, syncedAt = new Date().toISOString()) {
     const current = await getEntryStore();
     const byUserId = new Map();

@@ -154,7 +154,7 @@
     return entries;
   }
 
-  function hasTimelineEntries(json) {
+  function hasBottomCursor(json) {
     const visited = new WeakSet();
     let budget = 20000;
 
@@ -164,7 +164,11 @@
       }
       visited.add(node);
       budget -= 1;
-      if (typeof node.entryId === "string" || typeof node.cursorType === "string") {
+      // 完了判定は Top cursor や通常 entry ではなく、末尾方向の timeline cursor だけに絞る。
+      if (
+        String(node.entryType || "").toLowerCase() === "timelinetimelinecursor" &&
+        String(node.cursorType || "").toLowerCase() === "bottom"
+      ) {
         return true;
       }
       if (Array.isArray(node)) {
@@ -188,7 +192,7 @@
 
   namespace.SyncCapture = {
     extractSyncEntries,
-    hasTimelineEntries,
+    hasBottomCursor,
     listKindFromUrl,
     normalizeHandle
   };
