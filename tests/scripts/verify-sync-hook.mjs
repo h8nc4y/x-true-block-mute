@@ -86,6 +86,31 @@ const graphQLErrorBody = JSON.stringify({
 const transientBlockedBody = JSON.stringify({
   data: { viewer: { timeline: { timeline: { instructions: [] } } } }
 });
+const topOnlyBlockedBody = JSON.stringify({
+  data: {
+    viewer: {
+      timeline: {
+        timeline: {
+          instructions: [
+            {
+              type: "TimelineAddEntries",
+              entries: [
+                {
+                  entryId: "cursor-top-only",
+                  content: {
+                    entryType: "TimelineTimelineCursor",
+                    cursorType: "Top",
+                    value: "synthetic-top-only"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+});
 const emptyBlockedBody = JSON.stringify({
   data: {
     viewer: {
@@ -155,6 +180,7 @@ const windowObject = {
     const text = String(url || "");
     if (/BlockedAccounts/.test(text) && /error/.test(text)) return Promise.resolve(new FakeResponse(graphQLErrorBody));
     if (/BlockedAccounts/.test(text) && /transient/.test(text)) return Promise.resolve(new FakeResponse(transientBlockedBody));
+    if (/BlockedAccounts/.test(text) && /top-only/.test(text)) return Promise.resolve(new FakeResponse(topOnlyBlockedBody));
     if (/BlockedAccounts/.test(text) && /non-2xx/.test(text)) return Promise.resolve(new FakeResponse(blockedBody, 503));
     if (/BlockedAccounts/.test(text) && /tail/.test(text)) return Promise.resolve(new FakeResponse(emptyBlockedBody));
     if (/BlockedAccounts/.test(text) && /query-settings-path/.test(text)) {
@@ -276,7 +302,14 @@ xhrHome.dispatch("loadend");
 await flush();
 check(nonListXhrTextReadCount === 0, "non-list XHR response body is not read", nonListXhrTextReadCount);
 
-// 4. Empty tail page -> completion signal only, no entries/cursor leakage
+// 4. Top-only cursor page -> ignored, not treated as full-list completion
+const beforeTopOnly = messages.length;
+await context.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?case=top-only");
+await flush();
+await flush();
+check(messages.length === beforeTopOnly, "top-only cursor page posts no sync-complete", messages.length - beforeTopOnly);
+
+// 5. Empty tail page -> completion signal only, no entries/cursor leakage
 await context.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?cursor=tail");
 await flush();
 await flush();
@@ -290,21 +323,21 @@ const blockedEntryMsgCount = messages.filter(
 check(blockedEntryMsgCount === 1, "empty blocked tail posts no additional sync-entries", blockedEntryMsgCount);
 check(!JSON.stringify(completeMsgs[0]?.message || {}).includes("synthetic-empty-bottom"), "empty tail cursor value must not leave the page");
 
-// 5. GraphQL error envelope -> ignored, no completion/reconcile signal
+// 6. GraphQL error envelope -> ignored, no completion/reconcile signal
 const beforeGraphQLError = messages.length;
 await context.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?case=error");
 await flush();
 await flush();
 check(messages.length === beforeGraphQLError, "GraphQL error envelope posts no sync message", messages.length);
 
-// 6. Transient empty/malformed timeline body without cursor entries -> ignored
+// 7. Transient empty/malformed timeline body without cursor entries -> ignored
 const beforeTransient = messages.length;
 await context.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?case=transient");
 await flush();
 await flush();
 check(messages.length === beforeTransient, "empty body without timeline entries posts no sync-complete", messages.length);
 
-// 7. Non-2xx list response -> ignored
+// 8. Non-2xx list response -> ignored
 const beforeNon2xx = messages.length;
 await context.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?case=non-2xx");
 await flush();

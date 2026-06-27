@@ -90,10 +90,9 @@
         postEntries(listKind, entries);
         return;
       }
-      if (SyncCapture.hasTimelineEntries(json)) {
-        // Tail pages carry cursor entries but no users. Signal completion so the
-        // bridge can reconcile away accounts that left the list. No ids/cursors
-        // are sent.
+      if (SyncCapture.hasBottomCursor(json)) {
+        // Bottom-cursor pages with no users are the narrowest synthetic signal we can
+        // use for list-tail completion without sending cursor values to the bridge.
         postComplete(listKind);
       }
     }
