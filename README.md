@@ -199,7 +199,7 @@ node tests/scripts/evaluate-f1-observation.mjs --live path\to\masked-summary.jso
 
 ## Claude Code operation notes
 
-運用ルールは現行のユーザー指示と `AGENTS.md` の不変条件を優先します。2026-06-13 以降の要点:
+運用ルールは現行のユーザー指示、`AGENTS.md` の不変条件、`CODEX_HANDOFF.md` の現状メモを参照します。2026-06-13 以降の要点:
 
 - 報告は日本語、冒頭に日本時間 `YYYY/MM/DD HH:MM:SS`。テスト結果・commit hash・URL を捏造しない。
 - 現行ユーザー指示と人間承認ゲートに従い、通常の docs・test・code 健全性作業は自走する。旧 ChatGPT 承認制は廃止。

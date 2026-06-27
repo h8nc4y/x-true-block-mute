@@ -9,7 +9,8 @@ const files = {
   localChrome: "docs/local-chrome-synthetic-verification.md",
   gates: "docs/phase2-readiness-gates.md",
   threat: "docs/privacy-threat-model.md",
-  deferred: "docs/deferred-findings-register.md"
+  deferred: "docs/deferred-findings-register.md",
+  handoff: "CODEX_HANDOFF.md"
 };
 
 const forbiddenPermissions = [
@@ -49,6 +50,35 @@ assert(
   "manifest host_permissions must stay limited to x.com and twitter.com"
 );
 
+// ハンドオフは次の自走の入口なので、古い承認制や古い現状を再導入しない。
+for (const value of [
+  "現行のユーザー指示",
+  "Chrome Web Store: 提出済み・審査結果待ち",
+  "permissions: [\"storage\"]",
+  "PHASE2-HOOK-PRODUCTION",
+  "中央 dev-log",
+  "agmsg"
+]) {
+  assertIncludes(entries.handoff, value, `CODEX_HANDOFF.md must mention current handoff invariant: ${value}`);
+}
+
+for (const staleText of [
+  "既存の `AGENTS.md` のガバナンス節（「ユーザーがチャットで承認したタスクのみ実装」）",
+  "バックログ表より git 履歴・README「現在の状況」・`manifest.json` を信頼",
+  "あなたは Vault に直接書けないため",
+  "AGENTS.md`（旧・本書で更新）",
+  "Chromium 検証は Opus/人間に依頼",
+  "TASKS_BACKLOG.md`（陳腐化注意",
+  "Chromium・Opus/人間実行",
+  "要 Opus/人間",
+  "D:\\Agent\\Codex\\Projects"
+]) {
+  assert(!entries.handoff.includes(staleText), `CODEX_HANDOFF.md still contains stale text: ${staleText}`);
+}
+
+const handoffFenceCount = entries.handoff.match(/```/g)?.length ?? 0;
+assert(handoffFenceCount % 2 === 0, "CODEX_HANDOFF.md must have balanced Markdown fences");
+
 const manifestText = JSON.stringify(manifest);
 for (const value of forbiddenPermissions) {
   assert(!manifestText.includes(value), `manifest must not include forbidden permission or host: ${value}`);
@@ -60,6 +90,7 @@ for (const path of [
   files.gates,
   files.threat,
   files.deferred,
+  files.handoff,
   "tests/scripts/verify-docs-consistency.mjs"
 ]) {
   assertIncludes(entries.readme, path, `README must reference ${path}`);
