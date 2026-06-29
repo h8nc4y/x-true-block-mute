@@ -338,14 +338,33 @@ check(
 );
 location.href = "https://x.com/settings/blocked/all";
 
-// 4. Top-only cursor page -> ignored, not treated as full-list completion
+// 4. Reopened XHR object -> only one loadend listener may process the final request.
+const beforeReopenedXhr = messages.length;
+const reopenedXhr = new context.XMLHttpRequest();
+reopenedXhr.open("GET", "https://x.com/i/api/graphql/abc/HomeTimeline?case=reopen-first");
+reopenedXhr.open("GET", "https://x.com/i/api/graphql/abc/BlockedAccounts?case=reopen-final");
+reopenedXhr.responseText = blockedBody;
+reopenedXhr.dispatch("loadend");
+await flush();
+const reopenedXhrMsgs = messages
+  .slice(beforeReopenedXhr)
+  .filter(
+    (m) =>
+      m.message.source === "x-tbm:sync:capture" &&
+      m.message.kind === "sync-entries" &&
+      m.message.listKind === "blocked"
+  );
+check(reopenedXhrMsgs.length === 1, "reopened XHR object posts one sync-entries message", reopenedXhrMsgs.length);
+
+// 5. Top-only cursor page -> ignored, not treated as full-list completion
 const beforeTopOnly = messages.length;
 await context.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?case=top-only");
 await flush();
 await flush();
 check(messages.length === beforeTopOnly, "top-only cursor page posts no sync-complete", messages.length - beforeTopOnly);
 
-// 5. Empty tail page -> completion signal only, no entries/cursor leakage
+// 6. Empty tail page -> completion signal only, no entries/cursor leakage
+const beforeBottom = messages.length;
 await context.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?cursor=tail");
 await flush();
 await flush();
@@ -353,34 +372,34 @@ const completeMsgs = messages.filter((m) => m.message.source === "x-tbm:sync:cap
 check(completeMsgs.length === 1, "empty blocked tail posts one sync-complete message", completeMsgs.length);
 check(completeMsgs[0]?.message.listKind === "blocked", "sync-complete is tagged blocked", completeMsgs[0]?.message.listKind);
 check(!("entries" in (completeMsgs[0]?.message || {})), "sync-complete carries no entries property");
-const blockedEntryMsgCount = messages.filter(
+const blockedEntryMsgCount = messages.slice(beforeBottom).filter(
   (m) => m.message.source === "x-tbm:sync:capture" && m.message.kind === "sync-entries" && m.message.listKind === "blocked"
 ).length;
-check(blockedEntryMsgCount === 1, "empty blocked tail posts no additional sync-entries", blockedEntryMsgCount);
+check(blockedEntryMsgCount === 0, "empty blocked tail posts no additional sync-entries", blockedEntryMsgCount);
 check(!JSON.stringify(completeMsgs[0]?.message || {}).includes("synthetic-empty-bottom"), "empty tail cursor value must not leave the page");
 
-// 6. GraphQL error envelope -> ignored, no completion/reconcile signal
+// 7. GraphQL error envelope -> ignored, no completion/reconcile signal
 const beforeGraphQLError = messages.length;
 await context.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?case=error");
 await flush();
 await flush();
 check(messages.length === beforeGraphQLError, "GraphQL error envelope posts no sync message", messages.length);
 
-// 7. Transient empty/malformed timeline body without cursor entries -> ignored
+// 8. Transient empty/malformed timeline body without cursor entries -> ignored
 const beforeTransient = messages.length;
 await context.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?case=transient");
 await flush();
 await flush();
 check(messages.length === beforeTransient, "empty body without timeline entries posts no sync-complete", messages.length);
 
-// 8. Non-2xx list response -> ignored
+// 9. Non-2xx list response -> ignored
 const beforeNon2xx = messages.length;
 await context.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?case=non-2xx");
 await flush();
 await flush();
 check(messages.length === beforeNon2xx, "non-2xx list response posts no sync message", messages.length);
 
-// 9. Injection order resilience -> missing SyncCapture must not poison the install guard.
+// 10. Injection order resilience -> missing SyncCapture must not poison the install guard.
 // Declarative content scripts list sync-capture before sync-hook, but this regression keeps
 // the lifecycle contract explicit: a transient missing dependency leaves the hook retryable.
 const deferredMessages = [];

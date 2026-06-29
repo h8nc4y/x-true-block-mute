@@ -65,12 +65,12 @@ content_scripts（宣言的・3 登録）:
 
 ---
 
-## 4. リポジトリの現状（2026-06-30 01:56 JST 時点）
+## 4. リポジトリの現状（2026-06-30 07:05 JST 時点）
 
 - **version `1.1.1`**（`manifest.json` が真実。`minimum_chrome_version:111`）。`dist/TrueBlock-Mute-v1.1.1.zip` は生成済み（`dist/` は gitignore・再生成可）。
 - **Chrome Web Store: 提出済み・審査結果待ち**（store item ID `anpgfamnbjoajbapfeclnjkklbcoknkb`、2026-06-14 にオーナーが登録/＄5決済/掲載情報/プライバシー/販売地域を入力し「審査のため送信」）。**審査結果は未確認。** Codex は Chrome Web Store の管理画面確認・再提出・公開操作を行わない。
 - `TASKS_BACKLOG.md` は 2026-06-30 時点の現行トラッカー。P2-011 は closed、P2-012/013/014 は done、M7 準備は完了、P2-021 は審査結果待ち。`docs/deferred-findings-register.md` も CL-AUDIT-006/007、PHASE2-F1A-SYNC、PHASE2-REAL-DOM-MATCH、PHASE2-MUTATION-REWRITE の解決済み状態を反映済み。
-- 2026-06-30 01:56 JST 時点の `main` 最新は PR #21 merge commit `41eae96`（GitHub PR #21 mergedAt `2026-06-29T05:52:39Z`）。PR #21 は PR #20 後のハンドオフ同期で、open PR は 0。`PHASE2-HOOK-PRODUCTION` では off-settings XHR の body 非読取と、`SyncCapture` 未注入時の retry 可能性をローカルテストで固定済み。明示 teardown は watch-item だが launch blocker ではない。
+- 2026-06-30 07:05 JST 時点の `main` 最新は PR #22 merge commit `2b7f8b9`。PR #22 は PR #21 後のハンドオフ同期で、直前の open PR は 0。`PHASE2-HOOK-PRODUCTION` では off-settings XHR の body 非読取、`SyncCapture` 未注入時の retry 可能性、同じ XHR インスタンス再open時の `loadend` listener 重複防止をローカルテストで固定済み。明示 teardown は watch-item だが launch blocker ではない。
 - プロダクト機能はほぼ完成（本番同期・実DOM著者照合・reconcile・popup/options・プライバシーポリシー JA/EN・allowlist パッケージ）。唯一の外部ブロッカーは Web Store 審査（人間ゲート①）。CI workflow の追加・Chrome Web Store 操作・release/tag は §9 ゲート。
 - ブランチ: `main`（＋ `feature/*`・`research/*`・`backup/*` の旧ブランチは温存。merge/delete しない）。
 
