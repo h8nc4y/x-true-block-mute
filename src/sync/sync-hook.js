@@ -114,18 +114,22 @@
     XMLHttpRequest.prototype.open = function wrappedOpen(method, url) {
       this.__xTbmSyncUrl = requestUrlFromInput(url);
       this.__xTbmSyncShouldRead = shouldReadListResponse(this.__xTbmSyncUrl);
-      this.addEventListener("loadend", function onLoadEnd() {
-        try {
-          // Avoid touching responseText unless this XHR started on a settings list endpoint.
-          if (!this.__xTbmSyncShouldRead) {
-            return;
+      if (!this.__xTbmSyncLoadEndAttached) {
+        // 同じ XHR インスタンスで open() が再実行されても、loadend listener は一度だけ登録する。
+        this.__xTbmSyncLoadEndAttached = true;
+        this.addEventListener("loadend", function onLoadEnd() {
+          try {
+            // Avoid touching responseText unless this XHR started on a settings list endpoint.
+            if (!this.__xTbmSyncShouldRead) {
+              return;
+            }
+            const body = this.responseType === "json" ? JSON.stringify(this.response) : this.responseText;
+            handleResponse(this.__xTbmSyncUrl, body || "", this.status);
+          } catch (_error) {
+            /* ignore unreadable responses */
           }
-          const body = this.responseType === "json" ? JSON.stringify(this.response) : this.responseText;
-          handleResponse(this.__xTbmSyncUrl, body || "", this.status);
-        } catch (_error) {
-          /* ignore unreadable responses */
-        }
-      });
+        });
+      }
       return originalOpen.apply(this, arguments);
     };
   }
