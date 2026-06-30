@@ -14,7 +14,7 @@ Deferred items are not tasks. They are implemented only after the user approves 
 | --- | --- | --- | --- | --- |
 | CL-AUDIT-006 | MutationObserver / card processing performance | Resolved in M5 (P2-013): SPA rescan, missed-post prevention, and detached replacement pruning landed in `a0538ae`. | Historical audit finding; no open implementation task remains. | n/a unless a new measurable performance or correctness issue is found. |
 | CL-AUDIT-007 | MAIN-world hook lifecycle / teardown | Resolved as the original research-scaffold audit item; production sync now uses declarative settings-page `world:"MAIN"` content scripts. | Historical audit finding; ongoing hook idempotency/SPA vigilance is tracked separately as `PHASE2-HOOK-PRODUCTION`. | n/a for this finding; use `PHASE2-HOOK-PRODUCTION` for future hook-specific work. |
-| CL-AUDIT-011 | Packaging / CI / distribution readiness | Package, listing assets, privacy policy, and store submission prep are resolved in M7; CI remains absent. | Store submission is owner-side and `.github/workflows` changes remain a §9 gate. | User approval before workflow changes or release automation. |
+| CL-AUDIT-011 | Packaging / CI / distribution readiness | Package, listing assets, privacy policy, and store submission prep are resolved in M7; local `scripts/check-all.mjs` runs the static 10-check harness; CI remains absent. | Store submission is owner-side and `.github/workflows` changes remain a §9 gate. | User approval before workflow changes or release automation. |
 
 ## Deferred product and architecture items
 

@@ -28,6 +28,7 @@ const requiredFiles = [
   "tests/fixtures/f1-a-local-simulator.html",
   "tests/fixtures/f1-a-masked-summary.fixture.json",
   "tests/scripts/evaluate-f1-observation.mjs",
+  "scripts/check-all.mjs",
   "tests/scripts/audit-operational-alignment.mjs",
   "tests/scripts/verify-f1a-main-hook-simulator.mjs",
   "tests/scripts/verify-f1a-observation-safety.mjs"

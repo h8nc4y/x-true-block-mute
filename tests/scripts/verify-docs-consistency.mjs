@@ -57,7 +57,8 @@ for (const value of [
   "permissions: [\"storage\"]",
   "PHASE2-HOOK-PRODUCTION",
   "中央 dev-log",
-  "agmsg"
+  "agmsg",
+  "scripts/check-all.mjs"
 ]) {
   assertIncludes(entries.handoff, value, `CODEX_HANDOFF.md must mention current handoff invariant: ${value}`);
 }
@@ -91,6 +92,7 @@ for (const path of [
   files.threat,
   files.deferred,
   files.handoff,
+  "scripts/check-all.mjs",
   "tests/scripts/verify-docs-consistency.mjs"
 ]) {
   assertIncludes(entries.readme, path, `README must reference ${path}`);
