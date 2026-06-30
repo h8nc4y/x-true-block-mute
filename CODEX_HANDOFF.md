@@ -65,12 +65,12 @@ content_scripts（宣言的・3 登録）:
 
 ---
 
-## 4. リポジトリの現状（2026-06-30 12:57 JST 時点）
+## 4. リポジトリの現状（2026-06-30 21:12 JST 時点）
 
 - **version `1.1.1`**（`manifest.json` が真実。`minimum_chrome_version:111`）。`dist/TrueBlock-Mute-v1.1.1.zip` は生成済み（`dist/` は gitignore・再生成可）。
 - **Chrome Web Store: 提出済み・審査結果待ち**（store item ID `anpgfamnbjoajbapfeclnjkklbcoknkb`、2026-06-14 にオーナーが登録/＄5決済/掲載情報/プライバシー/販売地域を入力し「審査のため送信」）。**審査結果は未確認。** Codex は Chrome Web Store の管理画面確認・再提出・公開操作を行わない。
 - `TASKS_BACKLOG.md` は 2026-06-30 時点の現行トラッカー。P2-011 は closed、P2-012/013/014 は done、M7 準備は完了、P2-021 は審査結果待ち。`docs/deferred-findings-register.md` も CL-AUDIT-006/007、PHASE2-F1A-SYNC、PHASE2-REAL-DOM-MATCH、PHASE2-MUTATION-REWRITE の解決済み状態を反映済み。
-- 2026-06-30 07:01 JST 時点で PR #23 merge commit `81f21bd`（task commit `95af230`）を確認済み。PR #23 は `PHASE2-HOOK-PRODUCTION` の bounded lifecycle hardening で、off-settings XHR の body 非読取、`SyncCapture` 未注入時の retry 可能性、同じ XHR インスタンス再open時の `loadend` listener 重複防止をローカルテストで固定済み。2026-06-30 12:57 JST の追加 hardening で明示 `uninstallSyncHook()`、in-flight fetch/XHR の停止、再 install 契約を `verify-sync-hook.mjs` に固定した。
+- 2026-06-30 21:12 JST 時点で PR #25 merge commit `b56c058`（task commit `cefc46d`）を確認済み。PR #23 は `PHASE2-HOOK-PRODUCTION` の bounded lifecycle hardening で、off-settings XHR の body 非読取、`SyncCapture` 未注入時の retry 可能性、同じ XHR インスタンス再open時の `loadend` listener 重複防止をローカルテストで固定済み。PR #25 は明示 `uninstallSyncHook()`、in-flight fetch/XHR の停止、再 install 契約を `verify-sync-hook.mjs` に固定した。
 - プロダクト機能はほぼ完成（本番同期・実DOM著者照合・reconcile・popup/options・プライバシーポリシー JA/EN・allowlist パッケージ）。唯一の外部ブロッカーは Web Store 審査（人間ゲート①）。CI workflow の追加・Chrome Web Store 操作・release/tag は §9 ゲート。
 - ブランチ: `main`（＋ `feature/*`・`research/*`・`backup/*` の旧ブランチは温存。merge/delete しない）。
 
@@ -91,9 +91,19 @@ content_scripts（宣言的・3 登録）:
 
 ## 6. 検証ハーネス（check:all の定義）
 
-`package.json` は**無い**。各検証は `node <script>.mjs` を直接実行（npm install 不要・全て `node:` 標準のみ・必ず終了）。リポジトリ root から実行。
+`package.json` は**無い**。各検証は `node` と `node:` 標準だけで実行（npm install 不要・必ず終了）。リポジトリ root から、通常は一括 harness を使う。
 
 ### あなた（Codex）が sandbox で実行する「check:all」＝静的10本（コミット前に毎回）
+```powershell
+node scripts/check-all.mjs
+```
+
+実行順を表示するだけなら:
+```powershell
+node scripts/check-all.mjs --list
+```
+
+一括 harness は次の10本を順番に実行し、最初の失敗で停止する。`verify-package` は最後（`dist/` に zip を書き出すため）。
 ```
 node tests/scripts/verify-phase1-static.mjs
 node tests/scripts/verify-docs-consistency.mjs
@@ -104,9 +114,10 @@ node tests/scripts/verify-sync-extraction.mjs
 node tests/scripts/verify-sync-hook.mjs
 node tests/scripts/verify-sync-bridge.mjs
 node tests/scripts/verify-storage-sync-schema.mjs
-node tests/scripts/verify-package.mjs      # 最後（dist/ に zip を書き出すため）
+node tests/scripts/verify-package.mjs
 ```
-PowerShell ワンライナー（最初の失敗で停止）:
+
+PowerShell で個別実行へ戻す場合の fallback:
 ```powershell
 foreach ($s in @('verify-phase1-static','verify-docs-consistency','audit-operational-alignment','verify-f1a-observation-safety','verify-f1a-main-hook-simulator','verify-sync-extraction','verify-sync-hook','verify-sync-bridge','verify-storage-sync-schema','verify-package')) { node "tests/scripts/$s.mjs"; if ($LASTEXITCODE -ne 0) { Write-Error "FAILED: $s"; break } }
 ```
