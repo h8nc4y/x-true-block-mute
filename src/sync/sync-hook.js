@@ -13,6 +13,8 @@
   // the data originated from X's own response, so this adds no exposure to X. The
   // ISOLATED bridge is responsible for gating whether anything is persisted.
 
+  let installedHook = null;
+
   function installSyncHook(messageSource) {
     if (window.__xTbmSyncHookInstalled) {
       return;
@@ -26,6 +28,11 @@
 
     const originalFetch = window.fetch;
     const originalOpen = XMLHttpRequest.prototype.open;
+    const hookState = { originalFetch, originalOpen, wrappedFetch: null, wrappedOpen: null, active: true };
+
+    function isCurrentHook() {
+      return installedHook === hookState && hookState.active;
+    }
 
     function requestUrlFromInput(input) {
       if (typeof input === "string") {
@@ -97,21 +104,29 @@
       }
     }
 
-    window.fetch = function wrappedFetch(input, init) {
+    function wrappedFetch(input, init) {
       const result = originalFetch.apply(this, arguments);
       const url = requestUrlFromInput(input);
       // Gate before clone().text() so off-settings and non-list X responses are never read by this hook.
       if (shouldReadListResponse(url)) {
         result
-          .then((response) =>
-            response.clone().text().then((text) => handleResponse(url, text, response.status))
-          )
+          .then((response) => {
+            // uninstall後に解決したin-flight fetchでは、本文を読む前に停止する。
+            if (!isCurrentHook()) {
+              return undefined;
+            }
+            return response.clone().text().then((text) => {
+              if (isCurrentHook()) {
+                handleResponse(url, text, response.status);
+              }
+            });
+          })
           .catch(() => {});
       }
       return result;
-    };
+    }
 
-    XMLHttpRequest.prototype.open = function wrappedOpen(method, url) {
+    function wrappedOpen(method, url) {
       this.__xTbmSyncUrl = requestUrlFromInput(url);
       this.__xTbmSyncShouldRead = shouldReadListResponse(this.__xTbmSyncUrl);
       if (!this.__xTbmSyncLoadEndAttached) {
@@ -120,7 +135,7 @@
         this.addEventListener("loadend", function onLoadEnd() {
           try {
             // Avoid touching responseText unless this XHR started on a settings list endpoint.
-            if (!this.__xTbmSyncShouldRead) {
+            if (!isCurrentHook() || !this.__xTbmSyncShouldRead) {
               return;
             }
             const body = this.responseType === "json" ? JSON.stringify(this.response) : this.responseText;
@@ -131,10 +146,35 @@
         });
       }
       return originalOpen.apply(this, arguments);
-    };
+    }
+
+    hookState.wrappedFetch = wrappedFetch;
+    hookState.wrappedOpen = wrappedOpen;
+    window.fetch = wrappedFetch;
+    XMLHttpRequest.prototype.open = wrappedOpen;
+    installedHook = hookState;
   }
 
-  globalThis.XTrueBlockMuteSyncHook = { installSyncHook };
+  function uninstallSyncHook() {
+    if (!installedHook) {
+      window.__xTbmSyncHookInstalled = false;
+      return;
+    }
+
+    installedHook.active = false;
+    const { originalFetch, originalOpen, wrappedFetch, wrappedOpen } = installedHook;
+    // 他の拡張やページスクリプトがさらにwrapしている場合は、その所有物を上書きしない。
+    if (window.fetch === wrappedFetch) {
+      window.fetch = originalFetch;
+    }
+    if (XMLHttpRequest.prototype.open === wrappedOpen) {
+      XMLHttpRequest.prototype.open = originalOpen;
+    }
+    installedHook = null;
+    window.__xTbmSyncHookInstalled = false;
+  }
+
+  globalThis.XTrueBlockMuteSyncHook = { installSyncHook, uninstallSyncHook };
 
   // Auto-install when injected as a declarative MAIN-world content script. The
   // literal must match SYNC_MESSAGE_SOURCE in src/shared/constants.js (asserted

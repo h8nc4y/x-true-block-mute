@@ -65,12 +65,12 @@ content_scripts（宣言的・3 登録）:
 
 ---
 
-## 4. リポジトリの現状（2026-06-30 07:01 JST 時点）
+## 4. リポジトリの現状（2026-06-30 12:57 JST 時点）
 
 - **version `1.1.1`**（`manifest.json` が真実。`minimum_chrome_version:111`）。`dist/TrueBlock-Mute-v1.1.1.zip` は生成済み（`dist/` は gitignore・再生成可）。
 - **Chrome Web Store: 提出済み・審査結果待ち**（store item ID `anpgfamnbjoajbapfeclnjkklbcoknkb`、2026-06-14 にオーナーが登録/＄5決済/掲載情報/プライバシー/販売地域を入力し「審査のため送信」）。**審査結果は未確認。** Codex は Chrome Web Store の管理画面確認・再提出・公開操作を行わない。
 - `TASKS_BACKLOG.md` は 2026-06-30 時点の現行トラッカー。P2-011 は closed、P2-012/013/014 は done、M7 準備は完了、P2-021 は審査結果待ち。`docs/deferred-findings-register.md` も CL-AUDIT-006/007、PHASE2-F1A-SYNC、PHASE2-REAL-DOM-MATCH、PHASE2-MUTATION-REWRITE の解決済み状態を反映済み。
-- 2026-06-30 07:01 JST 時点で PR #23 merge commit `81f21bd`（task commit `95af230`）を確認済み。PR #23 は `PHASE2-HOOK-PRODUCTION` の bounded lifecycle hardening で、off-settings XHR の body 非読取、`SyncCapture` 未注入時の retry 可能性、同じ XHR インスタンス再open時の `loadend` listener 重複防止をローカルテストで固定済み。明示 teardown は watch-item だが launch blocker ではない。
+- 2026-06-30 07:01 JST 時点で PR #23 merge commit `81f21bd`（task commit `95af230`）を確認済み。PR #23 は `PHASE2-HOOK-PRODUCTION` の bounded lifecycle hardening で、off-settings XHR の body 非読取、`SyncCapture` 未注入時の retry 可能性、同じ XHR インスタンス再open時の `loadend` listener 重複防止をローカルテストで固定済み。2026-06-30 12:57 JST の追加 hardening で明示 `uninstallSyncHook()`、in-flight fetch/XHR の停止、再 install 契約を `verify-sync-hook.mjs` に固定した。
 - プロダクト機能はほぼ完成（本番同期・実DOM著者照合・reconcile・popup/options・プライバシーポリシー JA/EN・allowlist パッケージ）。唯一の外部ブロッカーは Web Store 審査（人間ゲート①）。CI workflow の追加・Chrome Web Store 操作・release/tag は §9 ゲート。
 - ブランチ: `main`（＋ `feature/*`・`research/*`・`backup/*` の旧ブランチは温存。merge/delete しない）。
 
@@ -191,7 +191,7 @@ foreach ($s in @('verify-phase1-static','verify-docs-consistency','audit-operati
 自走可（§9に触れない）・推奨着手順:
 1. **ハンドオフ/トラッカー整合の維持** — `CODEX_HANDOFF.md`、`AGENTS.md`、`TASKS_BACKLOG.md`、`README.md`、`docs/deferred-findings-register.md` が同じ現状を指すよう保つ。古い ChatGPT 承認制、`storage + scripting` 旧記述、`TASKS_BACKLOG.md` 陳腐化前提、Vault 書き込み不可前提を再導入しない。
 2. **ローカル検証ハーネス保守** — 静的10本が、権限・外部送信・raw 値禁止・ハンドオフ drift を検知し続けるようにする。ドキュメント編集後は `audit-operational-alignment.mjs` と `verify-docs-consistency.mjs` を必ず再実行。
-3. **`PHASE2-HOOK-PRODUCTION` の bounded review** — MAIN-world hook の lifecycle / teardown / idempotency をローカル fixture と静的レビューだけで確認する。新権限・新データソース・raw response 取得・live X 読み取りはしない。
+3. **`PHASE2-HOOK-PRODUCTION` の bounded review** — MAIN-world hook の lifecycle / teardown / idempotency はローカル fixture と静的レビューだけで扱う。明示 teardown、in-flight停止、再 install 契約は 2026-06-30 の local hardening で固定済み。今後も新権限・新データソース・raw response 取得・live X 読み取りはしない。
 4. **Web Store 審査結果がオーナーから共有された場合の文書反映** — 却下理由や公開可否が共有されたら、raw 個人データや管理画面操作を扱わず、理由別の修正計画・rollback・必要な検証だけを repo docs / backlog に反映する。zip アップロード、再提出、公開は人間ゲート。
 5. **CI の草案作成のみ** — `.github/workflows` の新規作成・変更は §9① に該当するため、workflow を有効化しない。必要なら静的10本を走らせる CI 手順の Markdown 草案までに留める。
 
