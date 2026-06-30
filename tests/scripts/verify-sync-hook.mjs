@@ -462,6 +462,98 @@ check(
   deferredMessages
 );
 
+// 11. Explicit teardown -> future requests are not wrapped, and the hook remains reinstallable.
+let teardownListTextReadCount = 0;
+let teardownXhrTextReadCount = 0;
+const teardownMessages = [];
+const teardownLocation = { origin: "https://x.com", href: "https://x.com/settings/blocked/all" };
+const teardownContext = createContext({
+  console,
+  JSON,
+  URL,
+  location: teardownLocation,
+  window: {
+    fetch: () =>
+      Promise.resolve(
+        new FakeResponse(blockedBody, 200, {
+          onText: () => {
+            teardownListTextReadCount += 1;
+          }
+        })
+      ),
+    postMessage: (message, targetOrigin) => {
+      teardownMessages.push({ message, targetOrigin });
+    }
+  },
+  XMLHttpRequest: createFakeXMLHttpRequestClass()
+});
+teardownContext.globalThis = teardownContext;
+new Script(await readText("src/sync/sync-capture.js"), { filename: "src/sync/sync-capture.js" }).runInContext(
+  teardownContext
+);
+const teardownOriginalFetch = teardownContext.window.fetch;
+const teardownOriginalXhrOpen = teardownContext.XMLHttpRequest.prototype.open;
+new Script(await readText("src/sync/sync-hook.js"), { filename: "src/sync/sync-hook.js" }).runInContext(
+  teardownContext
+);
+check(
+  typeof teardownContext.XTrueBlockMuteSyncHook.uninstallSyncHook === "function",
+  "sync hook exposes explicit uninstall"
+);
+check(teardownContext.window.fetch !== teardownOriginalFetch, "teardown scenario starts with wrapped fetch");
+const beforeInFlightTeardownMessages = teardownMessages.length;
+const inFlightTeardownFetch = teardownContext.window.fetch(
+  "https://x.com/i/api/graphql/abc/BlockedAccounts?case=in-flight-before-uninstall"
+);
+const inFlightTeardownXhr = new teardownContext.XMLHttpRequest();
+inFlightTeardownXhr.open("GET", "https://x.com/i/api/graphql/abc/BlockedAccounts?case=xhr-before-uninstall");
+inFlightTeardownXhr.responseText = blockedBody;
+inFlightTeardownXhr.onResponseTextRead = () => {
+  teardownXhrTextReadCount += 1;
+};
+teardownContext.XTrueBlockMuteSyncHook.uninstallSyncHook();
+check(teardownContext.window.fetch === teardownOriginalFetch, "uninstall restores original fetch");
+check(
+  teardownContext.XMLHttpRequest.prototype.open === teardownOriginalXhrOpen,
+  "uninstall restores original XMLHttpRequest.open"
+);
+check(!teardownContext.window.__xTbmSyncHookInstalled, "uninstall clears installed guard");
+inFlightTeardownXhr.dispatch("loadend");
+await inFlightTeardownFetch;
+await flush();
+await flush();
+check(
+  teardownListTextReadCount === 0,
+  "in-flight fetch scheduled before uninstall does not read after uninstall",
+  teardownListTextReadCount
+);
+check(
+  teardownXhrTextReadCount === 0,
+  "in-flight XHR opened before uninstall does not read after uninstall",
+  teardownXhrTextReadCount
+);
+check(
+  teardownMessages.length === beforeInFlightTeardownMessages,
+  "in-flight requests post no messages after uninstall",
+  teardownMessages
+);
+await teardownContext.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?case=after-uninstall");
+await flush();
+await flush();
+check(teardownListTextReadCount === 0, "uninstalled hook does not read eligible response bodies", teardownListTextReadCount);
+check(teardownMessages.length === 0, "uninstalled hook posts no sync messages", teardownMessages);
+teardownContext.XTrueBlockMuteSyncHook.installSyncHook("x-tbm:sync:capture");
+await teardownContext.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?case=after-reinstall");
+await flush();
+await flush();
+check(teardownListTextReadCount === 1, "reinstalled hook reads eligible response once", teardownListTextReadCount);
+check(
+  teardownMessages.filter((m) => m.message.source === "x-tbm:sync:capture" && m.message.kind === "sync-entries")
+    .length === 1,
+  "reinstalled hook posts one sync-entries message",
+  teardownMessages
+);
+
 if (failures.length > 0) {
   console.error(`\nSync hook verification FAILED: ${failures.length} check(s) failed`);
   process.exit(1);
