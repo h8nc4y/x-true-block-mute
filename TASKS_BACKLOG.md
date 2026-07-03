@@ -2,7 +2,7 @@
 
 ## Status
 
-最終更新: 2026-06-30
+最終更新: 2026-07-02
 
 このファイルは現行タスクのトラッカーです。Codex は現行のユーザー指示とハンドオフを優先し、ここではロードマップとタスク状態を実装実態に合わせて記録します。旧 ChatGPT 承認制は廃止済みです。現行ユーザー指示で許可された自律開発の範囲では、Codex / Claude Code が通常の docs・test・code 健全性タスクを進めます。権限追加、Phase 移行、配布、外部送信などの境界変更は人間承認ゲートです。
 
@@ -110,3 +110,4 @@ Goal 達成（Chrome Web Store 公開）まで P2 系列を M1 から順に実�
 - 🧪 2026-06-30 Codex 実装: PHASE2-HOOK-PRODUCTION の明示 teardown 契約を追加。`sync-hook.js` は元の `fetch` / `XMLHttpRequest.open` と wrapper を保持し、`uninstallSyncHook()` で将来requestのwrapを解除、installed guardをクリアし、再 install できる。`verify-sync-hook.mjs` は uninstall前に開始済みの fetch/XHR と uninstall中の eligible list response body を読まず message も出さないこと、再 install 後は1回だけ読み直して `sync-entries` を出すことを固定。実 X / Chrome Web Store / 権限追加 / 外部送信 / release・tag・workflow 変更は未実行。
 
 - 🧪 2026-06-30 Codex 実装: `scripts/check-all.mjs` を追加し、静的10本のcheck:allを単一コマンドで順序固定できるようにした。`verify-phase1-static.mjs` でharness自体の存在を固定し、`verify-docs-consistency.mjs` / README / CODEX_HANDOFF / deferred register を同期。workflow追加、release/tag、Chrome Web Store操作、権限変更、外部送信は未実行。
+- 🧭 2026-07-02 Codex 同期: PR #26 merge commit `226cc51` 後の現行状態を `CODEX_HANDOFF.md` 冒頭に反映。`node scripts/check-all.mjs --list` と `node scripts/check-all.mjs` を再実行し、静的10本 pass を確認。Chrome Web Store審査結果、実X、workflow、release/tag、外部送信は未実行。

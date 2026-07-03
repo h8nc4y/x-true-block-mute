@@ -5,7 +5,7 @@
 > 本書と `AGENTS.md` が食い違う場合は、現在の `AGENTS.md` に合わせて本書を更新することを最初の自走タスクにしてよい（§11・§6 参照）。
 > **§10 データ保護不変条件** と **§9 4ゲート** は、どの作業でも上書きできない最優先ルール。
 
-初版: 2026/06/19 ／ 最終更新: 2026/06/30 ／ リポジトリ: 本リポジトリ root（remote `origin` = `github.com/h8nc4y/x-true-block-mute`、default branch `main`）
+初版: 2026/06/19 ／ 最終更新: 2026/07/02 ／ リポジトリ: 本リポジトリ root（remote `origin` = `github.com/h8nc4y/x-true-block-mute`、default branch `main`）
 
 ---
 
@@ -65,12 +65,13 @@ content_scripts（宣言的・3 登録）:
 
 ---
 
-## 4. リポジトリの現状（2026-06-30 21:12 JST 時点）
+## 4. リポジトリの現状（2026-07-02 02:40 JST 時点）
 
 - **version `1.1.1`**（`manifest.json` が真実。`minimum_chrome_version:111`）。`dist/TrueBlock-Mute-v1.1.1.zip` は生成済み（`dist/` は gitignore・再生成可）。
 - **Chrome Web Store: 提出済み・審査結果待ち**（store item ID `anpgfamnbjoajbapfeclnjkklbcoknkb`、2026-06-14 にオーナーが登録/＄5決済/掲載情報/プライバシー/販売地域を入力し「審査のため送信」）。**審査結果は未確認。** Codex は Chrome Web Store の管理画面確認・再提出・公開操作を行わない。
-- `TASKS_BACKLOG.md` は 2026-06-30 時点の現行トラッカー。P2-011 は closed、P2-012/013/014 は done、M7 準備は完了、P2-021 は審査結果待ち。`docs/deferred-findings-register.md` も CL-AUDIT-006/007、PHASE2-F1A-SYNC、PHASE2-REAL-DOM-MATCH、PHASE2-MUTATION-REWRITE の解決済み状態を反映済み。
-- 2026-06-30 21:12 JST 時点で PR #25 merge commit `b56c058`（task commit `cefc46d`）を確認済み。PR #23 は `PHASE2-HOOK-PRODUCTION` の bounded lifecycle hardening で、off-settings XHR の body 非読取、`SyncCapture` 未注入時の retry 可能性、同じ XHR インスタンス再open時の `loadend` listener 重複防止をローカルテストで固定済み。PR #25 は明示 `uninstallSyncHook()`、in-flight fetch/XHR の停止、再 install 契約を `verify-sync-hook.mjs` に固定した。
+- `TASKS_BACKLOG.md` は 2026-07-02 時点の現行トラッカー。P2-011 は closed、P2-012/013/014 は done、M7 準備は完了、P2-021 は審査結果待ち。`docs/deferred-findings-register.md` も CL-AUDIT-006/007、PHASE2-F1A-SYNC、PHASE2-REAL-DOM-MATCH、PHASE2-MUTATION-REWRITE の解決済み状態を反映済み。
+- 2026-07-02 02:40 JST 時点で `main...origin/main` は PR #26 merge commit `226cc51` に同期済み。PR #26（task commit `6d7a762`）で `scripts/check-all.mjs` が入り、静的10本の check:all を単一コマンドで順序固定できる。2026-07-02 実測でも `node scripts/check-all.mjs` は 10 checks pass。
+- PR #25 merge commit `b56c058`（task commit `cefc46d`）も現行 main に含まれる。PR #23 は `PHASE2-HOOK-PRODUCTION` の bounded lifecycle hardening で、off-settings XHR の body 非読取、`SyncCapture` 未注入時の retry 可能性、同じ XHR インスタンス再open時の `loadend` listener 重複防止をローカルテストで固定済み。PR #25 は明示 `uninstallSyncHook()`、in-flight fetch/XHR の停止、再 install 契約を `verify-sync-hook.mjs` に固定した。
 - プロダクト機能はほぼ完成（本番同期・実DOM著者照合・reconcile・popup/options・プライバシーポリシー JA/EN・allowlist パッケージ）。唯一の外部ブロッカーは Web Store 審査（人間ゲート①）。CI workflow の追加・Chrome Web Store 操作・release/tag は §9 ゲート。
 - ブランチ: `main`（＋ `feature/*`・`research/*`・`backup/*` の旧ブランチは温存。merge/delete しない）。
 
