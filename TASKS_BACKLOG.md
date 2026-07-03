@@ -111,3 +111,4 @@ Goal 達成（Chrome Web Store 公開）まで P2 系列を M1 から順に実�
 
 - 🧪 2026-06-30 Codex 実装: `scripts/check-all.mjs` を追加し、静的10本のcheck:allを単一コマンドで順序固定できるようにした。`verify-phase1-static.mjs` でharness自体の存在を固定し、`verify-docs-consistency.mjs` / README / CODEX_HANDOFF / deferred register を同期。workflow追加、release/tag、Chrome Web Store操作、権限変更、外部送信は未実行。
 - 🧭 2026-07-02 Codex 同期: PR #26 merge commit `226cc51` 後の現行状態を `CODEX_HANDOFF.md` 冒頭に反映。`node scripts/check-all.mjs --list` と `node scripts/check-all.mjs` を再実行し、静的10本 pass を確認。Chrome Web Store審査結果、実X、workflow、release/tag、外部送信は未実行。
+- 🧭 2026-07-03 Claude Code (Fable5) 再要件定義: `docs/requirements-v2-2026-07.md`（要件再定義 v2・成功指標の観測可能化・オーナー質問 Q1〜Q7）、`docs/research/market-2026-07.md`（市場・競合・CWS 審査動向の Web 調査メモ）、`docs/review-response-playbook.md`（審査長期化の問い合わせテンプレ・却下理由別対応表・公開後運用 runbook）を追加。相談役 Codex GPT-5.5 の 10 指摘を反映済み。CWS 審査は 2026-07-05 に保留 3 週間到達のため、オーナーへダッシュボード確認と問い合わせ判断を依頼（R2-001/002）。権限・データソース・配布状態の変更なし（§9 ゲート非該当）。審査結果は引き続き未確認。
