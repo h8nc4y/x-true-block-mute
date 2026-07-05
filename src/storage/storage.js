@@ -304,18 +304,31 @@
     return normalizeSyncState(await getArea("local", STORAGE_KEYS.SYNC_STATE));
   }
 
-  async function setSyncEnabled(enabled) {
+  async function setSyncEnabledCore(enabled) {
     const current = await getSyncState();
     const next = { ...current, enabled: Boolean(enabled) };
     await setArea("local", STORAGE_KEYS.SYNC_STATE, next);
     return next;
   }
 
-  async function markSynced(syncedAt = new Date().toISOString()) {
+  async function markSyncedCore(syncedAt) {
     const current = await getSyncState();
     const next = { ...current, lastSyncedAt: syncedAt };
     await setArea("local", STORAGE_KEYS.SYNC_STATE, next);
     return next;
+  }
+
+  // xtbmSyncState is a read-modify-write just like xtbmEntries, so its writes must
+  // share the same serialization lane. Otherwise an in-flight markSynced (fired by
+  // a capture completing) can read a stale snapshot and clobber a concurrent
+  // enable/disable toggle (resurrecting the old `enabled`), and a concurrent
+  // setSyncEnabled can likewise drop a just-written lastSyncedAt.
+  async function setSyncEnabled(enabled) {
+    return runExclusive(() => setSyncEnabledCore(enabled));
+  }
+
+  async function markSynced(syncedAt = new Date().toISOString()) {
+    return runExclusive(() => markSyncedCore(syncedAt));
   }
 
   namespace.Storage = {
