@@ -72,6 +72,55 @@ function countBySource(entries, source) {
   return entries.filter((entry) => entry.source === source).length;
 }
 
+// Sync-state writes (setSyncEnabled / markSynced) are read-modify-writes that must
+// stay serialized on the same lane as entry writes. The synchronous stub above
+// resolves get/set in one microtask, so it cannot expose an interleaving; this
+// helper reloads storage.js against an ASYNC stub (get/set callbacks deferred a
+// tick) so a concurrent markSynced + setSyncEnabled genuinely overlaps. Without
+// serialization one update is lost (enabled resurrected or lastSyncedAt dropped).
+async function verifySyncStateConcurrency() {
+  const astore = { local: {}, sync: {} };
+  function asyncArea(name) {
+    return {
+      get(key, callback) {
+        Promise.resolve().then(() => callback({ [key]: astore[name][key] }));
+      },
+      set(next, callback) {
+        Promise.resolve().then(() => {
+          for (const [key, value] of Object.entries(next)) {
+            astore[name][key] = value;
+          }
+          callback();
+        });
+      }
+    };
+  }
+  const asyncChrome = {
+    runtime: { lastError: null },
+    storage: { local: asyncArea("local"), sync: asyncArea("sync") }
+  };
+  const asyncContext = createContext({ console, Date, URL, chrome: asyncChrome });
+  asyncContext.globalThis = asyncContext;
+  for (const file of ["src/shared/constants.js", "src/storage/storage.js"]) {
+    new Script(await readText(file), { filename: file }).runInContext(asyncContext);
+  }
+  const AsyncStorage = asyncContext.XTrueBlockMute.Storage;
+
+  await AsyncStorage.setSyncEnabled(true);
+  // Fire both read-modify-writes concurrently; both updates must survive.
+  await Promise.all([
+    AsyncStorage.markSynced("2026-07-05T00:00:00.000Z"),
+    AsyncStorage.setSyncEnabled(false)
+  ]);
+  const state = await AsyncStorage.getSyncState();
+  check(state.enabled === false, "concurrent markSynced does not resurrect the disabled toggle", state);
+  check(
+    state.lastSyncedAt === "2026-07-05T00:00:00.000Z",
+    "concurrent setSyncEnabled does not drop lastSyncedAt",
+    state
+  );
+}
+
 async function main() {
   // --- baseline -------------------------------------------------------
   let store = await Storage.getEntryStore();
@@ -209,6 +258,9 @@ async function main() {
   store = await Storage.getEntryStore();
   check(store.entries.length === beforeInvalidReplace, "invalid replace listKind is a no-op", store.entries.length);
   check(!findByUserId(store.entries, "z1"), "invalid replace listKind does not add incoming z1");
+
+  // --- sync-state read-modify-write is race-safe under concurrency ---
+  await verifySyncStateConcurrency();
 }
 
 main()
