@@ -2,7 +2,7 @@
   "use strict";
 
   const namespace = globalThis.XTrueBlockMute;
-  const { DISPLAY_MODES, Storage, STORAGE_KEYS } = namespace;
+  const { DISPLAY_MODES, LIST_KINDS, Storage, STORAGE_KEYS, SYNC_SOURCE } = namespace;
   const localTestUiEnabled = Boolean(namespace.LOCAL_TEST_UI_ENABLED);
 
   const localTestSection = document.querySelector("[aria-labelledby='local-test-title']");
@@ -71,7 +71,7 @@
   }
 
   function countSyncedByListKind(entryStore, listKind) {
-    return entryStore.entries.filter((entry) => entry.source === "f1a-sync" && entry.listKind === listKind).length;
+    return entryStore.entries.filter((entry) => entry.source === SYNC_SOURCE && entry.listKind === listKind).length;
   }
 
   async function render() {
@@ -81,8 +81,8 @@
       Storage.getSyncState()
     ]);
     syncEnabledInput.checked = syncState.enabled;
-    syncBlockedCount.textContent = formatCount(countSyncedByListKind(entryStore, "blocked"));
-    syncMutedCount.textContent = formatCount(countSyncedByListKind(entryStore, "muted"));
+    syncBlockedCount.textContent = formatCount(countSyncedByListKind(entryStore, LIST_KINDS.BLOCKED));
+    syncMutedCount.textContent = formatCount(countSyncedByListKind(entryStore, LIST_KINDS.MUTED));
     syncLast.textContent = formatDateTime(syncState.lastSyncedAt, "未同期");
     enabledInput.checked = settings.enabled;
     for (const input of modeInputs) {
