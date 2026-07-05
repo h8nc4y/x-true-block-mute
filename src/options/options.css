@@ -8,7 +8,6 @@
      list markers — where the brighter pop reads well and text-contrast rules
      don't apply. */
   --accent: #f08300;
-  --accent-hover: #ee9528; /* OneComme --ifm-color-primary-light */
   /* Deeper burnt-orange for TEXT-BEARING orange surfaces (header band + solid
      primary buttons). hsl(28,100%,36%) — same warm family as --accent, just
      darker. White text reaches WCAG AA here (4.81:1) where it fails on the
@@ -28,7 +27,6 @@
   --text: #3a3f47;
   --text-strong: #222a30;
   --text-muted: #5e6672;
-  --text-help: #6a7280;
 
   --radius-lg: 16px;
   --radius-md: 12px;
