@@ -53,7 +53,7 @@ assert(
 // ハンドオフは次の自走の入口なので、古い承認制や古い現状を再導入しない。
 for (const value of [
   "現行のユーザー指示",
-  "Chrome Web Store: 提出済み・審査結果待ち",
+  "Chrome Web Store: 公開済み",
   "permissions: [\"storage\"]",
   "PHASE2-HOOK-PRODUCTION",
   "中央 dev-log",
