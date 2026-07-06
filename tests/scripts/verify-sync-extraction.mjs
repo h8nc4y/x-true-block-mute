@@ -104,6 +104,45 @@ const mixedUsers = SyncCapture.extractSyncEntries(mixedUsersFixture, "blocked");
 check(mixedUsers.length === 1, "unrelated non-list user objects are ignored", mixedUsers);
 check(mixedUsers[0] && mixedUsers[0].user_id === "777", "list timeline user remains captured", mixedUsers[0]);
 
+// isListTailResponse: 完了判定は「Bottom cursor があり かつ 非 cursor entry が0」
+// のページだけを末尾とみなす。0ユーザーでも item entry が残る中間ページを末尾と
+// 誤認して reconcile がリストを削る事故を防ぐための厳格判定。
+const tailOnlyCursors = {
+  data: { viewer: { timeline: { timeline: { instructions: [
+    { type: "TimelineAddEntries", entries: [
+      { entryId: "cursor-top", content: { entryType: "TimelineTimelineCursor", cursorType: "Top", value: "t" } },
+      { entryId: "cursor-bottom", content: { entryType: "TimelineTimelineCursor", cursorType: "Bottom", value: "b" } }
+    ] }
+  ] } } } }
+};
+check(SyncCapture.isListTailResponse(tailOnlyCursors) === true, "cursor-only page with a Bottom cursor is the list tail");
+
+// 0ユーザーだが item entry(user_results が空でパース不能=凍結アカウント想定)を持つ
+// 中間ページ。extractSyncEntries は0件だが、末尾扱いしてはならない(バグ再現ケース)。
+const midWithUnparsableItem = {
+  data: { viewer: { timeline: { timeline: { instructions: [
+    { type: "TimelineAddEntries", entries: [
+      { entryId: "user-suspended", content: { entryType: "TimelineTimelineItem", itemContent: { itemType: "TimelineUser", user_results: {} } } },
+      { entryId: "cursor-bottom", content: { entryType: "TimelineTimelineCursor", cursorType: "Bottom", value: "b" } }
+    ] }
+  ] } } } }
+};
+check(SyncCapture.extractSyncEntries(midWithUnparsableItem, "blocked").length === 0, "unparsable suspended item extracts zero users");
+check(
+  SyncCapture.isListTailResponse(midWithUnparsableItem) === false,
+  "mid page with a non-cursor item entry is NOT the tail (guards premature reconcile)"
+);
+
+// Bottom cursor が無い(Top のみ)ページは末尾でない。
+const topOnlyPage = {
+  data: { viewer: { timeline: { timeline: { instructions: [
+    { type: "TimelineAddEntries", entries: [
+      { entryId: "cursor-top", content: { entryType: "TimelineTimelineCursor", cursorType: "Top", value: "t" } }
+    ] }
+  ] } } } }
+};
+check(SyncCapture.isListTailResponse(topOnlyPage) === false, "top-only cursor page is not the tail");
+
 if (failures.length > 0) {
   console.error(`\nSync extraction verification FAILED: ${failures.length} check(s) failed`);
   process.exit(1);

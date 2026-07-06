@@ -190,9 +190,71 @@
     return walk(json, 0);
   }
 
+  // 末尾ページの厳格判定。「Bottom cursor があり、かつ timeline の entries に
+  // cursor 以外(item/module や entryType 無しの user entry)が1つも無い」ページ
+  // だけを一覧の末尾とみなす。これにより、抽出ユーザーが0件でも item entry を
+  // 持つ中間ページ(凍結アカウントの連続や中間ローディング等)を末尾と誤認して
+  // sync-complete を早期発火し、reconcile が同期済みリストをまだ有効なアカウント
+  // ごと削り落とす事故を防ぐ。真の末尾(cursor のみのページ)は従来どおり完了する。
+  // 仮に X が末尾ページにも item を残す形式なら完了は発火せず「追加のみ」に劣化
+  // する(＝過剰フィルタ側に倒れる=データ誤消去は起こさない安全側の失敗)。
+  function isListTailResponse(json) {
+    let sawBottomCursor = false;
+    let nonCursorEntryCount = 0;
+    const visited = new WeakSet();
+    let budget = 20000;
+
+    function classifyEntry(entry) {
+      if (!entry || typeof entry !== "object" || typeof entry.entryId !== "string") {
+        return;
+      }
+      const content = entry.content;
+      if (!content || typeof content !== "object") {
+        nonCursorEntryCount += 1;
+        return;
+      }
+      if (String(content.entryType || "").toLowerCase() === "timelinetimelinecursor") {
+        if (String(content.cursorType || "").toLowerCase() === "bottom") {
+          sawBottomCursor = true;
+        }
+        return;
+      }
+      // cursor 以外の entry(item / module / entryType 無しの user entry)は
+      // 「このページはまだ末尾ではない」証拠として数える。
+      nonCursorEntryCount += 1;
+    }
+
+    function walk(node, depth) {
+      if (budget <= 0 || depth > 20 || node === null || typeof node !== "object" || visited.has(node)) {
+        return;
+      }
+      visited.add(node);
+      budget -= 1;
+      if (Array.isArray(node.entries)) {
+        for (const entry of node.entries) {
+          classifyEntry(entry);
+        }
+      }
+      if (Array.isArray(node)) {
+        for (const item of node) {
+          walk(item, depth + 1);
+        }
+        return;
+      }
+      for (const key of Object.keys(node)) {
+        walk(node[key], depth + 1);
+      }
+    }
+
+    walk(json, 0);
+    return sawBottomCursor && nonCursorEntryCount === 0;
+  }
+
   namespace.SyncCapture = {
     extractSyncEntries,
+    // hasBottomCursor は下位互換で保持(完了判定は isListTailResponse へ移行)。
     hasBottomCursor,
+    isListTailResponse,
     listKindFromUrl,
     normalizeHandle
   };
