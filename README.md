@@ -2,13 +2,13 @@
 
 ## Current status
 
-この repository は現在 **Chrome Web Store 審査結果待ち**です。Phase 1 / Phase 1.5（local MV3 shell・popup・storage・synthetic fixture・F1-A research scaffold）、Phase 2 の production 機能、M7 の提出準備は実装済みです。
+この repository の拡張は **Chrome Web Store で公開済み**です（v1.1.1、公開ページ最終更新 2026-06-18、オーナー確認 2026-07-06）。Phase 1 / Phase 1.5（local MV3 shell・popup・storage・synthetic fixture・F1-A research scaffold）、Phase 2 の production 機能、M7 の提出・公開は完了しています。
 
 - **production sync 実装済み**: 宣言的 `world:"MAIN"` content script（`/settings/blocked/all`・`/settings/muted/all` 限定）が、ユーザー自身のブロック・ミュート一覧 GraphQL 応答から `user_id`（rest_id）/ `handle`（screen_name）/ `listKind` のみを抽出し、ISOLATED bridge 経由で `chrome.storage.local` の `xtbmEntries` に取り込みます。raw response・cursor 値・表示名・本文は保存しません。実アカウントで blocked 234件 / muted 50件の取り込みを確認済み（件数のみ・2026-06-13）。
 - **reconciliation 実装済み**: 一覧の末尾（完全同期）に到達したときだけ当該 listKind を全置換し、解除済みアカウントを除去します。部分取得時は追加のみです（完全同期検出 = 抽出0件かつ Bottom cursor、`Storage.replaceSyncedListKind()`）。Top cursor だけの空ページは完了扱いしません。
 - **real-DOM author matching 実装済み**: 通常 content script が投稿カードの User-Name 領域に限定して投稿者を判定し、quote / embed の混在を分離します（引用カードは host 投稿を残したままその場で隠します）。実 TL で誤判定なく動作することを確認済み（M5）。
 - popup から同期の有効化・ブロック / ミュート件数・最終同期時刻の確認・同期データ削除ができます。F1-A 観測メモ（開発用）は本番では非表示です（dev フラグ `RESEARCH_UI_ENABLED`、既定 false）。
-- 残作業: Chrome Web Store 審査結果の確認と、却下時の理由別修正。審査中の zip が現行 1.1.1 かどうかは未確認です。
+- 残作業: 公開後運用（不具合報告対応・X 側変更の追従。手順は `docs/review-response-playbook.md` §3〜§4）と、`docs/deferred-findings-register.md` の保留項目（例: REVIEW-2026-07-05-SYNC-COMPLETE の masked live 再検証）。公開版は v1.1.1 で現行 `manifest.json` と一致しています。
 
 X/Twitter でブロック・ミュート済みアカウント由来の情報露出（RT・引用経由を含む）を減らすことを目指す Chrome 拡張です。データはすべて端末ローカル保存・外部送信なし・権限最小（`storage` + x.com / twitter.com host）を維持します。
 
@@ -221,7 +221,7 @@ node tests/scripts/evaluate-f1-observation.mjs --live path\to\masked-summary.jso
 - Chrome の `Load unpacked` / popup 動作 / synthetic + 実DOM フィルタは `tests/scripts/verify-extension-load-chrome.mjs`（実 Chromium CDP）で自動検証済み（M2 / M5）。
 - 実 X 画面での F1-A endpoint / response shape / pagination / identity は M3 の live masked summary 評価で `f1a_viable` を確認済み。production sync は実アカウントで件数のみ確認済み（M4、blocked 234 / muted 50）。
 - 実 X DOM の投稿者判定は User-Name 領域限定 + quote / embed 分離で実装・確認済み（M5）。同期の主キー `user_id`（rest_id）と補助キー handle（screen_name）は一覧 GraphQL 応答から取得する。
-- 残: Chrome Web Store 提出（M7）の審査結果は未確認。
+- Chrome Web Store 提出（M7）は審査を通過し公開済み（v1.1.1、オーナー確認 2026-07-06）。
 
 ## プライバシーポリシー
 

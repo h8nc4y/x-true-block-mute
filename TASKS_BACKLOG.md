@@ -2,7 +2,7 @@
 
 ## Status
 
-最終更新: 2026-07-02
+最終更新: 2026-07-06
 
 このファイルは現行タスクのトラッカーです。Codex は現行のユーザー指示とハンドオフを優先し、ここではロードマップとタスク状態を実装実態に合わせて記録します。旧 ChatGPT 承認制は廃止済みです。現行ユーザー指示で許可された自律開発の範囲では、Codex / Claude Code が通常の docs・test・code 健全性タスクを進めます。権限追加、Phase 移行、配布、外部送信などの境界変更は人間承認ゲートです。
 
@@ -53,7 +53,7 @@ M1 ──→ M2 ──→ M3(分岐点) ──→ M4 ──→ M5 ──→ M6 �
 | P2-018 | M7 | パッケージ zip 生成スクリプト（allowlist 方式、dist/ 出力） | 中 | S | done: `scripts/build-package.mjs`（純 Node の決定論的 ZIP writer、allowlist 18件、固定 DOS 日付）が `dist/TrueBlock-Mute-v<version>.zip` を出力。research/tests/docs/scripts/*.md/*.svg は同梱しない。`tests/scripts/verify-package.mjs` が manifest/HTML 参照⊆allowlist・禁止パス不在・ファイル存在・ZIP 署名/central-directory 件数を検証（57 checks PASS）。.NET ZipFile で 18 entries の展開・CRC を独立確認。 | P2-016 |
 | P2-019 | M7 | プライバシーポリシー文書＋ホスティング URL | 高 | S | done（ホスト/連絡先記入はユーザー）: `docs/privacy-policy.md`（日英併記）＋自己完結 HTML `docs/privacy-policy.html` を作成。実データフロー（端末内のみ・外部送信なし・user_id/handle/listKind のみ・第三者共有/解析なし・権限は storage+host）に正確準拠。連絡先メールはプレースホルダ（公開前にユーザー記入）。ホスティング（GitHub Pages 等）と URL 確定はユーザー作業（README に手順）。 | P2-002 |
 | P2-020 | M7 | ストア掲載物一式（説明文・スクショ・single purpose・permissions justification） | 中 | M | done: `docs/store-listing.md`（name/category/summary/詳細説明 日英・single purpose・各権限の justification・CWS データ使用フォーム回答＝端末内のみで収集なし・提出前チェックリスト）。スクショは `scripts/make-screenshots.mjs`（CDP・synthetic のみ・実 X 不使用）で 1280×800 を3枚生成し `store-assets/`（store-1-timeline=placeholder フィルタ実証 / store-2-options / store-3-popup）。実 Chromium で生成・視覚確認済み。 | P2-016, P2-018 |
-| P2-021 | M7 | Web Store 提出と審査対応サイクル（デベロッパー登録・決済・最終送信はユーザー） | 高 | M | doing: 2026-06-14 にユーザーがデベロッパー登録・$5 決済・ストア掲載情報/プライバシー/販売地域を入力し「審査のため送信」完了（store item ID `anpgfamnbjoajbapfeclnjkklbcoknkb`）。審査結果待ち。却下時は理由に応じて修正・再提出。 | P2-017〜P2-020 |
+| P2-021 | M7 | Web Store 提出と審査対応サイクル（デベロッパー登録・決済・最終送信はユーザー） | 高 | M | done: 2026-06-14 にユーザーが「審査のため送信」（store item ID `anpgfamnbjoajbapfeclnjkklbcoknkb`）→ 審査通過・**公開済み**（公開ページ最終更新 2026-06-18・公開版 v1.1.1）。2026-07-06 にオーナーがダッシュボードで公開を確認し、エージェントが公開ストアページで version/掲載文を確認。 | P2-017〜P2-020 |
 
 ## 旧 TB 系列タスクの扱い
 
@@ -111,4 +111,5 @@ Goal 達成（Chrome Web Store 公開）まで P2 系列を M1 から順に実�
 
 - 🧪 2026-06-30 Codex 実装: `scripts/check-all.mjs` を追加し、静的10本のcheck:allを単一コマンドで順序固定できるようにした。`verify-phase1-static.mjs` でharness自体の存在を固定し、`verify-docs-consistency.mjs` / README / CODEX_HANDOFF / deferred register を同期。workflow追加、release/tag、Chrome Web Store操作、権限変更、外部送信は未実行。
 - 🧭 2026-07-02 Codex 同期: PR #26 merge commit `226cc51` 後の現行状態を `CODEX_HANDOFF.md` 冒頭に反映。`node scripts/check-all.mjs --list` と `node scripts/check-all.mjs` を再実行し、静的10本 pass を確認。Chrome Web Store審査結果、実X、workflow、release/tag、外部送信は未実行。
+- 🎉 2026-07-06 Claude Code (Fable5) 公開確認: オーナーがダッシュボードで **Chrome Web Store 公開済み** を確認、エージェントが公開ストアページで v1.1.1・最終更新 2026-06-18・掲載文を確認。P2-021 を done 化し、README / CODEX_HANDOFF / playbook / verify-docs-consistency の状態語を lockstep 更新。以後の主戦場は公開後運用（playbook §3〜§4）と deferred register の保留項目（REVIEW-2026-07-05-SYNC-COMPLETE は masked live 再検証をオーナーが承認済み・実施待ち）。
 - 🧭 2026-07-03 Claude Code (Fable5) 再要件定義: `docs/requirements-v2-2026-07.md`（要件再定義 v2・成功指標の観測可能化・オーナー質問 Q1〜Q7）、`docs/research/market-2026-07.md`（市場・競合・CWS 審査動向の Web 調査メモ）、`docs/review-response-playbook.md`（審査長期化の問い合わせテンプレ・却下理由別対応表・公開後運用 runbook）を追加。相談役 Codex GPT-5.5 の 10 指摘を反映済み。CWS 審査は 2026-07-05 に保留 3 週間到達のため、オーナーへダッシュボード確認と問い合わせ判断を依頼（R2-001/002）。権限・データソース・配布状態の変更なし（§9 ゲート非該当）。審査結果は引き続き未確認。
