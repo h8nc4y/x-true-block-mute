@@ -97,9 +97,11 @@
         postEntries(listKind, entries);
         return;
       }
-      if (SyncCapture.hasBottomCursor(json)) {
-        // Bottom-cursor pages with no users are the narrowest synthetic signal we can
-        // use for list-tail completion without sending cursor values to the bridge.
+      if (SyncCapture.isListTailResponse(json)) {
+        // 末尾ページ(cursor のみ + Bottom cursor)に限って完了を通知する。0ユーザー
+        // でも非 cursor の item entry が残る中間ページ(凍結アカウント連続など)は
+        // 末尾扱いしない — 誤った reconcile で同期済みリストを削らないための厳格判定。
+        // cursor value は送らず、完了シグナル(listKind のみ)だけを bridge へ渡す。
         postComplete(listKind);
       }
     }

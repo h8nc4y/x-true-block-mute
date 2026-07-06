@@ -146,6 +146,40 @@ const emptyBlockedBody = JSON.stringify({
     }
   }
 });
+// 0ユーザーだが item entry(user_results 空=凍結アカウント想定)を持つ中間ページ。
+// Bottom cursor はあるが末尾ではないため、sync-complete を出してはならない。
+const midSuspendedBlockedBody = JSON.stringify({
+  data: {
+    viewer: {
+      timeline: {
+        timeline: {
+          instructions: [
+            {
+              type: "TimelineAddEntries",
+              entries: [
+                {
+                  entryId: "user-suspended-mid",
+                  content: {
+                    entryType: "TimelineTimelineItem",
+                    itemContent: { itemType: "TimelineUser", user_results: {} }
+                  }
+                },
+                {
+                  entryId: "cursor-bottom-mid",
+                  content: {
+                    entryType: "TimelineTimelineCursor",
+                    cursorType: "Bottom",
+                    value: "synthetic-mid-bottom"
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+});
 const mutedBody = JSON.stringify({
   data: {
     viewer: {
@@ -185,6 +219,7 @@ const windowObject = {
     if (/BlockedAccounts/.test(text) && /transient/.test(text)) return Promise.resolve(new FakeResponse(transientBlockedBody));
     if (/BlockedAccounts/.test(text) && /top-only/.test(text)) return Promise.resolve(new FakeResponse(topOnlyBlockedBody));
     if (/BlockedAccounts/.test(text) && /non-2xx/.test(text)) return Promise.resolve(new FakeResponse(blockedBody, 503));
+    if (/BlockedAccounts/.test(text) && /mid-suspended/.test(text)) return Promise.resolve(new FakeResponse(midSuspendedBlockedBody));
     if (/BlockedAccounts/.test(text) && /tail/.test(text)) return Promise.resolve(new FakeResponse(emptyBlockedBody));
     if (/BlockedAccounts/.test(text) && /query-settings-path/.test(text)) {
       return Promise.resolve(
@@ -377,6 +412,18 @@ const blockedEntryMsgCount = messages.slice(beforeBottom).filter(
 ).length;
 check(blockedEntryMsgCount === 0, "empty blocked tail posts no additional sync-entries", blockedEntryMsgCount);
 check(!JSON.stringify(completeMsgs[0]?.message || {}).includes("synthetic-empty-bottom"), "empty tail cursor value must not leave the page");
+
+// 6b. Mid-list page with 0 users but a non-cursor item entry (suspended run) ->
+// NOT treated as the tail, so no sync-complete fires and reconcile cannot wipe the
+// still-valid synced list from a premature completion.
+const beforeMid = messages.length;
+await context.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?case=mid-suspended");
+await flush();
+await flush();
+const midCompleteMsgs = messages.slice(beforeMid).filter(
+  (m) => m.message.source === "x-tbm:sync:capture" && m.message.kind === "sync-complete"
+);
+check(midCompleteMsgs.length === 0, "mid page with a non-cursor item entry posts no sync-complete (guards premature reconcile)", midCompleteMsgs.length);
 
 // 7. GraphQL error envelope -> ignored, no completion/reconcile signal
 const beforeGraphQLError = messages.length;
