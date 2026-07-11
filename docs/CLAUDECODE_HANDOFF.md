@@ -1,19 +1,13 @@
-# ClaudeCode 司令塔 引き継ぎ — x-true-block-mute (post-Fable5)
+# 開発引き継ぎ — x-true-block-mute
 
-本書は **2026-07-08 以降、または Fable5 の利用上限到達後**に有効な引き継ぎ文書。
-旧 `docs/CLAUDECODE_FABLE5_HANDOFF.md` / `docs/CLAUDECODE_FABLE5_PROMPT.md` は
-削除せず履歴として保持する。読み替え: 「Fable5」→「司令塔モデル」。
-テンプレ正本は codex-global-context repo の `templates/agent-handoff-prompt.md`。
+> **2026-07-11 方針更新**: 開発領域の固定分掌は廃止済み。このファイル名は既存リンクとの
+> 互換性のため残す。開発の主軸は Codex で、依頼範囲を end-to-end で担当する。
+> 廃止済みの `codex` / `codex-deep` MCP bridge と `agmsg` は復活させない。
 
-## 役割分担（モデル固定名を使わない）
+## 開発体制
 
-- **司令塔**: Claude Opus 4.8 role。要件再定義・設計判断・レビュー・実装委譲文作成を担当。
-- **実装**: `mcp__codex__codex`（通常タスク）/ `mcp__codex-deep__codex`（難所のみ、xhigh）。
-- **並列調査・機械的作業**: Sonnet 5 subagent（Agent tool 経由）。
-- **フロントエンド/UI**: `frontend-developer` subagent。本 repo は Chrome 拡張 popup / options UI を持つため、
-  UI 文言・レイアウト変更が必要な場合はここへ委譲する。
-
-固定モデル名（Fable5 等）をゴールや運用ルールの恒常記述に使わない。役割名で書くこと。
+- Codex が要件整理、Chrome拡張UI、実装、検証、文書化までを一貫して進める。
+- Claude Code、subagent、外部レビューは必要時の実行手段であり、固定担当ではない。
 
 ## 調査範囲と注意（引き継ぎ時点の限界）
 
@@ -71,13 +65,7 @@ v1.1.1 として production sync・real-DOM author matching・reconciliation・p
 
 ## 委譲時の注意
 
-Codex へ委譲する際は self-contained spec（対象ファイル・受け入れ条件・検証コマンド・書き込み許可範囲）を
-渡し、`multi-agent-delegation` skill の規律（再委譲禁止文言・成果物の実在検証）に従う。本 repo は
-**public** のため、委譲プロンプト・レビュー・PR本文のいずれにもローカル絶対パス、実 user_id/handle、
-実アカウントの内容を含めない。UI 変更を伴う委譲は `frontend-developer` subagent 経由とし、Japanese-first UI
-・アクセシビリティ・レスポンシブ確認を経てから完了とする。
-
----
-
-履歴はこちら: [`docs/CLAUDECODE_FABLE5_HANDOFF.md`](./CLAUDECODE_FABLE5_HANDOFF.md) /
-[`docs/CLAUDECODE_FABLE5_PROMPT.md`](./CLAUDECODE_FABLE5_PROMPT.md)
+委譲する場合は self-contained spec（対象ファイル・受け入れ条件・検証コマンド・書き込み許可範囲）を
+渡し、成果物の実在と検証結果を主担当が確認する。本 repo は **public** のため、委譲プロンプト、レビュー、
+PR本文にローカル絶対パス、実 user_id/handle、実アカウントの内容を含めない。UIは固定の委譲先を設けず、
+Japanese-first UI・アクセシビリティ・レスポンシブ確認まで主担当が完遂する。

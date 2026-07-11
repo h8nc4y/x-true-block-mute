@@ -2,7 +2,7 @@
 
 作成: 2026-07-03 ClaudeCode Fable5 ／ レビュー: Codex GPT-5.5（相談役・10指摘反映済み） ／ 状態: draft（オーナー確認質問あり）
 
-本書は Fable5 引き継ぎ（`docs/CLAUDECODE_FABLE5_PROMPT.md`）に基づく要件の再検討。既存資料（`TASKS_BACKLOG.md`・`CODEX_HANDOFF.md`・`README.md`）は現状把握の根拠であり、本書がオーナー回答を経て確定するまで正本は従来資料のまま。
+本書は git 履歴上の旧 Fable5 prompt に基づく要件の再検討。旧 prompt は active tree から削除済み。既存資料（`TASKS_BACKLOG.md`・`CODEX_HANDOFF.md`・`README.md`）は現状把握の根拠であり、本書がオーナー回答を経て確定するまで正本は従来資料のまま。
 
 ## 0. 確認済み事実 / 未確認事項
 
