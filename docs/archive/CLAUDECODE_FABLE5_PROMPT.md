@@ -1,3 +1,5 @@
+> 🗄 **履歴資料（2026-07-12 アーカイブ）**: `docs/CLAUDECODE_HANDOFF.md` に置き換え済み。現状把握には使わないこと。
+
 # ClaudeCode Fable5 prompt - 012_x-true-block-mute
 
 作成日時: 2026/07/02 08:30:54 JST  
