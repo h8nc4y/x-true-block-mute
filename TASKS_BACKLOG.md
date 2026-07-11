@@ -2,7 +2,7 @@
 
 ## Status
 
-最終更新: 2026-07-06
+最終更新: 2026-07-11
 
 このファイルは現行タスクのトラッカーです。Codex は現行のユーザー指示とハンドオフを優先し、ここではロードマップとタスク状態を実装実態に合わせて記録します。旧 ChatGPT 承認制は廃止済みです。現行ユーザー指示で許可された自律開発の範囲では、Codex / Claude Code が通常の docs・test・code 健全性タスクを進めます。権限追加、Phase 移行、配布、外部送信などの境界変更は人間承認ゲートです。
 
@@ -112,4 +112,5 @@ Goal 達成（Chrome Web Store 公開）まで P2 系列を M1 から順に実�
 - 🧪 2026-06-30 Codex 実装: `scripts/check-all.mjs` を追加し、静的10本のcheck:allを単一コマンドで順序固定できるようにした。`verify-phase1-static.mjs` でharness自体の存在を固定し、`verify-docs-consistency.mjs` / README / CODEX_HANDOFF / deferred register を同期。workflow追加、release/tag、Chrome Web Store操作、権限変更、外部送信は未実行。
 - 🧭 2026-07-02 Codex 同期: PR #26 merge commit `226cc51` 後の現行状態を `CODEX_HANDOFF.md` 冒頭に反映。`node scripts/check-all.mjs --list` と `node scripts/check-all.mjs` を再実行し、静的10本 pass を確認。Chrome Web Store審査結果、実X、workflow、release/tag、外部送信は未実行。
 - 🎉 2026-07-06 Claude Code (Fable5) 公開確認: オーナーがダッシュボードで **Chrome Web Store 公開済み** を確認、エージェントが公開ストアページで v1.1.1・最終更新 2026-06-18・掲載文を確認。P2-021 を done 化し、README / CODEX_HANDOFF / playbook / verify-docs-consistency の状態語を lockstep 更新。以後の主戦場は公開後運用（playbook §3〜§4）と deferred register の保留項目（REVIEW-2026-07-05-SYNC-COMPLETE は masked live 再検証をオーナーが承認済み・実施待ち）。
+- 🧭 2026-07-11 Claude Code (Fable5) 引き継ぎ整備: `CODEX_HANDOFF.md` の現状欄（§4）と次の一手（§11）を PR #34 merge 後・公開後運用フェーズへ同期。PR #29（sync-state 直列化）/ #30（UI 衛生）/ #33（公開状態同期）/ #34（sync 完了判定の厳格化）を現状に反映し、§11 に公開後 runbook 実行（playbook §3〜§4）とオーナー未回答質問（要件 v2 §7 Q3〜Q7）の文書反映を追加。v1.2 候補（警告 UI 等）は §9④ 承認待ちのまま実装しない。検証: 静的10本 check:all pass。Chrome Web Store 操作・権限変更・外部送信・release/tag/workflow 変更は未実行。
 - 🧭 2026-07-03 Claude Code (Fable5) 再要件定義: `docs/requirements-v2-2026-07.md`（要件再定義 v2・成功指標の観測可能化・オーナー質問 Q1〜Q7）、`docs/research/market-2026-07.md`（市場・競合・CWS 審査動向の Web 調査メモ）、`docs/review-response-playbook.md`（審査長期化の問い合わせテンプレ・却下理由別対応表・公開後運用 runbook）を追加。相談役 Codex GPT-5.5 の 10 指摘を反映済み。CWS 審査は 2026-07-05 に保留 3 週間到達のため、オーナーへダッシュボード確認と問い合わせ判断を依頼（R2-001/002）。権限・データソース・配布状態の変更なし（§9 ゲート非該当）。審査結果は引き続き未確認。
