@@ -5,7 +5,7 @@
 > 本書と `AGENTS.md` が食い違う場合は、現在の `AGENTS.md` に合わせて本書を更新することを最初の自走タスクにしてよい（§11・§6 参照）。
 > **§10 データ保護不変条件** と **§9 4ゲート** は、どの作業でも上書きできない最優先ルール。
 
-初版: 2026/06/19 ／ 最終更新: 2026/07/02 ／ リポジトリ: 本リポジトリ root（remote `origin` = `github.com/h8nc4y/x-true-block-mute`、default branch `main`）
+初版: 2026/06/19 ／ 最終更新: 2026/07/12 ／ リポジトリ: 本リポジトリ root（remote `origin` = `github.com/h8nc4y/x-true-block-mute`、default branch `main`）
 
 ---
 
@@ -65,14 +65,15 @@ content_scripts（宣言的・3 登録）:
 
 ---
 
-## 4. リポジトリの現状（2026-07-02 02:40 JST 時点）
+## 4. リポジトリの現状（2026-07-12 時点）
 
 - **version `1.1.1`**（`manifest.json` が真実。`minimum_chrome_version:111`）。`dist/TrueBlock-Mute-v1.1.1.zip` は生成済み（`dist/` は gitignore・再生成可）。
 - **Chrome Web Store: 公開済み**（store item ID `anpgfamnbjoajbapfeclnjkklbcoknkb`、2026-06-14 にオーナーが「審査のため送信」→ 公開ページの最終更新 2026-06-18・公開版 v1.1.1。2026-07-06 にオーナーがダッシュボードで公開を確認し、エージェントが公開ストアページで version / 掲載文を確認。旧状態「提出済み・審査結果待ち」は公開で解消）。Codex は Chrome Web Store の管理画面確認・再提出・公開操作を行わない。
-- `TASKS_BACKLOG.md` は 2026-07-06 時点の現行トラッカー。P2-011 は closed、P2-012/013/014 は done、M7 準備は完了、P2-021 は done（公開確認済み）。`docs/deferred-findings-register.md` も CL-AUDIT-006/007、PHASE2-F1A-SYNC、PHASE2-REAL-DOM-MATCH、PHASE2-MUTATION-REWRITE の解決済み状態を反映済み。
-- 2026-07-02 02:40 JST 時点で `main...origin/main` は PR #26 merge commit `226cc51` に同期済み。PR #26（task commit `6d7a762`）で `scripts/check-all.mjs` が入り、静的10本の check:all を単一コマンドで順序固定できる。2026-07-02 実測でも `node scripts/check-all.mjs` は 10 checks pass。
-- PR #25 merge commit `b56c058`（task commit `cefc46d`）も現行 main に含まれる。PR #23 は `PHASE2-HOOK-PRODUCTION` の bounded lifecycle hardening で、off-settings XHR の body 非読取、`SyncCapture` 未注入時の retry 可能性、同じ XHR インスタンス再open時の `loadend` listener 重複防止をローカルテストで固定済み。PR #25 は明示 `uninstallSyncHook()`、in-flight fetch/XHR の停止、再 install 契約を `verify-sync-hook.mjs` に固定した。
-- プロダクト機能は完成し公開済み（本番同期・実DOM著者照合・reconcile・popup/options・プライバシーポリシー JA/EN・allowlist パッケージ）。以後は公開後運用（`docs/review-response-playbook.md` §3〜§4）と `docs/deferred-findings-register.md` の保留項目が主戦場。CI workflow の追加・Chrome Web Store 操作・release/tag は §9 ゲート。
+- `TASKS_BACKLOG.md` は現行トラッカー（P2 系列は全 done/closed）。`docs/deferred-findings-register.md` は CL-AUDIT-006/007、PHASE2-F1A-SYNC、PHASE2-REAL-DOM-MATCH、PHASE2-MUTATION-REWRITE、REVIEW-2026-07-05-SYNC-COMPLETE の解決済み状態を反映済み。
+- 2026-07-12 時点で `main` は PR #34 merge commit `7196caa` ＋ docs 整理系 PR に同期。2026-07-05 の ultracode 本体レビュー（判断記録: `docs/archive/review-2026-07-05.md`）以降の主な merge: PR #29（sync-state の read-modify-write 直列化）、PR #30（popup 定数統一・未使用 CSS トークン削除・非提携免責を options に追加）、PR #33（公開済みへの状態同期）、PR #34（sync 完了判定を `SyncCapture.isListTailResponse` に厳格化＝Bottom cursor 有り かつ 非cursor entry 0 のページのみ末尾。途中ページ誤 reconcile によるデータ削り落としを防止。回帰は `verify-sync-extraction` / `verify-sync-hook` に固定）。
+- 2026-07-12 実測で `node scripts/check-all.mjs` は静的10本 PASS。docs は現行資料と歴史資料（`docs/archive/`）を分離済みで、分類索引は `docs/README.md`。
+- プロダクト機能は完成し公開済み（本番同期・実DOM著者照合・reconcile・popup/options・プライバシーポリシー JA/EN・allowlist パッケージ）。以後は公開後運用（`docs/review-response-playbook.md` §3〜§4）と、`docs/requirements-v2-2026-07.md` §7 のオーナー未回答質問（Q3〜Q7: 公開範囲・告知・サポート窓口・費用・v1.2 優先度）への回答待ちが主戦場。CI workflow の追加・Chrome Web Store 操作・release/tag は §9 ゲート。
+- v1.2 候補（**実装しない・オーナー承認待ち＝§9④**）: 同期忘れ/鮮度切れの警告 UI（仕様は `docs/requirements-v2-2026-07.md` §5 に定義済み）、初回オンボーディング、Firefox 移植。
 - ブランチ: `main`（＋ `feature/*`・`research/*`・`backup/*` の旧ブランチは温存。merge/delete しない）。
 
 ## 5. 自走ループ（毎タスクの手順）
@@ -198,17 +199,19 @@ foreach ($s in @('verify-phase1-static','verify-docs-consistency','audit-operati
 
 ## 11. 次の一手（タスク候補・着手順）
 
-**まず認識**: 工学的な launch blocker は現時点で見当たらない。唯一の外部ブロッカーは **Web Store 審査（§9①・人間ゲート）**。Codex が自走で価値を出せるのは、公開操作に触れない範囲の**ドキュメント整合・ローカル検証の保守・限定的なコード健全性レビュー**。
+**まず認識**: Chrome Web Store 公開済みで、工学的な launch blocker も外部ブロッカーも無い。フェーズは**公開後運用**。実装系の大タスク（v1.2 警告 UI 等）は §9④（要件変更）でオーナー承認待ちのため、Codex が自走で価値を出せるのは、公開操作に触れない範囲の**ドキュメント整合・ローカル検証の保守・限定的なコード健全性レビュー・不具合報告対応の準備**。
 
 自走可（§9に触れない）・推奨着手順:
-1. **ハンドオフ/トラッカー整合の維持** — `CODEX_HANDOFF.md`、`AGENTS.md`、`TASKS_BACKLOG.md`、`README.md`、`docs/deferred-findings-register.md` が同じ現状を指すよう保つ。古い ChatGPT 承認制、`storage + scripting` 旧記述、`TASKS_BACKLOG.md` 陳腐化前提、Vault 書き込み不可前提を再導入しない。
+1. **ハンドオフ/トラッカー整合の維持** — `CODEX_HANDOFF.md`、`AGENTS.md`、`TASKS_BACKLOG.md`、`README.md`、`docs/deferred-findings-register.md` が同じ現状を指すよう保つ。古い ChatGPT 承認制、`storage + scripting` 旧記述、`TASKS_BACKLOG.md` 陳腐化前提、Vault 書き込み不可前提、「審査待ち」旧状態を再導入しない。
 2. **ローカル検証ハーネス保守** — 静的10本が、権限・外部送信・raw 値禁止・ハンドオフ drift を検知し続けるようにする。ドキュメント編集後は `audit-operational-alignment.mjs` と `verify-docs-consistency.mjs` を必ず再実行。
-3. **`PHASE2-HOOK-PRODUCTION` の bounded review** — MAIN-world hook の lifecycle / teardown / idempotency はローカル fixture と静的レビューだけで扱う。明示 teardown、in-flight停止、再 install 契約は 2026-06-30 の local hardening で固定済み。今後も新権限・新データソース・raw response 取得・live X 読み取りはしない。
-4. **Web Store 審査結果がオーナーから共有された場合の文書反映** — 却下理由や公開可否が共有されたら、raw 個人データや管理画面操作を扱わず、理由別の修正計画・rollback・必要な検証だけを repo docs / backlog に反映する。zip アップロード、再提出、公開は人間ゲート。
-5. **CI の草案作成のみ** — `.github/workflows` の新規作成・変更は §9① に該当するため、workflow を有効化しない。必要なら静的10本を走らせる CI 手順の Markdown 草案までに留める。
+3. **公開後の不具合報告対応（`docs/review-response-playbook.md` §3〜§4 の runbook 実行）** — ユーザー報告が来たら「48時間以内一次判断・14日以内修正版 zip 作成」の指標で動く。報告から raw handle/user_id/スクショを受け取らず、synthetic fixture 化 → 修正 → check:all 緑 → zip 生成まで。**ストアへの再提出・公開はオーナー（§9①）**。
+4. **`PHASE2-HOOK-PRODUCTION` の bounded review** — MAIN-world hook の lifecycle / teardown / idempotency はローカル fixture と静的レビューだけで扱う。明示 teardown、in-flight停止、再 install 契約、tail 厳格化（PR #34）は固定済み。今後も新権限・新データソース・raw response 取得・live X 読み取りはしない。
+5. **オーナー回答の文書反映** — `docs/requirements-v2-2026-07.md` §7 の Q3〜Q7（公開範囲・告知・サポート窓口・費用・v1.2 優先度）への回答が共有されたら、要件 v2 の確定・backlog への v1.2 タスク起票・掲載文言の改善計画に反映する。回答が来るまで v1.2 実装には着手しない。
+6. **CI の草案作成のみ** — `.github/workflows` の新規作成・変更は §9① に該当するため、workflow を有効化しない。必要なら静的10本を走らせる CI 手順の Markdown 草案までに留める。
 
 人間ゲート（自走しない・停止して提示）:
-- Chrome Web Store 審査対応サイクル（再提出/公開/掲載・プライバシー公開・決済・最終送信はオーナー）。**「審査中の zip が現行 1.1.1 か、提出時の旧パッケージか」は未確認**——オーナーに確認を促す（Codex は確認手段を持たない）。
+- Chrome Web Store の一切の操作（掲載文更新・再提出・公開設定・ダッシュボード確認はオーナー）。
+- v1.2 スコープ承認（警告 UI・オンボーディング・Firefox 移植は §9④。仕様案は要件 v2 §5 に定義済み）。
 - 新権限・新データソース（F1-B/F1-D）・プライバシー方針変更（§9④）。
 - 端末外送信・deploy・有料サービス（§9②③）。
 
@@ -277,8 +280,10 @@ foreach ($s in @('verify-phase1-static','verify-docs-consistency','audit-operati
 ```
 
 ### 主要参照ファイル
+- docs 索引: `docs/README.md`（現行資料の分類。歴史資料は `docs/archive/` に分離済み）
 - ガバナンス/運用: `AGENTS.md`（不変条件）、`CODEX_HANDOFF.md`（本書・現状メモ）
-- タスク: `TASKS_BACKLOG.md`（現行トラッカー）、`docs/deferred-findings-register.md`、`docs/phase2-readiness-gates.md`、`docs/decisions/f1-source-selection.md`
+- タスク/要件: `TASKS_BACKLOG.md`（現行トラッカー）、`docs/requirements-v2-2026-07.md`（要件定義書 v2）、`docs/deferred-findings-register.md`、`docs/decisions/f1-source-selection.md`
+- 公開後運用: `docs/review-response-playbook.md`（不具合報告 runbook・却下対応表）
 - コマンド一覧: `README.md`（Static validation / Packaging 節）
 - プライバシー/脅威モデル: `docs/privacy-threat-model.md`、`docs/privacy-policy.md|.html`、`docs/store-listing.md`
 - 検証/ビルド: `tests/scripts/*.mjs`(12)、`scripts/build-package.mjs`／`make-icons.mjs`／`make-screenshots.mjs`、`tests/fixtures/*`

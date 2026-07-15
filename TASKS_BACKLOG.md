@@ -2,7 +2,7 @@
 
 ## Status
 
-最終更新: 2026-07-06
+最終更新: 2026-07-12
 
 このファイルは現行タスクのトラッカーです。Codex は現行のユーザー指示とハンドオフを優先し、ここではロードマップとタスク状態を実装実態に合わせて記録します。旧 ChatGPT 承認制は廃止済みです。現行ユーザー指示で許可された自律開発の範囲では、Codex / Claude Code が通常の docs・test・code 健全性タスクを進めます。権限追加、Phase 移行、配布、外部送信などの境界変更は人間承認ゲートです。
 
@@ -72,44 +72,19 @@ M1 ──→ M2 ──→ M3(分岐点) ──→ M4 ──→ M5 ──→ M6 �
 
 ## Validation evidence
 
-2026-06-12 の closeout で実行した local checks（Codex 記録）:
-
-- `node tests/scripts/verify-phase1-static.mjs` -> pass
-- `node tests/scripts/verify-f1a-observation-safety.mjs` -> pass
-- `node tests/scripts/verify-f1a-main-hook-simulator.mjs` -> pass
-- `node tests/scripts/verify-docs-consistency.mjs` -> pass
-- `node tests/scripts/evaluate-f1-observation.mjs tests/fixtures/f1-a-masked-summary.fixture.json` -> `fixture_pass`
-- `node tests/scripts/audit-operational-alignment.mjs` -> `passed` with optional external checks skipped because paths were not provided
-- `git diff --check` -> pass
-- `gh issue list --limit 100 --state open --json number,title,labels,url` -> `[]`
-
-2026-06-13 の引き継ぎ時ベースライン（Claude Code 実測）:
-
-- `node tests/scripts/verify-phase1-static.mjs` -> pass
-- `node tests/scripts/verify-f1a-observation-safety.mjs` -> pass
-- `node tests/scripts/verify-f1a-main-hook-simulator.mjs` -> pass
-- `node tests/scripts/verify-docs-consistency.mjs` -> pass
-- `node tests/scripts/evaluate-f1-observation.mjs tests/fixtures/f1-a-masked-summary.fixture.json` -> `fixture_pass`
-- `node tests/scripts/audit-operational-alignment.mjs` -> `passed` with optional external checks skipped because paths were not provided
-- `git diff --check` -> pass
+現行の検証正本は `node scripts/check-all.mjs`（静的10本一括。コミット前に毎回緑を確認する）。直近の全緑実測は 2026-07-12。M1〜M7 期の個別コマンドのベースライン記録（2026-06-12/13）は、本ファイルの git 履歴旧版を参照。
 
 ## Done criteria
 
-Goal 達成（Chrome Web Store 公開）まで P2 系列を M1 から順に実装する。各タスクは実装・検証・コミットまで揃って done とする。live X 検証で `unsafe_summary` が出た場合は停止・削除し、検証結果は実測のみ記録する。
+当初 Goal（Chrome Web Store 公開）は **2026-06-18 に達成**（オーナー確認 2026-07-06）。以後の done 判定は公開後運用の成功指標（`docs/requirements-v2-2026-07.md` §3: 全リリースで check:all 緑・不具合報告の一次判断 48 時間・修正版 zip 作成 14 日）に従う。live X 検証で `unsafe_summary` が出た場合は停止・削除し、検証結果は実測のみ記録する。
 
-- 📌 2026-06-21 Claude Code 再レビュー: High 指摘の委譲タスク仕様 `docs/codex-task-sync-scope.md` を参照（advisory）。H-1 の sync response scope hardening は PR #10 merge commit `95bf09b` で現行 `main` へ統合済み。実 X 応答 shape や Chrome Web Store 審査結果は引き続き未確認。
+## 変更履歴（要約）
 
-- 🔧 2026-06-21 Claude Code 実装: `fix/claude-sync-scope` ブランチ由来の `d3ef0f8` は PR #10 に含まれて統合済み。以後は現行 `main` の `src/sync/sync-hook.js`、`tests/scripts/verify-sync-hook.mjs`、`docs/deferred-findings-register.md` を正として確認する。
+各項目の詳細は該当 PR・`docs/deferred-findings-register.md`・git 履歴を正とする。
 
-- 🧪 2026-06-28 Codex 実装: `PHASE2-HOOK-PRODUCTION` の local lifecycle coverage を追加。off-settings での BlockedAccounts XHR は `responseText` を読まず message も出さないこと、`SyncCapture` 未注入で自動 install が失敗しても installed guard を汚さず後から再 install できることを `verify-sync-hook.mjs` で固定。`docs/privacy-threat-model.md` は Phase 1.5 research hook 前提から production declarative MAIN-world hook 前提へ現行化し、`docs/deferred-findings-register.md` に確認済み範囲を追記。検証: 静的10本 pass、target sync-hook pass、diff-check pass。実 X / Chrome Web Store / 権限追加 / 外部送信 / release・tag・workflow 変更は未実行。
-- 🧭 2026-06-28 Codex 実装: 未追跡だった `CODEX_HANDOFF.md` を現行 `AGENTS.md` / `TASKS_BACKLOG.md` / `README.md` に合わせて追跡対象化し、`verify-docs-consistency.mjs` にハンドオフ drift 検査を追加。古い ChatGPT 承認制、旧 backlog 前提、Vault 書き込み不可前提、Opus/人間固定の Chromium 前提を再導入しないよう固定。検証: 静的10本 pass、target docs-consistency pass、audit-operational-alignment pass。実 X / Chrome Web Store / 権限追加 / 外部送信 / release・tag・workflow 変更は未実行。
-
-- 🧭 2026-06-30 Codex 実装: `CODEX_HANDOFF.md` の現状欄を PR #21 merge commit `41eae96` / open PR 0件へ同期。PR #20 後の local lifecycle coverage、Web Store 審査待ち、権限追加・外部送信・release/tag/workflow 変更の人間ゲートは維持。検証: 静的10本 check:all pass、diff-check pass。
-
-- 🧪 2026-06-30 Codex 実装: PR #23 merge commit `81f21bd`（task commit `95af230`）で `PHASE2-HOOK-PRODUCTION` の bounded lifecycle hardening を追加。同じ XHR インスタンスで `open()` が再実行されても `loadend` listener を重複登録せず、最終requestだけを一度処理するように固定。`verify-sync-hook.mjs` に再open回帰を追加し、tail completion 検証は request 後差分で追加 `sync-entries` がないことを見る形に修正。検証: 静的10本 check:all pass、target sync-hook pass。実 X / Chrome Web Store / 権限追加 / 外部送信 / release・tag・workflow 変更は未実行。
-- 🧪 2026-06-30 Codex 実装: PHASE2-HOOK-PRODUCTION の明示 teardown 契約を追加。`sync-hook.js` は元の `fetch` / `XMLHttpRequest.open` と wrapper を保持し、`uninstallSyncHook()` で将来requestのwrapを解除、installed guardをクリアし、再 install できる。`verify-sync-hook.mjs` は uninstall前に開始済みの fetch/XHR と uninstall中の eligible list response body を読まず message も出さないこと、再 install 後は1回だけ読み直して `sync-entries` を出すことを固定。実 X / Chrome Web Store / 権限追加 / 外部送信 / release・tag・workflow 変更は未実行。
-
-- 🧪 2026-06-30 Codex 実装: `scripts/check-all.mjs` を追加し、静的10本のcheck:allを単一コマンドで順序固定できるようにした。`verify-phase1-static.mjs` でharness自体の存在を固定し、`verify-docs-consistency.mjs` / README / CODEX_HANDOFF / deferred register を同期。workflow追加、release/tag、Chrome Web Store操作、権限変更、外部送信は未実行。
-- 🧭 2026-07-02 Codex 同期: PR #26 merge commit `226cc51` 後の現行状態を `CODEX_HANDOFF.md` 冒頭に反映。`node scripts/check-all.mjs --list` と `node scripts/check-all.mjs` を再実行し、静的10本 pass を確認。Chrome Web Store審査結果、実X、workflow、release/tag、外部送信は未実行。
-- 🎉 2026-07-06 Claude Code (Fable5) 公開確認: オーナーがダッシュボードで **Chrome Web Store 公開済み** を確認、エージェントが公開ストアページで v1.1.1・最終更新 2026-06-18・掲載文を確認。P2-021 を done 化し、README / CODEX_HANDOFF / playbook / verify-docs-consistency の状態語を lockstep 更新。以後の主戦場は公開後運用（playbook §3〜§4）と deferred register の保留項目（REVIEW-2026-07-05-SYNC-COMPLETE は masked live 再検証をオーナーが承認済み・実施待ち）。
-- 🧭 2026-07-03 Claude Code (Fable5) 再要件定義: `docs/requirements-v2-2026-07.md`（要件再定義 v2・成功指標の観測可能化・オーナー質問 Q1〜Q7）、`docs/research/market-2026-07.md`（市場・競合・CWS 審査動向の Web 調査メモ）、`docs/review-response-playbook.md`（審査長期化の問い合わせテンプレ・却下理由別対応表・公開後運用 runbook）を追加。相談役 Codex GPT-5.5 の 10 指摘を反映済み。CWS 審査は 2026-07-05 に保留 3 週間到達のため、オーナーへダッシュボード確認と問い合わせ判断を依頼（R2-001/002）。権限・データソース・配布状態の変更なし（§9 ゲート非該当）。審査結果は引き続き未確認。
+- 2026-06-21: レビュー指摘 H-1（sync 抽出の over-broad walk）→ PR #10 で path-scoped 抽出に解消。当時の委譲仕様・所見は `docs/archive/` に保存。
+- 2026-06-27〜30: `PHASE2-HOOK-PRODUCTION` の lifecycle hardening 一連（XHR 再open 重複防止 = PR #23、明示 teardown / 再 install 契約 = PR #25）、ハンドオフ drift 検査の `verify-docs-consistency.mjs` への追加（2026-06-28）、`scripts/check-all.mjs` 導入（PR #26）。
+- 2026-07-03: 要件定義書 v2（`docs/requirements-v2-2026-07.md`）・市場調査メモ・審査対応プレイブックを追加。
+- 2026-07-05: ultracode 本体レビュー → sync-state 直列化（PR #29）・UI 衛生/非提携免責（PR #30）を修正。判断記録は `docs/archive/review-2026-07-05.md`。
+- 2026-07-06: **Chrome Web Store 公開確認**（P2-021 done）。sync 完了判定を `isListTailResponse` に厳格化（PR #34、REVIEW-2026-07-05-SYNC-COMPLETE 解消）。
+- 2026-07-11〜12: 引き継ぎ資料を公開後フェーズへ同期（PR #35）。docs 全面整理: 歴史資料を `docs/archive/` へ分離、`docs/README.md` 索引を新設、要件 v2 の Q1/Q2 解消を反映。

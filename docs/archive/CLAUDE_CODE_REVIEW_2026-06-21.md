@@ -1,3 +1,5 @@
+> 🗄 **履歴資料（2026-07-12 アーカイブ）**: 2026-06-21 時点のレビュー所見。解決状況は `docs/deferred-findings-register.md` を正とする。
+
 # Claude Code 独立再レビュー — 012_x-true-block-mute（2026-06-21）
 
 > 本ファイルは Claude Code (Opus 4.8) による 2026-06-21 時点の独立再レビュー結果です。Codex はこのファイルを参照してください。

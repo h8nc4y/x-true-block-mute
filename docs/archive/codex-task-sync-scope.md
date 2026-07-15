@@ -1,3 +1,5 @@
+> 🗄 **履歴資料（2026-07-12 アーカイブ）**: H-1 は PR #10（merge `95bf09b`）で実装完了。新規実装指示として使わないこと。
+
 # Codex 委譲タスク: sync 抽出の over-broad walk を path-scoped に絞る（012 / H-1）
 
 > 出典: `docs/CLAUDE_CODE_REVIEW_2026-06-21.md` の H-1（advisory）。本ファイルは Claude Code が 2026-06-21 に作成した委譲タスク仕様。ソースは未変更。

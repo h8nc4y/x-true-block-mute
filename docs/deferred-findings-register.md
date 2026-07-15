@@ -28,7 +28,7 @@ Deferred items are not tasks. They are implemented only after the user approves 
 | PHASE2-REAL-DOM-MATCH | Real-DOM author matching | Resolved in M5 (P2-012): `e137d04` limits author-handle extraction to the top-level User-Name area and handles quote/embed separation defensively. | Completed as part of v1.1 real-DOM filtering. | n/a unless X changes DOM semantics and a new safe fixture/research plan is needed. |
 | PHASE2-MUTATION-REWRITE | MutationObserver rewrite | Resolved for current scope in M5 (P2-013): `a0538ae` prevents missed posts, prunes detached replacements, and survives SPA navigation. | Completed for the current known issue set; avoid speculative rewrites without evidence. | New measurable bug/performance issue and scoped implementation plan. |
 | PHASE2-HOOK-PRODUCTION | MAIN-world hook productionization | Production declarative settings-page hook is shipped; 2026-06-19 hardening gates response-body reads behind settings-list-page and list-endpoint checks, 2026-06-21 hardening uses URL pathname-only settings detection with same-document settings SPA characterization, 2026-06-27 reconciliation completion is narrowed to no-user Bottom cursor pages, 2026-06-28 local lifecycle tests cover off-settings XHR reads plus retry after a transient missing `SyncCapture` dependency, 2026-06-30 local lifecycle tests/guard prevent duplicate processing when the same XHR object is reopened before `loadend`, and 2026-06-30 explicit teardown support restores `fetch` / `XMLHttpRequest.open`, clears the installed guard, avoids body reads for in-flight and uninstalled requests, and keeps reinstall possible. | Not a launch blocker, but future code review should stay bounded to safety and lifecycle behavior. | Local safety tests, no new permissions, no raw response handling, and no product data-source change. |
-| DIST-CHROME-STORE | Chrome Web Store preparation | M7 preparation is done and owner submitted the item for review; review result remains 未確認. | Public submission/re-submission is a §9 gate handled by the owner. | Review result or rejection reason, then scoped fix/rollback plan if needed. |
+| DIST-CHROME-STORE | Chrome Web Store distribution | Resolved 2026-07-06: the item passed review and is published (v1.1.1, store page last updated 2026-06-18, owner-confirmed). | Any re-submission/update remains a §9 gate handled by the owner. | Owner approval before any store update; agents prepare fixes/zip only. |
 | OPS-DEPLOY | Cloudflare/Vercel/dashboard/deploy work | Not applicable to current extension gate. | Out of scope; the extension is local-only with no backend. | Separate approved ops task. |
 
 ## Stop conditions
@@ -60,8 +60,8 @@ The original M2/M3/M5 blockers below are resolved by the P2 roadmap unless marke
 - Real X DOM behavior: resolved in M5 by quote-aware author matching and SPA rescan work; report only aggregate/safe facts.
 - F1-A live endpoint shape and pagination: resolved in M3 as `f1a_viable`; raw response/cursor values remain forbidden.
 - A real-account masked summary: collected/evaluated during M3 without committing raw identifiers.
-- Chrome Web Store review result: 未確認; owner-side review/approval flow remains outside this register.
+- Chrome Web Store review result: resolved — published 2026-06-18 (owner-confirmed 2026-07-06); store operations remain owner-side.
 
 ## Next minimum step
 
-While Chrome Web Store review is pending, the next agent-safe work is documentation consistency, local check maintenance, and bounded review of `PHASE2-HOOK-PRODUCTION` without changing permissions or product data sources.
+With the extension published, the next agent-safe work is post-publication operations (`docs/review-response-playbook.md` §3–§4), documentation consistency, local check maintenance, and bounded review of `PHASE2-HOOK-PRODUCTION` without changing permissions or product data sources.
