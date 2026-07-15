@@ -10,7 +10,7 @@
 | `../CODEX_HANDOFF.md` | Codex（自律主開発者）の引き継ぎ正本。現状・自走ループ・4ゲート・次の一手 |
 | `../TASKS_BACKLOG.md` | タスクトラッカー（P2 系列は全完了。変更履歴の要約付き） |
 | `../README.md` | 製品概要・検証コマンド・storage schema・公開状態 |
-| `CLAUDECODE_HANDOFF.md` | Claude Code 司令塔セッション向けの引き継ぎ（役割分担・委譲規律） |
+| `CLAUDECODE_HANDOFF.md` | Claude Code 引き継ぎ（互換名。冒頭に固定分掌廃止の注記あり） |
 
 ## 要件・市場・運用（公開後フェーズの主資料）
 

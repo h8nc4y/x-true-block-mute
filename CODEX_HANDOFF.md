@@ -13,8 +13,8 @@
 
 - **あなたは自律的な主開発者**です。「タスク選定 → 実装 → 自己検証（check:all 緑）→ 敵対的自己レビュー → 日本語コミット → PR」までを**承認待ちなしで自走**してよい。
 - **例外は4つだけ**＝§9の **人間承認ゲート**。これに該当する操作は必ず停止してオーナー（あなたの委譲元の人間）の承認を待つ。
-- **フロントのビジュアルデザインの「創出」はしない**。配色・書体・レイアウトを新規に決める／作り直す作業は、**§12 のブリーフを書いて停止**する。オーナーが Claude（frontend-design）へ渡し、返ったデザイン仕様に**沿って実装**するのがあなたの担当。既存トークンに従う微修正（既存色の適用・余白調整・文言）は実装してよいが、新しい配色/書体/レイアウト体系の決定はしない。
-- **レビューは原則あなたのセルフレビュー**（check:all 緑 ＋ §8 の敵対的自己レビュー）。外部相談が materially useful なときは、利用可能なら `agmsg` で Claude/Ultracode peer に短く相談し、使えない場合だけ **§13 の依頼ブロック**を残す。
+- **フロントのビジュアルデザインも担当する**。配色・書体・レイアウトの方針から実装、a11y、実レンダー検証まで進める。§12 は停止・人手仲介用ではなく、判断根拠と受け入れ基準を整理する内部メモとして使う。
+- **レビューは原則あなたのセルフレビュー**（check:all 緑 ＋ §8 の敵対的自己レビュー）。外部相談は materially useful なときだけ使う。廃止済みの `agmsg` は使わず、復活させない。
 - 報告・ユーザー向け文章は**日本語**。冒頭に JST タイムスタンプ `YYYY/MM/DD HH:MM:SS` を付ける（PowerShell: `[System.TimeZoneInfo]::ConvertTimeBySystemTimeZoneId([DateTime]::UtcNow,'Tokyo Standard Time').ToString('yyyy/MM/dd HH:mm:ss')`）。
 - **テスト結果・コマンド出力・commit hash・PR URL を捏造しない。** 未確認は「未確認」と書く。
 
@@ -215,11 +215,11 @@ foreach ($s in @('verify-phase1-static','verify-docs-consistency','audit-operati
 - 新権限・新データソース（F1-B/F1-D）・プライバシー方針変更（§9④）。
 - 端末外送信・deploy・有料サービス（§9②③）。
 
-## 12. デザインブリーフ雛形（Codex → ClaudeDesign、人手仲介）
+## 12. デザイン判断メモ雛形
 
-新規ビジュアル設計（配色/書体/レイアウトの創出・作り直し）が必要になったら、**実装せず**以下を埋めて出力し停止する。オーナーが Claude(frontend-design) に渡し、返ったトークン/仕様に沿ってあなたが実装する。
+新規ビジュアル設計（配色/書体/レイアウトの創出・作り直し）が必要になったら、以下を埋めて判断根拠と受け入れ基準を固定し、そのまま実装と検証へ進む。
 
-**設計の不変制約（ブリーフに必ず明記・逸脱不可）**:
+**設計の不変制約（メモに必ず明記・逸脱不可）**:
 - アイデンティティ = わんコメ(OneComme)/BOOTH/FANBOX 風＝**白基調＋オレンジ系アクセント**、ピル型ボタン・角丸カード・余白広め・フレンドリー（エラー調にしない）。対象 = VTuber/配信者・非エンジニア。
 - **AA コントラスト必須**。テキスト付きオレンジ面は明色 `#f08300`（白文字 2.64:1＝不可）を使わず**濃色 `#b85600` 系**（白文字 4.81:1）を使う「2 オレンジ分離」を維持。
 - フォントは**システムスタック（JP 対応）**: `system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Kaku Gothic ProN", "Noto Sans JP", Meiryo, sans-serif`。Web フォント追加は要相談。UI 言語は日本語。
@@ -227,7 +227,7 @@ foreach ($s in @('verify-phase1-static','verify-docs-consistency','audit-operati
 - 現行トークンは `:root`（`src/popup/popup.css`・`src/options/options.css`）に定義。主要値: `--accent:#f08300`（小面アクセント限定）/`--accent-strong:#b85600`（文字面）/`--accent-ink:#a85400`（リンク）/`--bg-page:#fff8f0`/`--surface:#fff`/`--surface-tint:#fff6ea`/`--border-soft:#f1e2cf`/`--text:#3a3f47`/`--text-strong:#222a30`/`--text-muted:#5e6672`/`--radius-lg:16px`。content-script はトークン未使用でハードコード（placeholder: border `#f6dcae`/bg `#fff7ec`/text `#6b4a25`/左帯 `#f08300`）。ブランドマーク `icons/icon.svg` = `#f08300`＋濃紺 `#102445`（紺は**マーク専用**・UI 不使用）。
 
 ```
-## デザインブリーフ（Codex → ClaudeDesign）
+## デザイン判断メモ
 - 日時 / 対象タスク:
 - 対象サーフェス: [ popup(372px) / options(640px) / content-script placeholder / アイコン ] のどれか
 - 目的（何を・なぜ。非エンジニア/VTuber 視点で）:
@@ -243,16 +243,16 @@ foreach ($s in @('verify-phase1-static','verify-docs-consistency','audit-operati
 - スコープ外（今回触らないもの）:
 ```
 
-返ってきたデザイン仕様に沿って実装した後は、`make-screenshots.mjs` をローカル Chromium で実行できた場合だけストア用スクショの再生成結果を PR に明記し、未実行なら「未確認」と書く。
+決定したデザイン仕様に沿って実装した後は、`make-screenshots.mjs` をローカル Chromium で実行できた場合だけストア用スクショの再生成結果を PR に明記し、未実行なら「未確認」と書く。
 
 ---
 
-## 13. 外部レビュー/相談ブロック雛形（Codex → agmsg / ChatGPT / Claude）
+## 13. 外部レビュー/相談ブロック雛形
 
-セルフレビューで潰し切れない不確実性が残るときだけ、利用可能なら `agmsg` で下記要点を短く相談する。`agmsg` が使えない場合は以下を出力して停止する（オーナーが ChatGPT/Claude へ渡せる形にする）。**差分や説明に実データ・raw handle・user_id・token を含めない**（§10）。
+セルフレビューで潰し切れない不確実性が残るときだけ、下記要点で利用可能なレビュー手段を使う。廃止済みの `agmsg` は使用・復活させない。**差分や説明に実データ・raw handle・user_id・token を含めない**（§10）。
 
 ```
-## 外部レビュー/相談（Codex → agmsg / ChatGPT / Claude）
+## 外部レビュー/相談
 - 日時 / 対象ブランチ・PR:
 - レビュー種別: [ 正しさ / セキュリティ・プライバシー / パフォーマンス / 設計 ] から選択（複数可）
 - 変更の要約（何を・なぜ）:
