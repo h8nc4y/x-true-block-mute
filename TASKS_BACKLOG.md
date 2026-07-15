@@ -88,3 +88,11 @@ M1 ──→ M2 ──→ M3(分岐点) ──→ M4 ──→ M5 ──→ M6 �
 - 2026-07-05: ultracode 本体レビュー → sync-state 直列化（PR #29）・UI 衛生/非提携免責（PR #30）を修正。判断記録は `docs/archive/review-2026-07-05.md`。
 - 2026-07-06: **Chrome Web Store 公開確認**（P2-021 done）。sync 完了判定を `isListTailResponse` に厳格化（PR #34、REVIEW-2026-07-05-SYNC-COMPLETE 解消）。
 - 2026-07-11〜12: 引き継ぎ資料を公開後フェーズへ同期（PR #35）。docs 全面整理: 歴史資料を `docs/archive/` へ分離、`docs/README.md` 索引を新設、要件 v2 の Q1/Q2 解消を反映。
+
+## 外部レビュー指摘の台帳（2026-07-15 maxエフォート横断レビュー）
+
+読取専用レビュー（実行検証なし）の指摘。採否と実装は次担当が判断する。完了時は行頭を [x] にし、対応PRを追記する。
+
+- [ ] sync-bridge.js:24,149 — staging Mapがページ生存中クリアされず、unblock後もreconcileで残留(次回ページロードまで)。最小修正: reconcile成功時にsnapshot比較で更新。confidence高/severity低
+- [ ] storage.js:16 — 書込直列化laneがJSコンテキスト単位のため、popup(削除)と設定ページ(upsert)並行でread-modify-write競合の余地。最小修正: 削除系を世代トークン保護。confidence中
+- [ ] content-script.js:19 — PROFILE_RESERVED_PATHSが8種のみ(hashtag/intent/lists/communities等未収載)。confidence低
