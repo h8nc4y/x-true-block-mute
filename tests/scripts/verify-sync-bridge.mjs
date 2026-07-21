@@ -190,6 +190,56 @@ async function main() {
     store.entries.some((e) => e.user_id === mutedEntry.user_id && e.listKind === "muted"),
     "reconciliation leaves muted entries untouched"
   );
+
+  // 初回要求を伴わない tail-only refetch は、部分集合で全置換しない。
+  // 前回の完全な staging を保持して、既存対象の削り落としを安全側で防ぐ。
+  dispatchMessage({
+    source: SYNC_MESSAGE_SOURCE,
+    kind: "sync-entries",
+    listKind: "blocked",
+    entries: [blockedEntries[0]]
+  });
+  await flushStorage();
+  dispatchMessage({ source: SYNC_MESSAGE_SOURCE, kind: "sync-complete", listKind: "blocked" });
+  await flushStorage();
+  store = await Storage.getEntryStore();
+  const blockedAfterTailOnlyRefetch = store.entries.filter(
+    (entry) => entry.source === "f1a-sync" && entry.listKind === "blocked"
+  );
+  check(
+    [blockedEntries[1], concurrentBlockedA, concurrentBlockedB].every((expected) =>
+      blockedAfterTailOnlyRefetch.some((entry) => entry.user_id === expected.user_id)
+    ),
+    "tail-only refetch keeps the previous complete staging set",
+    blockedAfterTailOnlyRefetch.map((entry) => entry.user_id)
+  );
+
+  // cursor 無しの初回要求を hook が確認したときだけ新しい全走査を開始する。
+  // 2回目の全走査で観測されなかった対象は解除済みとして reconcile から除去する。
+  dispatchMessage({ source: SYNC_MESSAGE_SOURCE, kind: "sync-start", listKind: "blocked" });
+  dispatchMessage({
+    source: SYNC_MESSAGE_SOURCE,
+    kind: "sync-entries",
+    listKind: "blocked",
+    entries: [blockedEntries[0]]
+  });
+  await flushStorage();
+  dispatchMessage({ source: SYNC_MESSAGE_SOURCE, kind: "sync-complete", listKind: "blocked" });
+  await flushStorage();
+  store = await Storage.getEntryStore();
+  const blockedAfterSecondFullTraversal = store.entries.filter(
+    (entry) => entry.source === "f1a-sync" && entry.listKind === "blocked"
+  );
+  check(
+    blockedAfterSecondFullTraversal.length === 1 &&
+      blockedAfterSecondFullTraversal[0].user_id === blockedEntries[0].user_id,
+    "a sync-start cycle drops entries absent from the new full traversal",
+    blockedAfterSecondFullTraversal.map((entry) => entry.user_id)
+  );
+  check(
+    store.entries.some((e) => e.user_id === mutedEntry.user_id && e.listKind === "muted"),
+    "a second blocked cycle still leaves muted entries untouched"
+  );
 }
 
 main()

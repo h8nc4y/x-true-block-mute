@@ -58,6 +58,38 @@
       return isSettingsListPage() && Boolean(SyncCapture.listKindFromUrl(url));
     }
 
+    function isInitialListRequest(url) {
+      // X の pagination cursor 値は保存・送信せず、variables JSON に cursor key が
+      // 無い初回要求だけを新しい全走査の境界として扱う。解析不能時は reset しない。
+      try {
+        const requestUrl = new URL(String(url || ""), location.origin);
+        const rawVariables = requestUrl.searchParams.get("variables");
+        if (!rawVariables || rawVariables.length > 100000) {
+          return false;
+        }
+        const variables = JSON.parse(rawVariables);
+        if (!variables || typeof variables !== "object" || Array.isArray(variables)) {
+          return false;
+        }
+        if (Object.prototype.hasOwnProperty.call(variables, "cursor")) {
+          return false;
+        }
+        // JSON text 内の nested cursor key も安全側で pagination 扱いに倒す。
+        return !/"cursor"\s*:/.test(rawVariables);
+      } catch (_error) {
+        return false;
+      }
+    }
+
+    function postStart(listKind) {
+      // bridge へ渡すのは固定シグナルと listKind だけ。request variables や
+      // cursor 値を page world の外へ持ち出さない。
+      window.postMessage(
+        { source: messageSource, kind: "sync-start", listKind },
+        location.origin
+      );
+    }
+
     function postEntries(listKind, entries) {
       if (!entries || entries.length === 0) {
         return;
@@ -91,6 +123,10 @@
       }
       if (json && Array.isArray(json.errors) && json.errors.length > 0) {
         return;
+      }
+      if (isInitialListRequest(url)) {
+        // 正常な初回応答を確認してから reset し、失敗要求で既存 staging を失わない。
+        postStart(listKind);
       }
       const entries = SyncCapture.extractSyncEntries(json, listKind);
       if (entries.length > 0) {

@@ -281,12 +281,31 @@ check(
   "installSyncHook does not wrap XMLHttpRequest.open more than once"
 );
 
-// 1. List endpoint (fetch) -> entries posted
-await context.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?variables=x");
+// 1. cursor 無しの初回 list request -> sync-start の後に entries を通知する。
+// request variables 自体や cursor 値は bridge へ送らない。
+const initialBlockedVariables = encodeURIComponent(JSON.stringify({ count: 20 }));
+await context.window.fetch(`https://x.com/i/api/graphql/abc/BlockedAccounts?variables=${initialBlockedVariables}`);
 await flush();
 await flush();
-const blockedMsgs = messages.filter((m) => m.message.source === "x-tbm:sync:capture" && m.message.listKind === "blocked");
+const blockedStartMsgs = messages.filter(
+  (m) =>
+    m.message.source === "x-tbm:sync:capture" &&
+    m.message.kind === "sync-start" &&
+    m.message.listKind === "blocked"
+);
+const blockedMsgs = messages.filter(
+  (m) =>
+    m.message.source === "x-tbm:sync:capture" &&
+    m.message.kind === "sync-entries" &&
+    m.message.listKind === "blocked"
+);
+check(blockedStartMsgs.length === 1, "initial blocked request posts one sync-start message", blockedStartMsgs.length);
 check(blockedMsgs.length === 1, "one blocked sync-entries message posted", blockedMsgs.length);
+check(
+  messages.indexOf(blockedStartMsgs[0]) < messages.indexOf(blockedMsgs[0]),
+  "sync-start is posted before the first entry batch"
+);
+check(!("entries" in (blockedStartMsgs[0]?.message || {})), "sync-start carries no entries property");
 const blockedEntries = blockedMsgs[0]?.message.entries || [];
 check(blockedEntries.length === 2, "blocked message carries the 2 user entries", blockedEntries.length);
 check(blockedEntries.every((e) => e.listKind === "blocked"), "blocked entries tagged listKind blocked");
@@ -294,6 +313,35 @@ const blockedStr = JSON.stringify(blockedMsgs[0]?.message || {});
 check(blockedStr.includes("9000000000000000001"), "entries intentionally include the user's own ids (production flow)");
 check(!blockedStr.includes("synthetic-bottom-cursor"), "cursor value must not leave the page");
 check(!blockedStr.includes("Synthetic Blocked"), "display names must not leave the page");
+check(
+  !JSON.stringify(blockedStartMsgs[0]?.message || {}).includes("variables"),
+  "sync-start does not expose request variables"
+);
+
+// cursor 付き pagination request は新しい全走査ではない。entries は取り込むが、
+// staging reset を起こす sync-start と request cursor 値は bridge へ出さない。
+const beforePaginatedBlocked = messages.length;
+const paginatedBlockedVariables = encodeURIComponent(
+  JSON.stringify({ count: 20, cursor: "synthetic-request-cursor" })
+);
+await context.window.fetch(
+  `https://x.com/i/api/graphql/abc/BlockedAccounts?variables=${paginatedBlockedVariables}`
+);
+await flush();
+await flush();
+const paginatedBlockedMessages = messages.slice(beforePaginatedBlocked);
+check(
+  paginatedBlockedMessages.filter((m) => m.message.kind === "sync-start").length === 0,
+  "paginated blocked request posts no sync-start"
+);
+check(
+  paginatedBlockedMessages.filter((m) => m.message.kind === "sync-entries").length === 1,
+  "paginated blocked request still posts its entry batch"
+);
+check(
+  !JSON.stringify(paginatedBlockedMessages).includes("synthetic-request-cursor"),
+  "request cursor value must not leave the page"
+);
 
 const beforeOffSettings = messages.length;
 location.href = "https://x.com/home";
@@ -325,17 +373,30 @@ await context.window.fetch("https://x.com/i/api/graphql/abc/HomeTimeline?variabl
 await flush();
 await flush();
 const total = messages.filter((m) => m.message.source === "x-tbm:sync:capture").length;
-check(total === 1, "non-list endpoint produces no sync message", total);
+check(total === 3, "non-list endpoint produces no sync message", total);
 check(nonListTextReadCount === 0, "non-list fetch response body is not read", nonListTextReadCount);
 
 // 3. Muted endpoint via XHR after same-document settings SPA navigation.
 location.href = "https://x.com/settings/muted/all?src=spa";
 const xhr = new context.XMLHttpRequest();
-xhr.open("GET", "https://x.com/i/api/graphql/abc/MutedAccounts?variables=x");
+const initialMutedVariables = encodeURIComponent(JSON.stringify({ count: 20 }));
+xhr.open("GET", `https://x.com/i/api/graphql/abc/MutedAccounts?variables=${initialMutedVariables}`);
 xhr.responseText = mutedBody;
 xhr.dispatch("loadend");
 await flush();
-const mutedMsgs = messages.filter((m) => m.message.source === "x-tbm:sync:capture" && m.message.listKind === "muted");
+const mutedStartMsgs = messages.filter(
+  (m) =>
+    m.message.source === "x-tbm:sync:capture" &&
+    m.message.kind === "sync-start" &&
+    m.message.listKind === "muted"
+);
+const mutedMsgs = messages.filter(
+  (m) =>
+    m.message.source === "x-tbm:sync:capture" &&
+    m.message.kind === "sync-entries" &&
+    m.message.listKind === "muted"
+);
+check(mutedStartMsgs.length === 1, "initial muted request posts one sync-start message", mutedStartMsgs.length);
 check(mutedMsgs.length === 1, "one muted sync-entries message posted (XHR)", mutedMsgs.length);
 check((mutedMsgs[0]?.message.entries || []).length === 1, "muted message carries the 1 user entry");
 check(!JSON.stringify(mutedMsgs[0]?.message || {}).includes("synthetic-muted-cursor"), "muted cursor value must not leave the page");
