@@ -57,8 +57,8 @@ content_scripts（宣言的・3 登録）:
 - `storage/storage.js` — 唯一の storage 抽象。`runExclusive` 直列化で read-modify-write 競合を防止。`upsertSyncedEntries`（user_id 主・handle 副の重複排除＋handle-only の昇格）、`replaceSyncedListKind`（listKind 単位の全置換＝reconcile）、`clearSyncedEntries`、synthetic/sync-state ヘルパ。
 - `content/content-script.js` — タイムライン DOM フィルタ。`extractAuthorHandle` は最上位 `[data-testid="User-Name"]` 領域に限定し**引用コンテナを除外**（引用/埋め込み/メンションを著者と誤認しない）。`processQuotedCards` は host が安全でも引用先が対象なら引用カードだけ隠す。`MutationObserver`＋`storage.onChanged` で SPA 遷移に追従。差し替えは可逆。
 - `sync/sync-capture.js` — MAIN-safe な純ロジック（`chrome.*` 無し・単体テスト可）。`listKindFromUrl`／`extractSyncEntries`（深さ20・ノード20000上限・WeakSet 循環ガード、`legacy.`/`core.` 両形に対応、cursor/表示名は読まない）／`hasTimelineEntries`。
-- `sync/sync-hook.js` — MAIN フック。`fetch`/`XHR` を冪等ラップ（`window.__xTbmSyncHookInstalled`）。同一オリジン宛 postMessage。
-- `sync/sync-bridge.js` — ISOLATED 受信。`event.source===window`＋source 検証。空 staging では reconcile しない**安全弁**（誤った完了でリストを消さない）。
+- `sync/sync-hook.js` — MAIN フック。`fetch`/`XHR` を冪等ラップ（`window.__xTbmSyncHookInstalled`）。cursor を持たない初回 list request の正常応答では、request variables を含めず固定の `sync-start` を entries より先に同一オリジンへ postMessage する。
+- `sync/sync-bridge.js` — ISOLATED 受信。`event.source===window`＋source 検証。`sync-start` で該当 listKind の staging だけを新しい全走査へ切り替え、pagination / tail-only refetch では前回の完全集合を保持する。空 staging では reconcile しない**安全弁**（誤った完了でリストを消さない）。
 - `popup/popup.js`・`options/options.js` — 設定 UI／透明性ページ。`storage.onChanged` で自動更新。
 
 ストレージキー: `chrome.storage.sync.xtbmSettings`（enabled/displayMode）、`chrome.storage.local.xtbmEntries`（raw user_id/handle はここ＝端末内のみ）、`chrome.storage.local.xtbmSyncState`、`chrome.storage.local.xtbmF1AResearch`（旧研究の masked 専用・本番未使用）。
@@ -69,8 +69,8 @@ content_scripts（宣言的・3 登録）:
 
 - **version `1.1.1`**（`manifest.json` が真実。`minimum_chrome_version:111`）。`dist/TrueBlock-Mute-v1.1.1.zip` は生成済み（`dist/` は gitignore・再生成可）。
 - **Chrome Web Store: 公開済み**（store item ID `anpgfamnbjoajbapfeclnjkklbcoknkb`、2026-06-14 にオーナーが「審査のため送信」→ 公開ページの最終更新 2026-06-18・公開版 v1.1.1。2026-07-06 にオーナーがダッシュボードで公開を確認し、エージェントが公開ストアページで version / 掲載文を確認。旧状態「提出済み・審査結果待ち」は公開で解消）。Codex は Chrome Web Store の管理画面確認・再提出・公開操作を行わない。
-- `TASKS_BACKLOG.md` は現行トラッカー（P2 系列は全 done/closed）。2026-07-15 の読取専用レビューで挙がった3所見は安定 ID 付きの未完了候補として同ファイルに昇格し、判断理由とゲートは `docs/deferred-findings-register.md` に同期済み。
-- 2026-07-21 着手時点の `main` は PR #39 merge commit `4f1ddb7`。PR #36（docs 分類整理）、#37（廃止済み固定分掌の除去）、#38（`CODEX_START_HERE.md` 追加）、#39（外部レビュー所見の台帳化）まで反映済みで、open PR は0件だった。
+- `TASKS_BACKLOG.md` は現行トラッカー（P2 系列は全 done/closed）。2026-07-15 の読取専用レビュー3所見のうち `REVIEW-2026-07-15-SYNC-STAGING` は PR #41 で解消し、残る検証候補は storage lane と reserved paths の2件。判断理由とゲートは `docs/deferred-findings-register.md` に同期済み。
+- 2026-07-21 に PR #40（現況・所見台帳同期、merge commit `3155c63`）を merge。続く PR #41 では同一ページ再同期の staging lifecycle を、cursor 無し initial request の固定 `sync-start` と synthetic 回帰で修正した。
 - 2026-07-21 実測で `node scripts/check-all.mjs` は静的10本 PASS。docs は現行資料と歴史資料（`docs/archive/`）を分離済みで、分類索引は `docs/README.md`。
 - プロダクト機能は完成し公開済み（本番同期・実DOM著者照合・reconcile・popup/options・プライバシーポリシー JA/EN・allowlist パッケージ）。以後は公開後運用（`docs/review-response-playbook.md` §3〜§4）と、`docs/requirements-v2-2026-07.md` §7 のオーナー未回答質問（Q3〜Q7: 公開範囲・告知・サポート窓口・費用・v1.2 優先度）への回答待ちが主戦場。CI workflow の追加・Chrome Web Store 操作・release/tag は §9 ゲート。
 - v1.2 候補（**実装しない・オーナー承認待ち＝§9④**）: 同期忘れ/鮮度切れの警告 UI（仕様は `docs/requirements-v2-2026-07.md` §5 に定義済み）、初回オンボーディング、Firefox 移植。
@@ -202,13 +202,14 @@ foreach ($s in @('verify-phase1-static','verify-docs-consistency','audit-operati
 **まず認識**: Chrome Web Store 公開済みで、工学的な launch blocker も外部ブロッカーも無い。フェーズは**公開後運用**。実装系の大タスク（v1.2 警告 UI 等）は §9④（要件変更）でオーナー承認待ちのため、Codex が自走で価値を出せるのは、公開操作に触れない範囲の**ドキュメント整合・ローカル検証の保守・限定的なコード健全性レビュー・不具合報告対応の準備**。
 
 自走可（§9に触れない）・推奨着手順:
-1. **`REVIEW-2026-07-15-SYNC-STAGING` の再現・修正** — `sync-bridge.js` の staging が reconcile 成功後も残り、同一ページで解除済み対象を再混入させる候補所見。synthetic fixture で失敗を再現してから最小修正し、`verify-sync-bridge.mjs` と静的10本で固定する。新権限・新データソース・live X 読み取りは行わない。
-2. **ハンドオフ/トラッカー整合の維持** — `CODEX_HANDOFF.md`、`AGENTS.md`、`TASKS_BACKLOG.md`、`README.md`、`docs/deferred-findings-register.md` が同じ現状を指すよう保つ。古い ChatGPT 承認制、`storage + scripting` 旧記述、`TASKS_BACKLOG.md` 陳腐化前提、Vault 書き込み不可前提、「審査待ち」旧状態を再導入しない。
-3. **ローカル検証ハーネス保守** — 静的10本が、権限・外部送信・raw 値禁止・ハンドオフ drift を検知し続けるようにする。ドキュメント編集後は `audit-operational-alignment.mjs` と `verify-docs-consistency.mjs` を必ず再実行。
-4. **公開後の不具合報告対応（`docs/review-response-playbook.md` §3〜§4 の runbook 実行）** — ユーザー報告が来たら「48時間以内一次判断・14日以内修正版 zip 作成」の指標で動く。報告から raw handle/user_id/スクショを受け取らず、synthetic fixture 化 → 修正 → check:all 緑 → zip 生成まで。**ストアへの再提出・公開はオーナー（§9①）**。
-5. **`PHASE2-HOOK-PRODUCTION` の bounded review** — MAIN-world hook の lifecycle / teardown / idempotency はローカル fixture と静的レビューだけで扱う。明示 teardown、in-flight停止、再 install 契約、tail 厳格化（PR #34）は固定済み。今後も新権限・新データソース・raw response 取得・live X 読み取りはしない。
-6. **オーナー回答の文書反映** — `docs/requirements-v2-2026-07.md` §7 の Q3〜Q7（公開範囲・告知・サポート窓口・費用・v1.2 優先度）への回答が共有されたら、要件 v2 の確定・backlog への v1.2 タスク起票・掲載文言の改善計画に反映する。回答が来るまで v1.2 実装には着手しない。
-7. **CI の草案作成のみ** — `.github/workflows` の新規作成・変更は §9① に該当するため、workflow を有効化しない。必要なら静的10本を走らせる CI 手順の Markdown 草案までに留める。
+1. **`REVIEW-2026-07-15-STORAGE-LANE` の再現性検証** — popup の削除と設定ページの upsert が別 JavaScript コンテキストで競合する候補所見。まず synthetic な複数コンテキスト storage stub で lost update を再現し、削除優先規則と世代トークン案の必要性を確定する。再現できない場合は推測実装をせず台帳へ根拠を残す。
+2. **`REVIEW-2026-07-15-RESERVED-PATHS` の到達可能性検証** — User-Name 領域の synthetic URL で予約パスが author handle 候補へ到達するかを確認する。confidence 低のため、再現前に予約語を増やさない。
+3. **ハンドオフ/トラッカー整合の維持** — `CODEX_HANDOFF.md`、`AGENTS.md`、`TASKS_BACKLOG.md`、`README.md`、`docs/deferred-findings-register.md` が同じ現状を指すよう保つ。古い ChatGPT 承認制、`storage + scripting` 旧記述、`TASKS_BACKLOG.md` 陳腐化前提、Vault 書き込み不可前提、「審査待ち」旧状態を再導入しない。
+4. **ローカル検証ハーネス保守** — 静的10本が、権限・外部送信・raw 値禁止・ハンドオフ drift を検知し続けるようにする。ドキュメント編集後は `audit-operational-alignment.mjs` と `verify-docs-consistency.mjs` を必ず再実行。
+5. **公開後の不具合報告対応（`docs/review-response-playbook.md` §3〜§4 の runbook 実行）** — ユーザー報告が来たら「48時間以内一次判断・14日以内修正版 zip 作成」の指標で動く。報告から raw handle/user_id/スクショを受け取らず、synthetic fixture 化 → 修正 → check:all 緑 → zip 生成まで。**ストアへの再提出・公開はオーナー（§9①）**。
+6. **`PHASE2-HOOK-PRODUCTION` の bounded review** — MAIN-world hook の lifecycle / teardown / idempotency はローカル fixture と静的レビューだけで扱う。明示 teardown、in-flight停止、再 install 契約、tail 厳格化（PR #34）、安全な全走査開始検出（PR #41）は固定済み。今後も新権限・新データソース・raw response 取得・live X 読み取りはしない。
+7. **オーナー回答の文書反映** — `docs/requirements-v2-2026-07.md` §7 の Q3〜Q7（公開範囲・告知・サポート窓口・費用・v1.2 優先度）への回答が共有されたら、要件 v2 の確定・backlog への v1.2 タスク起票・掲載文言の改善計画に反映する。回答が来るまで v1.2 実装には着手しない。
+8. **CI の草案作成のみ** — `.github/workflows` の新規作成・変更は §9① に該当するため、workflow を有効化しない。必要なら静的10本を走らせる CI 手順の Markdown 草案までに留める。
 
 人間ゲート（自走しない・停止して提示）:
 - Chrome Web Store の一切の操作（掲載文更新・再提出・公開設定・ダッシュボード確認はオーナー）。
