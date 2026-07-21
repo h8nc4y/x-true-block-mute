@@ -11,8 +11,9 @@
   // that left the list are removed. If nothing was staged this session (a stray
   // or premature completion), the bridge does nothing — a safety valve that
   // stops an empty/partial capture from wiping the user's synced list. Staging
-  // is never cleared after a reconcile, so a re-scroll that re-fires completion
-  // still carries the full captured set, not a partial re-accumulation.
+  // remains after completion so a tail-only refetch cannot replace the full list
+  // with a partial page. A structural "sync-start" signal (initial request with
+  // no pagination cursor) clears only that listKind before a new full traversal.
 
   const namespace = globalThis.XTrueBlockMute;
   if (!namespace || !namespace.Storage || !namespace.SYNC_MESSAGE_SOURCE) {
@@ -124,6 +125,13 @@
     }
     const listKind = acceptedMessageListKind(data);
     if (!listKind) {
+      return;
+    }
+
+    if (data.kind === "sync-start") {
+      // cursor 値は受け取らず、初回ページを正常取得できたという固定シグナルだけで
+      // 新しい全走査を開始する。tail-only refetch ではこの分岐へ来ない。
+      staging.delete(listKind);
       return;
     }
 

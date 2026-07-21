@@ -89,11 +89,12 @@ M1 ──→ M2 ──→ M3(分岐点) ──→ M4 ──→ M5 ──→ M6 �
 - 2026-07-06: **Chrome Web Store 公開確認**（P2-021 done）。sync 完了判定を `isListTailResponse` に厳格化（PR #34、REVIEW-2026-07-05-SYNC-COMPLETE 解消）。
 - 2026-07-11〜12: 引き継ぎ資料を公開後フェーズへ同期（PR #35）。docs 全面整理: 歴史資料を `docs/archive/` へ分離、`docs/README.md` 索引を新設、要件 v2 の Q1/Q2 解消を反映。
 - 2026-07-15: 読取専用の横断レビュー3所見を PR #39 で台帳化。2026-07-21 に安定 ID・優先順・検証条件を追記し、最上位を sync staging の再現・修正に確定。
+- 2026-07-21: PR #40 で現況資料と所見 ID を同期。PR #41 で `REVIEW-2026-07-15-SYNC-STAGING` を TDD 解消し、次の最上位を storage lane の再現性検証へ更新。
 
 ## 外部レビュー指摘の台帳（2026-07-15 maxエフォート横断レビュー）
 
 読取専用レビュー（実行検証なし）の指摘。2026-07-21 の現況同期でローカル検証対象へ昇格した。実装前に synthetic fixture で妥当性を確認し、完了時は行頭を [x] にして対応 PR を追記する。
 
-- [ ] `REVIEW-2026-07-15-SYNC-STAGING` — `sync-bridge.js:24,149`: staging Map がページ生存中クリアされず、解除後も次の reconcile で残留する候補。最小修正は reconcile 成功時の snapshot 比較付き更新。confidence 高 / severity 低。最上位で再現テストから着手。
+- [x] `REVIEW-2026-07-15-SYNC-STAGING` — PR #41 で解消。TDD RED で同一ページの2回目完全同期に前サイクル4件が残ることを再現した。無条件 clear は tail-only 部分ページによる削り落としを招くため採用せず、cursor 無し initial request の正常応答だけが固定 `sync-start` を送り、該当 listKind の staging を新しい全走査へ切り替える。pagination は前回完全集合を保持し、request variables / cursor 値は送信しない。`verify-sync-hook.mjs` / `verify-sync-bridge.mjs` / 静的10本 PASS。
 - [ ] `REVIEW-2026-07-15-STORAGE-LANE` — `storage.js:16`: 書込直列化 lane が JavaScript コンテキスト単位のため、popup（削除）と設定ページ（upsert）の並行 read-modify-write 競合余地。世代トークン案を含め、まず現行 API 境界で再現可能性を検証する。confidence 中。
 - [ ] `REVIEW-2026-07-15-RESERVED-PATHS` — `content-script.js:19`: `PROFILE_RESERVED_PATHS` が8種のみで、`hashtag` / `intent` / `lists` / `communities` 等を handle と誤認する候補。実 DOM を読まず synthetic URL で現行 author 領域から到達可能かを確認する。confidence 低。
