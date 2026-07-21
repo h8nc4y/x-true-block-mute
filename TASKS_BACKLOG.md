@@ -2,7 +2,7 @@
 
 ## Status
 
-最終更新: 2026-07-12
+最終更新: 2026-07-21
 
 このファイルは現行タスクのトラッカーです。Codex は現行のユーザー指示とハンドオフを優先し、ここではロードマップとタスク状態を実装実態に合わせて記録します。旧 ChatGPT 承認制は廃止済みです。現行ユーザー指示で許可された自律開発の範囲では、Codex / Claude Code が通常の docs・test・code 健全性タスクを進めます。権限追加、Phase 移行、配布、外部送信などの境界変更は人間承認ゲートです。
 
@@ -72,7 +72,7 @@ M1 ──→ M2 ──→ M3(分岐点) ──→ M4 ──→ M5 ──→ M6 �
 
 ## Validation evidence
 
-現行の検証正本は `node scripts/check-all.mjs`（静的10本一括。コミット前に毎回緑を確認する）。直近の全緑実測は 2026-07-12。M1〜M7 期の個別コマンドのベースライン記録（2026-06-12/13）は、本ファイルの git 履歴旧版を参照。
+現行の検証正本は `node scripts/check-all.mjs`（静的10本一括。コミット前に毎回緑を確認する）。直近の全緑実測は 2026-07-21。M1〜M7 期の個別コマンドのベースライン記録（2026-06-12/13）は、本ファイルの git 履歴旧版を参照。
 
 ## Done criteria
 
@@ -88,11 +88,12 @@ M1 ──→ M2 ──→ M3(分岐点) ──→ M4 ──→ M5 ──→ M6 �
 - 2026-07-05: ultracode 本体レビュー → sync-state 直列化（PR #29）・UI 衛生/非提携免責（PR #30）を修正。判断記録は `docs/archive/review-2026-07-05.md`。
 - 2026-07-06: **Chrome Web Store 公開確認**（P2-021 done）。sync 完了判定を `isListTailResponse` に厳格化（PR #34、REVIEW-2026-07-05-SYNC-COMPLETE 解消）。
 - 2026-07-11〜12: 引き継ぎ資料を公開後フェーズへ同期（PR #35）。docs 全面整理: 歴史資料を `docs/archive/` へ分離、`docs/README.md` 索引を新設、要件 v2 の Q1/Q2 解消を反映。
+- 2026-07-15: 読取専用の横断レビュー3所見を PR #39 で台帳化。2026-07-21 に安定 ID・優先順・検証条件を追記し、最上位を sync staging の再現・修正に確定。
 
 ## 外部レビュー指摘の台帳（2026-07-15 maxエフォート横断レビュー）
 
-読取専用レビュー（実行検証なし）の指摘。採否と実装は次担当が判断する。完了時は行頭を [x] にし、対応PRを追記する。
+読取専用レビュー（実行検証なし）の指摘。2026-07-21 の現況同期でローカル検証対象へ昇格した。実装前に synthetic fixture で妥当性を確認し、完了時は行頭を [x] にして対応 PR を追記する。
 
-- [ ] sync-bridge.js:24,149 — staging Mapがページ生存中クリアされず、unblock後もreconcileで残留(次回ページロードまで)。最小修正: reconcile成功時にsnapshot比較で更新。confidence高/severity低
-- [ ] storage.js:16 — 書込直列化laneがJSコンテキスト単位のため、popup(削除)と設定ページ(upsert)並行でread-modify-write競合の余地。最小修正: 削除系を世代トークン保護。confidence中
-- [ ] content-script.js:19 — PROFILE_RESERVED_PATHSが8種のみ(hashtag/intent/lists/communities等未収載)。confidence低
+- [ ] `REVIEW-2026-07-15-SYNC-STAGING` — `sync-bridge.js:24,149`: staging Map がページ生存中クリアされず、解除後も次の reconcile で残留する候補。最小修正は reconcile 成功時の snapshot 比較付き更新。confidence 高 / severity 低。最上位で再現テストから着手。
+- [ ] `REVIEW-2026-07-15-STORAGE-LANE` — `storage.js:16`: 書込直列化 lane が JavaScript コンテキスト単位のため、popup（削除）と設定ページ（upsert）の並行 read-modify-write 競合余地。世代トークン案を含め、まず現行 API 境界で再現可能性を検証する。confidence 中。
+- [ ] `REVIEW-2026-07-15-RESERVED-PATHS` — `content-script.js:19`: `PROFILE_RESERVED_PATHS` が8種のみで、`hashtag` / `intent` / `lists` / `communities` 等を handle と誤認する候補。実 DOM を読まず synthetic URL で現行 author 領域から到達可能かを確認する。confidence 低。
