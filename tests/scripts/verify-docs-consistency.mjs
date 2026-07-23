@@ -10,7 +10,8 @@ const files = {
   gates: "docs/phase2-readiness-gates.md",
   threat: "docs/privacy-threat-model.md",
   deferred: "docs/deferred-findings-register.md",
-  handoff: "CODEX_HANDOFF.md"
+  handoff: "CODEX_HANDOFF.md",
+  backlog: "TASKS_BACKLOG.md"
 };
 
 const forbiddenPermissions = [
@@ -79,6 +80,10 @@ for (const staleText of [
 
 const handoffFenceCount = entries.handoff.match(/```/g)?.length ?? 0;
 assert(handoffFenceCount % 2 === 0, "CODEX_HANDOFF.md must have balanced Markdown fences");
+assert(
+  !entries.backlog.includes("直近の全緑実測は 2026-07-21"),
+  "TASKS_BACKLOG.md must not retain the pre-storage-lane validation date"
+);
 
 const manifestText = JSON.stringify(manifest);
 for (const value of forbiddenPermissions) {
@@ -127,6 +132,9 @@ for (const value of [
 
 for (const value of [
   "xtbmEntries",
+  "xtbmBaseEntries",
+  "xtbmLegacySyntheticEntries",
+  "whole-key remove",
   "xtbmF1AResearch",
   "must remain separate",
   "MAIN-world hook",
@@ -154,6 +162,10 @@ for (const value of [
 assertIncludes(entries.gates, "must not be used as live F1-A proof", "gates must distinguish fixture_pass from live evidence");
 assertIncludes(entries.gates, "verify-extension-load-chrome.mjs", "gates must reference the M2 Chrome verification script");
 assertIncludes(entries.threat, "Do not include raw account identifiers", "threat model must document raw-data reporting boundary");
-assertIncludes(entries.deferred, "Captured responses are not written to `xtbmEntries`", "deferred register must keep production sync out of current scope");
+assertIncludes(
+  entries.deferred,
+  "Captured responses are not written to production-entry storage before M4 approval",
+  "deferred register must preserve the historical production-storage approval boundary"
+);
 
 console.log("Docs consistency verification passed");

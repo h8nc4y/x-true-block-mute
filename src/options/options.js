@@ -154,7 +154,17 @@
   });
 
   if (globalThis.chrome && chrome.storage && chrome.storage.onChanged) {
-    const watchedKeys = [STORAGE_KEYS.ENTRIES, STORAGE_KEYS.SYNC_STATE];
+    const watchedKeys = [
+      STORAGE_KEYS.BASE_ENTRIES,
+      STORAGE_KEYS.ENTRIES,
+      STORAGE_KEYS.LEGACY_SYNTHETIC_ENTRIES,
+      STORAGE_KEYS.SYNTHETIC_ENTRIES,
+      STORAGE_KEYS.SYNC_ENABLED,
+      STORAGE_KEYS.SYNC_GENERATION,
+      STORAGE_KEYS.SYNC_LAST_SYNCED_AT,
+      STORAGE_KEYS.SYNC_MIGRATED,
+      STORAGE_KEYS.SYNC_STATE
+    ];
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (busy) {
         return;
@@ -164,7 +174,7 @@
       }
       const changedRelevantKey = watchedKeys.some((key) =>
         Object.prototype.hasOwnProperty.call(changes, key)
-      );
+      ) || Object.keys(changes).some((key) => key.startsWith(STORAGE_KEYS.SYNC_ENTRIES_PREFIX));
       if (!changedRelevantKey) {
         return;
       }

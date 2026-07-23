@@ -13,16 +13,16 @@ Phase 2 should not begin until the project has a clear local baseline, privacy b
 - The user remains the approval authority for human-gated changes. Within the current user-authorized autonomous loop, Codex / Claude Code may implement local docs, tests, and code-health tasks.
 - Claude Code may automate Chrome Load unpacked / popup / fixture verification (Playwright/CDP) and may drive live X masked-observation collection through the Chrome MCP under user consent.
 - The agent never receives or stores credentials (password, MFA, Cookie, token) and never reads raw X responses; only masked observations leave the page.
-- Chrome Web Store distribution is the final goal; readiness work is in scope. F1-C (OAuth/API) is closed; F1-B/F1-D are closed fallback options unless a new human-approved source decision supersedes F1-A.
+- Chrome Web Store distribution was the final launch goal and is complete; this document now preserves the gate baseline for post-publication maintenance. F1-C (OAuth/API) is closed; F1-B/F1-D are closed fallback options unless a new human-approved source decision supersedes F1-A.
 
 ## Current confirmed baseline
 
 - The repository is a Chrome Manifest V3 extension for reducing exposure to blocked or muted X/Twitter accounts.
-- The current phase is v1.1 / M7 Chrome Web Store review wait; Phase 2 production sync and filtering are implemented.
+- The current phase is v1.1.1 post-publication operations; Phase 2 production sync, filtering, M7 submission, review, and publication are complete.
 - Manifest permissions are limited to `storage`.
 - Host permissions are limited to `https://x.com/*` and `https://twitter.com/*`.
 - Local synthetic fixture, production sync extraction, bridge, storage schema, and packaging verification paths exist.
-- `xtbmF1AResearch` remains separate from normal `xtbmEntries`; research UI and dynamic `scripting` injection are retired from the shipped extension.
+- `xtbmF1AResearch` remains separate from production-entry storage (`xtbmSyncEntries:<generation>`; legacy `xtbmEntries`); research UI and dynamic `scripting` injection are retired from the shipped extension.
 - `fixture_pass` from `tests/scripts/evaluate-f1-observation.mjs` is fixture-only evidence and is not proof that F1-A is viable on live X.
 
 ## Gate summary
@@ -48,7 +48,7 @@ Before browser-dependent changes are accepted, this must hold:
 6. The UI clearly separates local synthetic test data from production sync.
 7. No real X login, X account data, Cookie, token, raw response, HAR, or personal screenshot is required for this check.
 
-Current status: M2 完了（2026-06-13） and refreshed through M7. `node tests/scripts/verify-extension-load-chrome.mjs` (Playwright Chromium + raw CDP, no npm deps) passed for extension load, popup, options, synthetic fixture filtering, and the storage-only/background-less package state. Screenshots use synthetic data only and are written to `tmp/` (gitignored). The branded installed Chrome 137+ disables `--load-extension`, so the cached open-source Chromium is used. Chrome Web Store review result remains 未確認.
+Current status: M2 完了（2026-06-13） and refreshed through M7. `node tests/scripts/verify-extension-load-chrome.mjs` (Playwright Chromium + raw CDP, no npm deps) passed for extension load, popup, options, synthetic fixture filtering, and the storage-only/background-less package state. Screenshots use synthetic data only and are written to `tmp/` (gitignored). The branded installed Chrome 137+ disables `--load-extension`, so the cached open-source Chromium is used. Chrome Web Store review passed and v1.1.1 is published (public page last updated 2026-06-18; owner confirmation 2026-07-06).
 
 ## Synthetic fixture gate
 
@@ -91,7 +91,7 @@ No new source should be implemented until the user approves the selected source,
 These remain hard stops even under the 2026-06-13 governance change. Stop and return to the user if the next step would require:
 
 - Receiving or storing credentials: password, MFA, Cookie, CSRF token, Authorization header, or OAuth token.
-- Reading or storing, anywhere outside the user's own `xtbmEntries` device storage, a raw user ID, raw handle, display name, post body, raw X response, HAR, or personal screenshot.
+- Reading or storing, anywhere outside the user's own local production-entry storage (`xtbmSyncEntries:<generation>`; legacy `xtbmEntries`), a raw user ID, raw handle, display name, post body, raw X response, HAR, or personal screenshot.
 - Capturing or reading raw X response bodies during live verification (only masked observations may leave the page).
 - Adding `webRequest`, `cookies`, `tabs`, `activeTab`, `<all_urls>`, or `https://api.x.com/*` without a written rationale, threat-model update, and user approval.
 - Sending any user data off the device (the extension stays local-only).
@@ -101,7 +101,7 @@ These remain hard stops even under the 2026-06-13 governance change. Stop and re
 User approval is required before:
 
 - Changing manifest permissions or host permissions.
-- Adopting a new source (F1-B/F1-D/other) or changing what production sync writes into `xtbmEntries`.
+- Adopting a new source (F1-B/F1-D/other) or changing what production sync writes into the local production-entry store.
 - Submitting to the Chrome Web Store (developer registration, payment, and final submission are performed by the user).
 - Any deploy, external dashboard, or paid-service usage.
 
@@ -109,4 +109,4 @@ Within these bounds, Codex / Claude Code may implement current user-authorized l
 
 ## Next minimum step
 
-The next minimum step is owner-side Chrome Web Store review tracking. Agent-safe work while review is pending is limited to documentation consistency, local validation maintenance, and scoped code health work that does not change permissions, data source, privacy posture, or distribution state.
+The next minimum step is the low-confidence synthetic reachability check for `REVIEW-2026-07-15-RESERVED-PATHS`, followed by post-publication documentation consistency, local validation maintenance, and scoped code-health work. Do not change permissions, product data sources, privacy posture, or distribution state without the applicable owner gate.

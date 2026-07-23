@@ -102,11 +102,9 @@
         const { DISPLAY_MODES, Storage } = window.XTrueBlockMute;
 
         async function seedHandleTargets() {
-          await Storage.setEntryStore({
-            schemaVersion: 1,
-            entries: [{ user_id: "9000000000000000001", handle: "blocked_author", source: "f1a-sync", listKind: "blocked" }],
-            lastSyntheticUpdatedAt: null
-          });
+          await Storage.upsertSyncedEntries([
+            { user_id: "9000000000000000001", handle: "blocked_author", listKind: "blocked" }
+          ]);
         }
 
         async function setMode(displayMode) {

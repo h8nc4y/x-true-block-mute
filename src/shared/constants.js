@@ -12,8 +12,16 @@
 
   namespace.STORAGE_KEYS = Object.freeze({
     SETTINGS: "xtbmSettings",
+    BASE_ENTRIES: "xtbmBaseEntries",
     ENTRIES: "xtbmEntries",
     F1A_RESEARCH: "xtbmF1AResearch",
+    LEGACY_SYNTHETIC_ENTRIES: "xtbmLegacySyntheticEntries",
+    SYNTHETIC_ENTRIES: "xtbmSyntheticEntries",
+    SYNC_ENABLED: "xtbmSyncEnabled",
+    SYNC_ENTRIES_PREFIX: "xtbmSyncEntries:",
+    SYNC_GENERATION: "xtbmSyncGeneration",
+    SYNC_LAST_SYNCED_AT: "xtbmSyncLastSyncedAt",
+    SYNC_MIGRATED: "xtbmSyncMigrated",
     SYNC_STATE: "xtbmSyncState"
   });
 

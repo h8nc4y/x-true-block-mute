@@ -5,7 +5,7 @@
 > 本書と `AGENTS.md` が食い違う場合は、現在の `AGENTS.md` に合わせて本書を更新することを最初の自走タスクにしてよい（§11・§6 参照）。
 > **§10 データ保護不変条件** と **§9 4ゲート** は、どの作業でも上書きできない最優先ルール。
 
-初版: 2026/06/19 ／ 最終更新: 2026/07/21 ／ リポジトリ: 本リポジトリ root（remote `origin` = `github.com/h8nc4y/x-true-block-mute`、default branch `main`）
+初版: 2026/06/19 ／ 最終更新: 2026/07/23 ／ リポジトリ: 本リポジトリ root（remote `origin` = `github.com/h8nc4y/x-true-block-mute`、default branch `main`）
 
 ---
 
@@ -48,30 +48,35 @@ content_scripts（宣言的・3 登録）:
  → sync-bridge.js(ISOLATED) が source 検証→staging。sync 有効時のみ
        sync-entries  → Storage.upsertSyncedEntries()（追記マージ）
        sync-complete → Storage.replaceSyncedListKind()（末尾到達時のみ全置換＝ブロック解除を反映）
- → chrome.storage.local: xtbmEntries（+ xtbmSyncState.lastSyncedAt）
+ → chrome.storage.local: active xtbmSyncEntries:<generation>
+                          （+ xtbmBaseEntries / xtbmSyntheticEntries
+                            / xtbmLegacySyntheticEntries / legacy xtbmEntries
+                            / xtbmSyncEnabled / xtbmSyncLastSyncedAt
+                            / xtbmSyncGeneration / xtbmSyncMigrated）
  → storage.onChanged → content-script.js が targetUserIds/Handles を再構築しカード走査→差し替え（可逆）
 ```
 
 主要モジュール（`src/`）:
 - `shared/constants.js` — 共有名前空間 `globalThis.XTrueBlockMute`、`STORAGE_KEYS`、`SYNC_MESSAGE_SOURCE="x-tbm:sync:capture"`、`DISPLAY_MODES`（既定 `placeholder`）、`SYNTHETIC_ENTRIES`、機能フラグ `LOCAL_TEST_UI_ENABLED=false`／研究 UI フラグ（既定 false）。
-- `storage/storage.js` — 唯一の storage 抽象。`runExclusive` 直列化で read-modify-write 競合を防止。`upsertSyncedEntries`（user_id 主・handle 副の重複排除＋handle-only の昇格）、`replaceSyncedListKind`（listKind 単位の全置換＝reconcile）、`clearSyncedEntries`、synthetic/sync-state ヘルパ。
+- `storage/storage.js` — 唯一の storage 抽象。同一 JavaScript context 内は `runExclusive` で直列化し、context をまたぐ削除と同期の競合は generation 別 shard で分離する。generation pointer は clear だけが更新し、旧操作の cleanup は live active shard を除外する。旧 single-key は base / legacy synthetic fallback / initial shard の全書込み後に commit を公開し、stale full-object set ではなく旧 key 全体を remove する。現行 synthetic は専用 key、`enabled` / `lastSyncedAt` は field 別 key へ分ける。`upsertSyncedEntries`（user_id 主・handle 副の重複排除＋handle-only の昇格）、`replaceSyncedListKind`（listKind 単位の全置換＝reconcile）、`clearSyncedEntries`、synthetic/sync-state ヘルパ。
 - `content/content-script.js` — タイムライン DOM フィルタ。`extractAuthorHandle` は最上位 `[data-testid="User-Name"]` 領域に限定し**引用コンテナを除外**（引用/埋め込み/メンションを著者と誤認しない）。`processQuotedCards` は host が安全でも引用先が対象なら引用カードだけ隠す。`MutationObserver`＋`storage.onChanged` で SPA 遷移に追従。差し替えは可逆。
 - `sync/sync-capture.js` — MAIN-safe な純ロジック（`chrome.*` 無し・単体テスト可）。`listKindFromUrl`／`extractSyncEntries`（深さ20・ノード20000上限・WeakSet 循環ガード、`legacy.`/`core.` 両形に対応、cursor/表示名は読まない）／`hasTimelineEntries`。
 - `sync/sync-hook.js` — MAIN フック。`fetch`/`XHR` を冪等ラップ（`window.__xTbmSyncHookInstalled`）。cursor を持たない初回 list request の正常応答では、request variables を含めず固定の `sync-start` を entries より先に同一オリジンへ postMessage する。
 - `sync/sync-bridge.js` — ISOLATED 受信。`event.source===window`＋source 検証。`sync-start` で該当 listKind の staging だけを新しい全走査へ切り替え、pagination / tail-only refetch では前回の完全集合を保持する。空 staging では reconcile しない**安全弁**（誤った完了でリストを消さない）。
 - `popup/popup.js`・`options/options.js` — 設定 UI／透明性ページ。`storage.onChanged` で自動更新。
 
-ストレージキー: `chrome.storage.sync.xtbmSettings`（enabled/displayMode）、`chrome.storage.local.xtbmEntries`（raw user_id/handle はここ＝端末内のみ）、`chrome.storage.local.xtbmSyncState`、`chrome.storage.local.xtbmF1AResearch`（旧研究の masked 専用・本番未使用）。
+ストレージキー: `chrome.storage.sync.xtbmSettings`（enabled/displayMode）、`chrome.storage.local.xtbmEntries`（移行前 single-key、commit 後 whole-key remove）、`chrome.storage.local.xtbmBaseEntries`（legacy/manual 専用）、`chrome.storage.local.xtbmSyntheticEntries`（現行 synthetic 専用）、`chrome.storage.local.xtbmLegacySyntheticEntries`（移行済み synthetic fallback）、`chrome.storage.local.xtbmSyncEntries:<generation>`（同期 raw user_id/handle＝端末内のみ）、`chrome.storage.local.xtbmSyncGeneration`（clear 専用の非機密 active pointer）、`chrome.storage.local.xtbmSyncMigrated`（全 entry domain の二段階移行 commit）、`chrome.storage.local.xtbmSyncEnabled` / `xtbmSyncLastSyncedAt`（field 別同期状態。旧 `xtbmSyncState` は読取互換）、`chrome.storage.local.xtbmF1AResearch`（旧研究の masked 専用・本番未使用）。
 
 ---
 
-## 4. リポジトリの現状（2026-07-21 時点）
+## 4. リポジトリの現状（2026-07-23 時点）
 
 - **version `1.1.1`**（`manifest.json` が真実。`minimum_chrome_version:111`）。`dist/TrueBlock-Mute-v1.1.1.zip` は生成済み（`dist/` は gitignore・再生成可）。
 - **Chrome Web Store: 公開済み**（store item ID `anpgfamnbjoajbapfeclnjkklbcoknkb`、2026-06-14 にオーナーが「審査のため送信」→ 公開ページの最終更新 2026-06-18・公開版 v1.1.1。2026-07-06 にオーナーがダッシュボードで公開を確認し、エージェントが公開ストアページで version / 掲載文を確認。旧状態「提出済み・審査結果待ち」は公開で解消）。Codex は Chrome Web Store の管理画面確認・再提出・公開操作を行わない。
-- `TASKS_BACKLOG.md` は現行トラッカー（P2 系列は全 done/closed）。2026-07-15 の読取専用レビュー3所見のうち `REVIEW-2026-07-15-SYNC-STAGING` は PR #41 で解消し、残る検証候補は storage lane と reserved paths の2件。判断理由とゲートは `docs/deferred-findings-register.md` に同期済み。
+- `TASKS_BACKLOG.md` は現行トラッカー（P2 系列は全 done/closed）。2026-07-15 の読取専用レビュー3所見のうち sync staging は PR #41、storage lane は独立 VM 2〜4 context の TDD で解消した。残る検証候補は reserved paths の1件。判断理由とゲートは `docs/deferred-findings-register.md` に同期済み。
 - 2026-07-21 に PR #40（現況・所見台帳同期、merge commit `3155c63`）を merge。続く PR #41 では同一ページ再同期の staging lifecycle を、cursor 無し initial request の固定 `sync-start` と synthetic 回帰で修正した。
-- 2026-07-21 実測で `node scripts/check-all.mjs` は静的10本 PASS。docs は現行資料と歴史資料（`docs/archive/`）を分離済みで、分類索引は `docs/README.md`。
+- 2026-07-23 に `REVIEW-2026-07-15-STORAGE-LANE` を TDD で再現。同期行を generation 別 shard へ分離し、popup clear 後の stale upsert は旧 shard だけを cleanup / reject する。4 context の連続 clear 中も最新 shard を保持し、旧 single-key は失敗再試行可能な二段階移行後に whole-key remove、base / synthetic / sync は別 key、同期状態は field 別 key とした。retired cleanup の一時失敗後も active generation を止めず次回 clear で再処理する回帰を固定した。
+- 2026-07-23 実測で `node scripts/check-all.mjs` は静的10本 PASS。docs は現行資料と歴史資料（`docs/archive/`）を分離済みで、分類索引は `docs/README.md`。
 - プロダクト機能は完成し公開済み（本番同期・実DOM著者照合・reconcile・popup/options・プライバシーポリシー JA/EN・allowlist パッケージ）。以後は公開後運用（`docs/review-response-playbook.md` §3〜§4）と、`docs/requirements-v2-2026-07.md` §7 のオーナー未回答質問（Q3〜Q7: 公開範囲・告知・サポート窓口・費用・v1.2 優先度）への回答待ちが主戦場。CI workflow の追加・Chrome Web Store 操作・release/tag は §9 ゲート。
 - v1.2 候補（**実装しない・オーナー承認待ち＝§9④**）: 同期忘れ/鮮度切れの警告 UI（仕様は `docs/requirements-v2-2026-07.md` §5 に定義済み）、初回オンボーディング、Firefox 移植。
 - ブランチ: `main`（＋ `feature/*`・`research/*`・`backup/*` の旧ブランチは温存。merge/delete しない）。
@@ -129,6 +134,7 @@ foreach ($s in @('verify-phase1-static','verify-docs-consistency','audit-operati
 - `verify-docs-consistency` — README/manifest/docs の整合・禁止権限が docs に明記・gate 状態語・storage キー名・CL-AUDIT/PHASE2 ID 列挙を確認。
 - `verify-package` — manifest/HTML 参照 ⊆ ALLOWLIST(18)・禁止パス不在・実 ZIP 妥当性。
 - `verify-f1a-*`／`verify-sync-*`／`verify-storage-sync-schema` — 抽出・フック・bridge・schema の安全性/正しさを `node:vm` で検証。
+- `verify-storage-sync-schema` の競合操作は各1.5秒、suite 全体は20秒、`scripts/check-all.mjs` の各 child は60秒で timeout し、callback 未完了や未解決 Promise を false-green／無期限待機にしない。
 
 権限ロックは **3本（phase1-static / audit / docs-consistency）が独立に**監視。権限を変えると3本とも落ちる（＝§9①/§10 の機械的ガード）。
 
@@ -189,7 +195,7 @@ foreach ($s in @('verify-phase1-static','verify-docs-consistency','audit-operati
 
 - secret / OAuth 資格情報 / Cookie / CSRF token / Authorization header / password / MFA code / 実データ / 個人データを**読まない・記録しない・コミットしない**。
 - raw X response / HAR / DevTools Network 本文 / 個人情報を含む screenshot / raw user_id / raw handle / 表示名 / 本文を、clipboard / fixture / docs / log / commit / PR / 外部レビューに**含めない**。
-- 本番 `xtbmEntries` の raw user_id/handle は**端末内 `chrome.storage.local` 限り**。docs/fixture/log/commit/clipboard へは出さない。境界詳細は `docs/privacy-threat-model.md`。
+- 本番同期 shard（`xtbmSyncEntries:<generation>`、旧形式は `xtbmEntries`）の raw user_id/handle は**端末内 `chrome.storage.local` 限り**。docs/fixture/log/commit/clipboard へは出さない。境界詳細は `docs/privacy-threat-model.md`。
 - x.com/twitter.com タブでは screenshot・DOM テキスト読取・network response 読取を行わない。ライブ X の masked observation 収集は Claude Code(Chrome MCP) がオーナー同意下で行う担当で、**Codex はやらない**。
 - 権限は `storage` ＋ x.com/twitter.com ホストに固定。`webRequest`/`cookies`/`tabs`/`activeTab`/`<all_urls>`/`api.x.com` を足さない（足すなら §9④＋脅威モデル更新＋承認）。
 - `evaluate-f1-observation.mjs` が `unsafe_summary` を返したら処理を停止し当該 summary を削除。
@@ -202,14 +208,13 @@ foreach ($s in @('verify-phase1-static','verify-docs-consistency','audit-operati
 **まず認識**: Chrome Web Store 公開済みで、工学的な launch blocker も外部ブロッカーも無い。フェーズは**公開後運用**。実装系の大タスク（v1.2 警告 UI 等）は §9④（要件変更）でオーナー承認待ちのため、Codex が自走で価値を出せるのは、公開操作に触れない範囲の**ドキュメント整合・ローカル検証の保守・限定的なコード健全性レビュー・不具合報告対応の準備**。
 
 自走可（§9に触れない）・推奨着手順:
-1. **`REVIEW-2026-07-15-STORAGE-LANE` の再現性検証** — popup の削除と設定ページの upsert が別 JavaScript コンテキストで競合する候補所見。まず synthetic な複数コンテキスト storage stub で lost update を再現し、削除優先規則と世代トークン案の必要性を確定する。再現できない場合は推測実装をせず台帳へ根拠を残す。
-2. **`REVIEW-2026-07-15-RESERVED-PATHS` の到達可能性検証** — User-Name 領域の synthetic URL で予約パスが author handle 候補へ到達するかを確認する。confidence 低のため、再現前に予約語を増やさない。
-3. **ハンドオフ/トラッカー整合の維持** — `CODEX_HANDOFF.md`、`AGENTS.md`、`TASKS_BACKLOG.md`、`README.md`、`docs/deferred-findings-register.md` が同じ現状を指すよう保つ。古い ChatGPT 承認制、`storage + scripting` 旧記述、`TASKS_BACKLOG.md` 陳腐化前提、Vault 書き込み不可前提、「審査待ち」旧状態を再導入しない。
-4. **ローカル検証ハーネス保守** — 静的10本が、権限・外部送信・raw 値禁止・ハンドオフ drift を検知し続けるようにする。ドキュメント編集後は `audit-operational-alignment.mjs` と `verify-docs-consistency.mjs` を必ず再実行。
-5. **公開後の不具合報告対応（`docs/review-response-playbook.md` §3〜§4 の runbook 実行）** — ユーザー報告が来たら「48時間以内一次判断・14日以内修正版 zip 作成」の指標で動く。報告から raw handle/user_id/スクショを受け取らず、synthetic fixture 化 → 修正 → check:all 緑 → zip 生成まで。**ストアへの再提出・公開はオーナー（§9①）**。
-6. **`PHASE2-HOOK-PRODUCTION` の bounded review** — MAIN-world hook の lifecycle / teardown / idempotency はローカル fixture と静的レビューだけで扱う。明示 teardown、in-flight停止、再 install 契約、tail 厳格化（PR #34）、安全な全走査開始検出（PR #41）は固定済み。今後も新権限・新データソース・raw response 取得・live X 読み取りはしない。
-7. **オーナー回答の文書反映** — `docs/requirements-v2-2026-07.md` §7 の Q3〜Q7（公開範囲・告知・サポート窓口・費用・v1.2 優先度）への回答が共有されたら、要件 v2 の確定・backlog への v1.2 タスク起票・掲載文言の改善計画に反映する。回答が来るまで v1.2 実装には着手しない。
-8. **CI の草案作成のみ** — `.github/workflows` の新規作成・変更は §9① に該当するため、workflow を有効化しない。必要なら静的10本を走らせる CI 手順の Markdown 草案までに留める。
+1. **`REVIEW-2026-07-15-RESERVED-PATHS` の到達可能性検証** — User-Name 領域の synthetic URL で予約パスが author handle 候補へ到達するかを確認する。confidence 低のため、再現前に予約語を増やさない。
+2. **ハンドオフ/トラッカー整合の維持** — `CODEX_HANDOFF.md`、`AGENTS.md`、`TASKS_BACKLOG.md`、`README.md`、`docs/deferred-findings-register.md` が同じ現状を指すよう保つ。古い ChatGPT 承認制、`storage + scripting` 旧記述、`TASKS_BACKLOG.md` 陳腐化前提、Vault 書き込み不可前提、「審査待ち」旧状態を再導入しない。
+3. **ローカル検証ハーネス保守** — 静的10本が、権限・外部送信・raw 値禁止・ハンドオフ drift を検知し続けるようにする。ドキュメント編集後は `audit-operational-alignment.mjs` と `verify-docs-consistency.mjs` を必ず再実行。
+4. **公開後の不具合報告対応（`docs/review-response-playbook.md` §3〜§4 の runbook 実行）** — ユーザー報告が来たら「48時間以内一次判断・14日以内修正版 zip 作成」の指標で動く。報告から raw handle/user_id/スクショを受け取らず、synthetic fixture 化 → 修正 → check:all 緑 → zip 生成まで。**ストアへの再提出・公開はオーナー（§9①）**。
+5. **`PHASE2-HOOK-PRODUCTION` の bounded review** — MAIN-world hook の lifecycle / teardown / idempotency はローカル fixture と静的レビューだけで扱う。明示 teardown、in-flight停止、再 install 契約、tail 厳格化（PR #34）、安全な全走査開始検出（PR #41）は固定済み。今後も新権限・新データソース・raw response 取得・live X 読み取りはしない。
+6. **オーナー回答の文書反映** — `docs/requirements-v2-2026-07.md` §7 の Q3〜Q7（公開範囲・告知・サポート窓口・費用・v1.2 優先度）への回答が共有されたら、要件 v2 の確定・backlog への v1.2 タスク起票・掲載文言の改善計画に反映する。回答が来るまで v1.2 実装には着手しない。
+7. **CI の草案作成のみ** — `.github/workflows` の新規作成・変更は §9① に該当するため、workflow を有効化しない。必要なら静的10本を走らせる CI 手順の Markdown 草案までに留める。
 
 人間ゲート（自走しない・停止して提示）:
 - Chrome Web Store の一切の操作（掲載文更新・再提出・公開設定・ダッシュボード確認はオーナー）。

@@ -2,7 +2,7 @@
   "use strict";
 
   // Production sync bridge (M4), ISOLATED world. Persists the user's own list
-  // entries into xtbmEntries only when sync is enabled.
+  // entries into the active xtbmSyncEntries:<generation> shard only when sync is enabled.
   //
   // Reconciliation (M4 / P2-009b): per-page-session staging accumulates every
   // entry captured for each listKind. When the MAIN hook signals it reached the

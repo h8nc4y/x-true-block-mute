@@ -203,6 +203,10 @@ const storageScript = await readText("src/storage/storage.js");
 // The research injection + `scripting` permission were retired (M7). The shipped
 // storage no longer carries the research observation API.
 assert(!storageScript.includes("getResearchF1A"), "shipped storage must not retain the research observation API");
+assert(
+  !storageScript.includes("setEntryStore"),
+  "shipped storage must not export a cross-domain full-replacement entry writer"
+);
 assert(!storageScript.includes("appendF1AResearchObservation"), "shipped storage must not retain research observation writes");
 // observation-utils.js and main-world-hook.js remain as offline research-evidence
 // files; assert they stay internally safe and aligned with each other.
@@ -237,6 +241,11 @@ const chromeApiPattern = /chrome\.(storage|runtime|scripting|tabs|cookies|webReq
 assert(!chromeApiPattern.test(syncHookScript), "MAIN-world sync hook must not call chrome.* APIs");
 assert(!chromeApiPattern.test(syncCaptureScript), "MAIN-world sync capture must not call chrome.* APIs");
 assert(syncBridgeScript.includes("upsertSyncedEntries") && syncBridgeScript.includes("getSyncState"), "sync bridge must gate persistence on sync state");
+assert(
+  syncCaptureScript.includes("xtbmSyncEntries:<generation>") &&
+    syncBridgeScript.includes("xtbmSyncEntries:<generation>"),
+  "production sync comments must name the active generation shard, not retired xtbmEntries"
+);
 
 const popupHtml = await readText("src/popup/popup.html");
 const popupScripts = Array.from(popupHtml.matchAll(/<script src="([^"]+)"><\/script>/g)).map((match) => match[1]);

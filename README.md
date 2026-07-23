@@ -4,11 +4,11 @@
 
 この repository の拡張は **Chrome Web Store で公開済み**です（v1.1.1、公開ページ最終更新 2026-06-18、オーナー確認 2026-07-06）。Phase 1 / Phase 1.5（local MV3 shell・popup・storage・synthetic fixture・F1-A research scaffold）、Phase 2 の production 機能、M7 の提出・公開は完了しています。
 
-- **production sync 実装済み**: 宣言的 `world:"MAIN"` content script（`/settings/blocked/all`・`/settings/muted/all` 限定）が、ユーザー自身のブロック・ミュート一覧 GraphQL 応答から `user_id`（rest_id）/ `handle`（screen_name）/ `listKind` のみを抽出し、ISOLATED bridge 経由で `chrome.storage.local` の `xtbmEntries` に取り込みます。raw response・cursor 値・表示名・本文は保存しません。実アカウントで blocked 234件 / muted 50件の取り込みを確認済み（件数のみ・2026-06-13）。
+- **production sync 実装済み**: 宣言的 `world:"MAIN"` content script（`/settings/blocked/all`・`/settings/muted/all` 限定）が、ユーザー自身のブロック・ミュート一覧 GraphQL 応答から `user_id`（rest_id）/ `handle`（screen_name）/ `listKind` のみを抽出し、ISOLATED bridge 経由で `chrome.storage.local` の世代別同期 shard に取り込みます。raw response・cursor 値・表示名・本文は保存しません。実アカウントで blocked 234件 / muted 50件の取り込みを確認済み（件数のみ・2026-06-13）。
 - **reconciliation 実装済み**: 一覧の末尾（完全同期）に到達したときだけ当該 listKind を全置換し、解除済みアカウントを除去します。部分取得時は追加のみです（完全同期検出 = 抽出0件かつ Bottom cursor、`Storage.replaceSyncedListKind()`）。Top cursor だけの空ページは完了扱いしません。同一ページの再同期では cursor 無し initial request の固定 `sync-start` だけが staging を新しい全走査へ切り替え、pagination / tail-only refetch は前回の完全集合を保持します。request variables / cursor 値は bridge へ送りません。
 - **real-DOM author matching 実装済み**: 通常 content script が投稿カードの User-Name 領域に限定して投稿者を判定し、quote / embed の混在を分離します（引用カードは host 投稿を残したままその場で隠します）。実 TL で誤判定なく動作することを確認済み（M5）。
 - popup から同期の有効化・ブロック / ミュート件数・最終同期時刻の確認・同期データ削除ができます。F1-A 観測メモ（開発用）は本番では非表示です（dev フラグ `RESEARCH_UI_ENABLED`、既定 false）。
-- 残作業: 公開後運用（不具合報告対応・X 側変更の追従。手順は `docs/review-response-playbook.md` §3〜§4）、`TASKS_BACKLOG.md` の 2026-07-15 レビュー所見2件のローカル検証、オーナー未回答の要件確認（`docs/requirements-v2-2026-07.md` §7 Q3〜Q7）。公開版は v1.1.1 で現行 `manifest.json` と一致しています。docs の分類索引は `docs/README.md` を参照してください。
+- 残作業: 公開後運用（不具合報告対応・X 側変更の追従。手順は `docs/review-response-playbook.md` §3〜§4）、`TASKS_BACKLOG.md` の 2026-07-15 レビュー所見のうち残る reserved-paths 1件のローカル検証、オーナー未回答の要件確認（`docs/requirements-v2-2026-07.md` §7 Q3〜Q7）。公開版は v1.1.1 で現行 `manifest.json` と一致しています。docs の分類索引は `docs/README.md` を参照してください。
 
 X/Twitter でブロック・ミュート済みアカウント由来の情報露出（RT・引用経由を含む）を減らすことを目指す Chrome 拡張です。データはすべて端末ローカル保存・外部送信なし・権限最小（`storage` + x.com / twitter.com host）を維持します。
 
@@ -108,7 +108,7 @@ popup の `詳細設定・プライバシー` から設定ページ（`src/optio
   - `https://x.com/*`
   - `https://twitter.com/*`
 
-`storage` は popup・options・content script が設定、synthetic test data、本番同期で取り込んだブロック・ミュート対象（`xtbmEntries`）、同期状態（`xtbmSyncState`）を共有するために使います。本番同期は宣言的 `world:"MAIN"` content script で行うため `scripting` を必要としません。F1-A research の動的注入だけが `scripting` を使っていましたが、M7 で research を retire し `scripting` 権限を削除しました。研究の評価用スクリプト・テスト・判断記録（`docs/decisions/f1-source-selection.md`）はリポジトリに残しますが、出荷パッケージには含めません。
+`storage` は popup・options・content script が設定、専用 `xtbmSyntheticEntries` の synthetic test data、世代別 `xtbmSyncEntries:<generation>` の本番同期対象、legacy/manual 行の `xtbmBaseEntries`、同期状態、削除競合を解決する非機密の世代・移行情報を共有するために使います。旧 single-key `xtbmEntries` は全領域の二段階移行が完了するまで読取互換を保ち、commit 後は専用領域を再書込みせず key 全体を削除します。本番同期は宣言的 `world:"MAIN"` content script で行うため `scripting` を必要としません。F1-A research の動的注入だけが `scripting` を使っていましたが、M7 で research を retire し `scripting` 権限を削除しました。研究の評価用スクリプト・テスト・判断記録（`docs/decisions/f1-source-selection.md`）はリポジトリに残しますが、出荷パッケージには含めません。
 
 `webRequest`、`cookies`、`tabs`、`activeTab`、`<all_urls>`、`https://api.x.com/*`、`scripting` は宣言していません。
 
@@ -122,13 +122,27 @@ popup の `詳細設定・プライバシー` から設定ページ（`src/optio
 `chrome.storage.local`:
 
 - key: `xtbmEntries`
-- value: `{ schemaVersion: 1, entries: Entry[], lastSyntheticUpdatedAt: string | null }`
+- value: 旧 single-key store。専用 base、legacy synthetic fallback、初期 sync shard の全書込みと移行 commit が成功するまで authoritative な読取元として残し、その後は stale snapshot を書き戻さず key 全体を削除する
+- key: `xtbmBaseEntries`
+- value: `{ schemaVersion: 1, entries: Entry[], lastSyntheticUpdatedAt: null }`。旧 store にあった sync/synthetic 以外の legacy/manual 行だけを保持する独立領域。現行の全置換 API は公開しない
 - `Entry.user_id` は存在する場合の primary key として扱う
 - `Entry.handle` は補助キーとして扱う
 - `Entry.listKind` は `"blocked" | "muted" | null`。同期で取得した一覧の種別を表す（schema v2 で追加。旧データ読み込み時は `null`）
 - `Entry.syncedAt` は同期で書き込んだ ISO 文字列、または `null`（schema v2 で追加）
-- Phase 1 synthetic entries は `source: "phase1-synthetic"` と `idResolutionStatus` を持つ
-- 本番同期で取り込むユーザー自身のブロック・ミュート対象は `source: "f1a-sync"` を持つ。`Storage.upsertSyncedEntries()` が user_id 優先（handle 補助）で重複排除し、`Storage.replaceSyncedListKind()` が完全同期時に当該 listKind を全置換して解除済みアカウントを除去（部分取得時は追加のみ）、`Storage.clearSyncedEntries()` が同期分のみ削除する。これらは端末内 `chrome.storage.local` に限り、docs / commit には raw 値を出さない（詳細は `docs/privacy-threat-model.md`）
+- Phase 1 synthetic entries は `source: "phase1-synthetic"` と `idResolutionStatus` を持ち、専用 `xtbmSyntheticEntries` に保存する。本番同期 shard や legacy base を synthetic 操作から書き換えない
+- 本番同期で取り込むユーザー自身のブロック・ミュート対象は `source: "f1a-sync"` を持つ。`Storage.upsertSyncedEntries()` が user_id 優先（handle 補助）で重複排除し、`Storage.replaceSyncedListKind()` が完全同期時に当該 listKind を全置換して解除済みアカウントを除去（部分取得時は追加のみ）、`Storage.clearSyncedEntries()` が同期分のみ削除する。別 JavaScript context の削除と同期が重なった場合は active generation を切り替え、開始済みの旧書込みを旧 shard だけから除去して削除を優先する。これらは端末内 `chrome.storage.local` に限り、docs / commit には raw 値を出さない（詳細は `docs/privacy-threat-model.md`）
+- key: `xtbmSyntheticEntries`
+- value: `{ schemaVersion: 1, entries: Entry[], lastSyntheticUpdatedAt: string | null }`。synthetic 行だけを保持する独立領域
+- key: `xtbmLegacySyntheticEntries`
+- value: 旧 store の synthetic 行を二段階移行時に退避する fallback。`xtbmSyntheticEntries` が存在する場合は現行の専用領域を優先する
+- key prefix: `xtbmSyncEntries:`
+- value: `{ schemaVersion: 1, entries: Entry[], lastSyntheticUpdatedAt: null }`。generation ごとに本番同期行だけを保持し、active shard だけを通常読取へ統合する。世代 marker が未設定の既存利用者は固定 initial shard を使う
+- key: `xtbmSyncGeneration`
+- value: `{ generation: string | null }`。popup/options の削除だけが更新する active shard pointer。settings page writer は世代を作らない。pointer 更新が削除の linearization point で、clear は prefix snapshot と live pointer の再読取により、その時点の active shard を除外して retired shard を再 cleanup する
+- key: `xtbmSyncMigrated`
+- value: `boolean`。`xtbmBaseEntries`、`xtbmLegacySyntheticEntries`、initial shard を書き終えた後だけ公開する移行 commit。いずれかの書込みまたは commit が失敗した場合は旧 `xtbmEntries` 全体を authoritative なまま残し、次回 mutation で再試行する
+- key: `xtbmSyncEnabled` / `xtbmSyncLastSyncedAt`
+- value: `boolean` / `string`。別 context の無効化と同期完了記録が互いを上書きしないようフィールド別に保存する。旧 `xtbmSyncState` は読取互換だけを維持する
 - key: `xtbmF1AResearch`
 - value: `{ schemaVersion: 1, enabled: boolean, observations: Observation[], updatedAt: string | null }`
 - `xtbmF1AResearch.observations` は endpoint class、top-level key、shape path、field presence、count、hook continuity marker だけを持つ masked research summary

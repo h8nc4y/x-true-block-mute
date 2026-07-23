@@ -3,7 +3,8 @@
 
   // Production sync capture (M4). Unlike the F1-A research hook (which emits only
   // masked structure), this extracts the user's OWN block/mute list so it can be
-  // stored locally in xtbmEntries for filtering. It reads raw rest_id /
+  // stored locally in the active xtbmSyncEntries:<generation> shard for filtering.
+  // Legacy xtbmEntries is only a pre-migration read source. It reads raw rest_id /
   // screen_name VALUES — this is the allowed production data flow (the user's own
   // list, kept on the user's device). It never extracts display names, post
   // bodies, or cursor values, and it only runs against the list endpoints.
