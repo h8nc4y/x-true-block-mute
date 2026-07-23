@@ -73,7 +73,7 @@ content_scripts（宣言的・3 登録）:
 
 - **version `1.1.1`**（`manifest.json` が真実。`minimum_chrome_version:111`）。`dist/TrueBlock-Mute-v1.1.1.zip` は生成済み（`dist/` は gitignore・再生成可）。
 - **Chrome Web Store: 公開済み**（store item ID `anpgfamnbjoajbapfeclnjkklbcoknkb`、2026-06-14 にオーナーが「審査のため送信」→ 公開ページの最終更新 2026-06-18・公開版 v1.1.1。2026-07-06 にオーナーがダッシュボードで公開を確認し、エージェントが公開ストアページで version / 掲載文を確認。旧状態「提出済み・審査結果待ち」は公開で解消）。Codex は Chrome Web Store の管理画面確認・再提出・公開操作を行わない。
-- `TASKS_BACKLOG.md` は現行トラッカー（P2 系列は全 done/closed）。2026-07-15 の読取専用レビュー3所見のうち sync staging は PR #41、storage lane は独立 VM 2〜4 context の TDD で解消した。残る検証候補は reserved paths の1件。判断理由とゲートは `docs/deferred-findings-register.md` に同期済み。
+- `TASKS_BACKLOG.md` は現行トラッカー（P2 系列は全 done/closed）。2026-07-15 の読取専用レビュー3所見のうち sync staging は PR #41、storage lane は PR #42 の独立 VM 2〜4 context TDD で解消した。残る検証候補は reserved paths の1件。判断理由とゲートは `docs/deferred-findings-register.md` に同期済み。
 - 2026-07-21 に PR #40（現況・所見台帳同期、merge commit `3155c63`）を merge。続く PR #41 では同一ページ再同期の staging lifecycle を、cursor 無し initial request の固定 `sync-start` と synthetic 回帰で修正した。
 - 2026-07-23 に `REVIEW-2026-07-15-STORAGE-LANE` を TDD で再現。同期行を generation 別 shard へ分離し、popup clear 後の stale upsert は旧 shard だけを cleanup / reject する。4 context の連続 clear 中も最新 shard を保持し、旧 single-key は失敗再試行可能な二段階移行後に whole-key remove、base / synthetic / sync は別 key、同期状態は field 別 key とした。retired cleanup の一時失敗後も active generation を止めず次回 clear で再処理する回帰を固定した。
 - 2026-07-23 実測で `node scripts/check-all.mjs` は静的10本 PASS。docs は現行資料と歴史資料（`docs/archive/`）を分離済みで、分類索引は `docs/README.md`。

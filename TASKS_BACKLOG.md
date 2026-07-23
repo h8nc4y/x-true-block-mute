@@ -90,7 +90,7 @@ M1 ──→ M2 ──→ M3(分岐点) ──→ M4 ──→ M5 ──→ M6 �
 - 2026-07-11〜12: 引き継ぎ資料を公開後フェーズへ同期（PR #35）。docs 全面整理: 歴史資料を `docs/archive/` へ分離、`docs/README.md` 索引を新設、要件 v2 の Q1/Q2 解消を反映。
 - 2026-07-15: 読取専用の横断レビュー3所見を PR #39 で台帳化。2026-07-21 に安定 ID・優先順・検証条件を追記し、最上位を sync staging の再現・修正に確定。
 - 2026-07-21: PR #40 で現況資料と所見 ID を同期。PR #41 で `REVIEW-2026-07-15-SYNC-STAGING` を TDD 解消し、次の最上位を storage lane の再現性検証へ更新。
-- 2026-07-23: `REVIEW-2026-07-15-STORAGE-LANE` を独立 VM 2〜4 context の共有 storage stub で TDD 再現。同期行を generation 別 shard、base / synthetic を専用 key、同期状態を field 別 key へ分離した。popup clear の削除優先、連続 clear 中の最新 shard 保持、旧 single-key の二段階移行失敗と whole-key cleanup、cleanup 一時失敗からの再処理、全競合テストの timeout を固定。
+- 2026-07-23: PR #42 で `REVIEW-2026-07-15-STORAGE-LANE` を独立 VM 2〜4 context の共有 storage stub で TDD 再現。同期行を generation 別 shard、base / synthetic を専用 key、同期状態を field 別 key へ分離した。popup clear の削除優先、連続 clear 中の最新 shard 保持、旧 single-key の二段階移行失敗と whole-key cleanup、cleanup 一時失敗からの再処理、全競合テストの timeout を固定。
 
 ## 外部レビュー指摘の台帳（2026-07-15 maxエフォート横断レビュー）
 
