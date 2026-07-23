@@ -35,7 +35,7 @@ masked summary の構造分析（生値なし）で確認できたこと:
 - muted: count 33、endpoint ✓ / shape ✓ / identity ✓ / pagination ✓。
 - spaContinuity: false（情報のみ。本番は両ページ個別注入のため非ゲート）。
 
-結論: F1-A を Phase 2 primary として採用。production capture は user_id（rest_id）/ handle（screen_name）/ listKind（blocked/muted）のみを抽出し、`Storage.upsertSyncedEntries()` で `xtbmEntries` に同期する（M4）。raw cursor 値・表示名・本文は抽出しない。
+結論: F1-A を Phase 2 primary として採用。production capture は user_id（rest_id）/ handle（screen_name）/ listKind（blocked/muted）のみを抽出し、`Storage.upsertSyncedEntries()` で端末内 production-entry store（現行は active `xtbmSyncEntries:<generation>`）に同期する（M4）。raw cursor 値・表示名・本文は抽出しない。
 
 不採用に切り替える条件: 上記修正後の live 再評価でも pagination が成立しない、または full-list 取得が安定しない場合は F1-B（表示範囲限定同期）/ F1-D（手動インポート）へ切り替える。
 

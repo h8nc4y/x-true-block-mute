@@ -289,9 +289,18 @@
       return;
     }
     chrome.storage.onChanged.addListener((changes, areaName) => {
+      const localEntryChanged =
+        areaName === "local" &&
+        (Boolean(changes[STORAGE_KEYS.BASE_ENTRIES]) ||
+          Boolean(changes[STORAGE_KEYS.ENTRIES]) ||
+          Boolean(changes[STORAGE_KEYS.LEGACY_SYNTHETIC_ENTRIES]) ||
+          Boolean(changes[STORAGE_KEYS.SYNTHETIC_ENTRIES]) ||
+          Boolean(changes[STORAGE_KEYS.SYNC_GENERATION]) ||
+          Boolean(changes[STORAGE_KEYS.SYNC_MIGRATED]) ||
+          Object.keys(changes).some((key) => key.startsWith(STORAGE_KEYS.SYNC_ENTRIES_PREFIX)));
       if (
         (areaName === "sync" && changes[STORAGE_KEYS.SETTINGS]) ||
-        (areaName === "local" && changes[STORAGE_KEYS.ENTRIES])
+        localEntryChanged
       ) {
         reloadState().catch(() => {});
       }

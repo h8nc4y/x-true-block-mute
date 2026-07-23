@@ -99,6 +99,6 @@ Codex 失敗（`ERR_FILE_NOT_FOUND` / service worker target 不定）の主因�
 
 - password、MFA、Cookie、CSRF、Authorization、OAuth token の受領・保存。
 - raw X response、HAR、DevTools Network 本文の保存。
-- raw user_id、raw handle、display name、post text を、ユーザー端末の `xtbmEntries` storage 以外（貼り付け、docs、commit、screenshot 等）へ出すこと。
+- raw user_id、raw handle、display name、post text を、ユーザー端末の local production-entry storage（active `xtbmSyncEntries:<generation>`、旧形式は `xtbmEntries`）以外（貼り付け、docs、commit、screenshot 等）へ出すこと。
 - 新しい拡張権限を、理由・脅威モデル更新・ユーザー承認なしに追加すること。
 - 端末外へのデータ送信、deploy、外部ダッシュボード、paid service。

@@ -2,7 +2,7 @@
 
 ## Status
 
-最終更新: 2026-07-21
+最終更新: 2026-07-23
 
 このファイルは現行タスクのトラッカーです。Codex は現行のユーザー指示とハンドオフを優先し、ここではロードマップとタスク状態を実装実態に合わせて記録します。旧 ChatGPT 承認制は廃止済みです。現行ユーザー指示で許可された自律開発の範囲では、Codex / Claude Code が通常の docs・test・code 健全性タスクを進めます。権限追加、Phase 移行、配布、外部送信などの境界変更は人間承認ゲートです。
 
@@ -66,13 +66,13 @@ M1 ──→ M2 ──→ M3(分岐点) ──→ M4 ──→ M5 ──→ M6 �
 | TB-003 | F1-A live masked summary 評価 | skip: real X login とユーザー同意が必要 | done: P2-005 に統合。ユーザー同意の下、Claude Code が Chrome MCP で masked observation のみ収集・評価。 |
 | TB-004 | Phase 2 source selection と production 実装 | skip: deferred / out of scope | done: M4 / M5（P2-007〜P2-014）として分解し、F1-A primary で実装済み。 |
 | TB-005 | F1-C X API / OAuth 連携の再検討 | skip: OAuth 等の承認が必要 | closed（不採用）。F1-A 精度方針の確定により再検討条件が消滅。F1-A insufficient 時も F1-B / F1-D を優先する。 |
-| TB-006 | Chrome Web Store / package / CI / distribution readiness | skip: distribution decision が必要 | done: M7（P2-017〜P2-021）として実施。Chrome Web Store 審査結果は未確認。 |
+| TB-006 | Chrome Web Store / package / CI / distribution readiness | skip: distribution decision が必要 | done: M7（P2-017〜P2-021）として実施。Chrome Web Store は公開済み（公開ページ最終更新 2026-06-18、オーナー確認 2026-07-06）。 |
 | TB-007 | local stale branches の扱い確認 | done | done（4本は温存。merge / delete はしない） |
 | TB-008 | Claude Code 引き継ぎ用 closeout 文書化 | done | done |
 
 ## Validation evidence
 
-現行の検証正本は `node scripts/check-all.mjs`（静的10本一括。コミット前に毎回緑を確認する）。直近の全緑実測は 2026-07-21。M1〜M7 期の個別コマンドのベースライン記録（2026-06-12/13）は、本ファイルの git 履歴旧版を参照。
+現行の検証正本は `node scripts/check-all.mjs`（静的10本一括。コミット前に毎回緑を確認する）。直近の全緑実測は 2026-07-23。M1〜M7 期の個別コマンドのベースライン記録（2026-06-12/13）は、本ファイルの git 履歴旧版を参照。
 
 ## Done criteria
 
@@ -90,11 +90,12 @@ M1 ──→ M2 ──→ M3(分岐点) ──→ M4 ──→ M5 ──→ M6 �
 - 2026-07-11〜12: 引き継ぎ資料を公開後フェーズへ同期（PR #35）。docs 全面整理: 歴史資料を `docs/archive/` へ分離、`docs/README.md` 索引を新設、要件 v2 の Q1/Q2 解消を反映。
 - 2026-07-15: 読取専用の横断レビュー3所見を PR #39 で台帳化。2026-07-21 に安定 ID・優先順・検証条件を追記し、最上位を sync staging の再現・修正に確定。
 - 2026-07-21: PR #40 で現況資料と所見 ID を同期。PR #41 で `REVIEW-2026-07-15-SYNC-STAGING` を TDD 解消し、次の最上位を storage lane の再現性検証へ更新。
+- 2026-07-23: PR #42 で `REVIEW-2026-07-15-STORAGE-LANE` を独立 VM 2〜4 context の共有 storage stub で TDD 再現。同期行を generation 別 shard、base / synthetic を専用 key、同期状態を field 別 key へ分離した。popup clear の削除優先、連続 clear 中の最新 shard 保持、旧 single-key の二段階移行失敗と whole-key cleanup、cleanup 一時失敗からの再処理、全競合テストの timeout を固定。
 
 ## 外部レビュー指摘の台帳（2026-07-15 maxエフォート横断レビュー）
 
 読取専用レビュー（実行検証なし）の指摘。2026-07-21 の現況同期でローカル検証対象へ昇格した。実装前に synthetic fixture で妥当性を確認し、完了時は行頭を [x] にして対応 PR を追記する。
 
 - [x] `REVIEW-2026-07-15-SYNC-STAGING` — PR #41 で解消。TDD RED で同一ページの2回目完全同期に前サイクル4件が残ることを再現した。無条件 clear は tail-only 部分ページによる削り落としを招くため採用せず、cursor 無し initial request の正常応答だけが固定 `sync-start` を送り、該当 listKind の staging を新しい全走査へ切り替える。pagination は前回完全集合を保持し、request variables / cursor 値は送信しない。`verify-sync-hook.mjs` / `verify-sync-bridge.mjs` / 静的10本 PASS。
-- [ ] `REVIEW-2026-07-15-STORAGE-LANE` — `storage.js:16`: 書込直列化 lane が JavaScript コンテキスト単位のため、popup（削除）と設定ページ（upsert）の並行 read-modify-write 競合余地。世代トークン案を含め、まず現行 API 境界で再現可能性を検証する。confidence 中。
+- [x] `REVIEW-2026-07-15-STORAGE-LANE` — `storage.js:16`: context-local lane では、popup clear 後の stale settings upsert による同期行復活と、`setSyncEnabled(false)` / `markSynced()` の full-object lost update を防げないことを TDD RED で再現。同期行を `xtbmSyncEntries:<generation>`、clear 専用 active pointer を `xtbmSyncGeneration`、base を `xtbmBaseEntries`、synthetic を `xtbmSyntheticEntries`、同期状態を field 別 key へ分離した。旧 single-key は base / legacy synthetic fallback / initial shard の全書込み後に `xtbmSyncMigrated` を commit し、stale full-object set ではなく whole-key remove する。途中失敗では legacy 全体を authoritative に保つ。full-replacement `setEntryStore` export は廃止し、fixture も production upsert API を使う。stale writer は旧 shard だけを空にして reject し、4 context の連続 clear 中も最新 shardを保持する。各競合操作と静的10本 runner は timeout 付き。retired cleanup が一時失敗しても active generation は継続し、次回 clear が再処理する。既存 schema/同期回帰を含む静的10本 PASS。
 - [ ] `REVIEW-2026-07-15-RESERVED-PATHS` — `content-script.js:19`: `PROFILE_RESERVED_PATHS` が8種のみで、`hashtag` / `intent` / `lists` / `communities` 等を handle と誤認する候補。実 DOM を読まず synthetic URL で現行 author 領域から到達可能かを確認する。confidence 低。

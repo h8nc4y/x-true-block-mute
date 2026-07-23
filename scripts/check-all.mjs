@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
+const CHECK_TIMEOUT_MS = 60_000;
 
 const checks = [
   'verify-phase1-static',
@@ -40,11 +41,27 @@ function runCheck(name, index) {
     });
 
     let settled = false;
+    // callback未完了や意図しない待機が回帰しても、静的ゲート全体を無期限停止させない。
+    const timeout = setTimeout(() => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      child.kill();
+      resolve({
+        name,
+        scriptPath,
+        ok: false,
+        timedOut: true,
+        elapsedMs: Date.now() - startedAt,
+      });
+    }, CHECK_TIMEOUT_MS);
     child.on('error', (error) => {
       if (settled) {
         return;
       }
       settled = true;
+      clearTimeout(timeout);
       resolve({ name, scriptPath, ok: false, error, elapsedMs: Date.now() - startedAt });
     });
 
@@ -53,6 +70,7 @@ function runCheck(name, index) {
         return;
       }
       settled = true;
+      clearTimeout(timeout);
       resolve({ name, scriptPath, ok: code === 0, code, signal, elapsedMs: Date.now() - startedAt });
     });
   });
@@ -81,7 +99,11 @@ const startedAt = Date.now();
 for (const [index, name] of checks.entries()) {
   const result = await runCheck(name, index);
   if (!result.ok) {
-    if (result.error) {
+    if (result.timedOut) {
+      console.error(
+        `[check-all] TIMEOUT: ${result.scriptPath} exceeded ${CHECK_TIMEOUT_MS} ms and was terminated`,
+      );
+    } else if (result.error) {
       console.error(`[check-all] ERROR: ${result.scriptPath} could not start: ${result.error.message}`);
     } else {
       console.error(

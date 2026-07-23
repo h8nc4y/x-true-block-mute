@@ -4,7 +4,7 @@
 
 Prepared by Codex on 2026-05-31 for the Phase 2 readiness gate. This document records current privacy boundaries and expected threats for the local prototype. It is not a security audit of live X or Chrome Web Store distribution.
 
-Update (2026-06-14, M7): the F1-A research MAIN-world injection and the `scripting` permission have been retired from the shipped extension. The offline research-evaluation artifacts (`observation-utils.js`, `main-world-hook.js`, the evaluator, the masked-summary fixture, and `docs/decisions/f1-source-selection.md`) are retained in the repository as the decision record but are excluded from the packaged extension. `xtbmF1AResearch` is no longer written by the shipped extension; the research and production (`xtbmEntries`) data classes must remain separate in any future re-introduction. The references below to the MAIN-world hook now describe the production sync capture hook (a declarative `world:"MAIN"` content script), not a dynamically injected research hook.
+Update (2026-06-14, M7): the F1-A research MAIN-world injection and the `scripting` permission have been retired from the shipped extension. The offline research-evaluation artifacts (`observation-utils.js`, `main-world-hook.js`, the evaluator, the masked-summary fixture, and `docs/decisions/f1-source-selection.md`) are retained in the repository as the decision record but are excluded from the packaged extension. `xtbmF1AResearch` is no longer written by the shipped extension; the research and production-entry data classes must remain separate in any future re-introduction. The references below to the MAIN-world hook now describe the production sync capture hook (a declarative `world:"MAIN"` content script), not a dynamically injected research hook.
 
 ## Assets to protect
 
@@ -22,7 +22,7 @@ Update (2026-06-14, M7): the F1-A research MAIN-world injection and the `scripti
 | --- | --- | --- |
 | Chrome extension runtime | MV3 extension loaded locally by a human. | Mis-scoped permissions can expose more data than intended. |
 | `chrome.storage.sync` | Stores `xtbmSettings`. | Settings sync may reveal user preferences across browsers. |
-| `chrome.storage.local` normal data | Stores `xtbmEntries`. | Production entries could reveal block/mute targets if mishandled. |
+| `chrome.storage.local` normal data | Stores migrated legacy/manual rows in `xtbmBaseEntries`, synthetic rows in `xtbmSyntheticEntries` (legacy fallback in `xtbmLegacySyntheticEntries`), production rows in active `xtbmSyncEntries:<generation>`, field-separated sync state, and non-sensitive generation/migration metadata. Retired `xtbmEntries` is removed as one key after commit. | Production entries could reveal block/mute targets if mishandled; stale cross-context writes must not resurrect deleted entries, delete a newer generation, publish an incomplete legacy migration, or overwrite a fresh domain with an old full-object snapshot. |
 | Retired `chrome.storage.local` research data | `xtbmF1AResearch` is retained only as a historical/research data class; the shipped extension no longer writes it. | Future research re-introduction must keep masked observations separate from production entries. |
 | MAIN-world hook | Production sync capture runs as a declarative settings-page `world:"MAIN"` content script. | Page-context hooks can accidentally capture or expose sensitive response data if URL and endpoint gates drift. |
 | Clipboard | Popup may copy masked summaries only. | Users could accidentally copy raw data if UI or docs are unclear. |
@@ -31,15 +31,23 @@ Update (2026-06-14, M7): the F1-A research MAIN-world injection and the `scripti
 
 ## Storage boundary
 
-The repository handles two distinct data classes. They must remain separate.
+The repository handles four distinct local entry domains. They must remain separate.
 
 **Research observation (`xtbmF1AResearch`)** — masked only. It should contain masked structure only, such as endpoint class, top-level keys, shape path, field presence, counts, and hook continuity markers. No raw value is ever stored here. This is the only class collected during F1-A live evaluation.
 
-**Production entries (`xtbmEntries`)** — the user's own block/mute list, stored locally for the sole purpose of filtering. From Phase 2 (M4) onward, this store holds the user's own raw `user_id` and `handle` values in `chrome.storage.local` on the user's device. This is intentional and necessary for the extension's purpose: the user's list cannot be matched against timeline authors without it. The raw values stay inside device storage only — they are never written to docs, fixtures, logs, commits, clipboard, screenshots, or any off-device destination, and the extension sends no data off the device.
+**Legacy/manual compatibility rows (`xtbmBaseEntries`)** — non-sync, non-synthetic rows retained from the retired single-key store. Current shipped code exports no full-replacement entry writer; future manual-entry features must define their own concurrency contract before writing this domain.
 
-`xtbmSettings` is for user settings only and stays in `chrome.storage.sync`; the entry list is kept in `chrome.storage.local` and is not synced across devices.
+**Synthetic entries (`xtbmSyntheticEntries`)** — deterministic test identities only. Seed/clear operations write this dedicated key and never rewrite a production sync shard or `xtbmBaseEntries`. Existing legacy synthetic rows are copied to the separate `xtbmLegacySyntheticEntries` fallback during migration; the current dedicated key wins whenever it exists.
 
-The production sync design is approved and implemented for the F1-A path. Future research or data-source work must still keep masked/research observations separate from `xtbmEntries` until a new user-approved scope explicitly promotes that path.
+**Production entries (`xtbmSyncEntries:<generation>`, with legacy rows migrated from `xtbmEntries`)** — the user's own block/mute list, stored locally for the sole purpose of filtering. From Phase 2 (M4) onward, this store holds the user's own raw `user_id` and `handle` values in `chrome.storage.local` on the user's device. This is intentional and necessary for the extension's purpose: the user's list cannot be matched against timeline authors without it. The raw values stay inside device storage only — they are never written to docs, fixtures, logs, commits, clipboard, screenshots, or any off-device destination, and the extension sends no data off the device.
+
+`xtbmSyncGeneration` contains only one opaque active generation ID and is updated only by clear operations; an absent/null marker maps to the fixed initial shard. It contains no user ID, handle, text, timestamp, credential, or response data. Active-pointer replacement is the deletion linearization point: an already in-flight settings-page write remains confined to its retired shard and can clean only that shard. A transient retired-shard cleanup failure does not block the active generation; the next clear snapshots the shard prefix, re-reads the live pointer, and retries every snapshot key except the live active key.
+
+`xtbmSyncMigrated` is a non-sensitive boolean commit marker. `xtbmBaseEntries`, `xtbmLegacySyntheticEntries`, and the initial sync shard are written before this marker is published; if any domain write or the commit fails, the whole legacy `xtbmEntries` store remains authoritative and a later mutation retries the migration. After commit, cleanup removes only the retired key itself. It never writes a filtered stale snapshot back to a current base, synthetic store, or sync shard.
+
+`xtbmSyncEnabled` and `xtbmSyncLastSyncedAt` split the two sync-state fields so separate JavaScript contexts cannot overwrite each other's full-object snapshot. Existing `xtbmSyncState` data remains a read-only migration fallback. `xtbmSettings` is for user settings only and stays in `chrome.storage.sync`; the base, synthetic/fallback, entry shards, sync-state fields, and generation/migration metadata are kept in `chrome.storage.local` and are not synced across devices.
+
+The production sync design is approved and implemented for the F1-A path. Future research or data-source work must still keep masked/research observations separate from production-entry storage until a new user-approved scope explicitly promotes that path.
 
 ## Clipboard boundary
 
@@ -107,11 +115,15 @@ Any permission expansion must include a written rationale, threat-model update, 
 | Threat | Impact | Current mitigation | Remaining gap |
 | --- | --- | --- | --- |
 | Raw X response is copied or committed. | Persistent privacy leak. | Popup/docs say masked summary only; evaluator detects unsafe signals. | Human reporting can still make mistakes. |
-| Research data is mixed into production entries. | Unreviewed data source or incorrect filtering. | `xtbmF1AResearch` remains a retired/masked data class and production sync writes only approved `xtbmEntries`. | Future research re-introduction must preserve this boundary. |
+| Research, synthetic, legacy cleanup, or base operations overwrite production entries. | Unreviewed data source, incorrect filtering, or loss of a fresh domain write. | `xtbmF1AResearch` remains retired/masked; current base, synthetic, and production sync use separate keys; legacy cleanup uses whole-key remove; the full-replacement entry API is not exported. | Future data classes or manual-entry writers must preserve dedicated storage domains or add a coordinator/CAS-equivalent contract. |
 | Permissions expand silently. | Wider access to user data. | Static checks assert allowed permissions. | Review must catch manifest changes. |
 | Live X verification exposes account data. | Account/session exposure. | Claude Code drives the user's own Chrome under consent; no credentials are received; only masked observations leave the page; x.com tabs are not screenshotted or scraped. | Masking must hold; `unsafe_summary` stops and deletes the summary. |
 | Clipboard leaks sensitive content. | User may paste secrets elsewhere. | Copy flow is intended for masked summary only; masked summary goes to a gitignored temp path and through the `unsafe_summary` gate first. | Needs care during real masked-summary collection. |
-| Production entries leak off-device. | Block/mute list exposure. | `xtbmEntries` raw values stay in `chrome.storage.local` only; no network egress; not synced across devices. | Future code must preserve local-only storage. |
+| Production entries leak off-device. | Block/mute list exposure. | `xtbmSyncEntries:<generation>` raw values stay in `chrome.storage.local` only; no network egress; not synced across devices. | Future code must preserve local-only storage. |
+| An in-flight settings-page write resurrects entries after popup/options deletion. | A user-requested local deletion appears to succeed but stale block/mute targets return. | `xtbmSyncGeneration` advances atomically; stale-generation writes are rejected and only their retired shard is emptied. | Future storage changes must preserve the timeout-bounded four-context deletion-priority and consecutive-clear regressions. |
+| Retired-shard cleanup fails transiently. | Inactive raw entries can remain in local storage after the logical deletion point. | Active reads ignore retired shards, active upserts continue, and the next clear repeats a prefix snapshot while excluding the re-read live active key. | A context terminated between a stale write and its cleanup can delay physical removal until the next clear; do not claim synchronous physical erasure beyond the tested completion path. |
+| Legacy entry migration is interrupted. | Publishing migration completion too early could hide the only copy of production, synthetic, or manual entries. | Base, legacy-synthetic fallback, and initial shard writes all precede `xtbmSyncMigrated`; domain/commit failures leave the whole legacy store authoritative and retryable. Cleanup then removes only the retired whole key. | Future schema migrations must retain the same publish-after-all-durable-writes and no-stale-full-object-writeback rules. |
+| Multiple settings contexts upsert the same active generation simultaneously. | One same-generation read-modify-write could overwrite another. | Current settings flow and context-local lane reduce the normal occurrence; generation sharding isolates clear from upsert. | General multi-writer linearizability would require a single coordinator or operation log and is not claimed by this focused fix. |
 
 ## Human reporting rules
 
@@ -127,7 +139,7 @@ Do not include raw account identifiers, raw handles, display names, post text, s
 
 ## Future data-source and permission gate
 
-The current approved production source is F1-A settings-page sync with local-only `xtbmEntries`. Any future source path, permission expansion, or off-device operation is blocked until the user confirms:
+The current approved production source is F1-A settings-page sync with local-only production-entry storage. Any future source path, permission expansion, or off-device operation is blocked until the user confirms:
 
 1. Which new source path is approved: F1-B, F1-D, API/OAuth, or another path.
 2. What data may be stored and how it differs from current `user_id` / `handle` / `listKind` entries.
