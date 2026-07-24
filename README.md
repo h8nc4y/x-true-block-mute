@@ -8,7 +8,7 @@
 - **reconciliation 実装済み**: 一覧の末尾（完全同期）に到達したときだけ当該 listKind を全置換し、解除済みアカウントを除去します。部分取得時は追加のみです（完全同期検出 = 抽出0件かつ Bottom cursor、`Storage.replaceSyncedListKind()`）。Top cursor だけの空ページは完了扱いしません。同一ページの再同期では cursor 無し initial request の固定 `sync-start` だけが staging を新しい全走査へ切り替え、pagination / tail-only refetch は前回の完全集合を保持します。request variables / cursor 値は bridge へ送りません。
 - **real-DOM author matching 実装済み**: 通常 content script が投稿カードの User-Name 領域に限定して投稿者を判定し、quote / embed の混在を分離します（引用カードは host 投稿を残したままその場で隠します）。実 TL で誤判定なく動作することを確認済み（M5）。
 - popup から同期の有効化・ブロック / ミュート件数・最終同期時刻の確認・同期データ削除ができます。F1-A 観測メモ（開発用）は本番では非表示です（dev フラグ `RESEARCH_UI_ENABLED`、既定 false）。
-- 残作業: 公開後運用（不具合報告対応・X 側変更の追従。手順は `docs/review-response-playbook.md` §3〜§4）、`TASKS_BACKLOG.md` の 2026-07-15 レビュー所見のうち残る reserved-paths 1件のローカル検証、オーナー未回答の要件確認（`docs/requirements-v2-2026-07.md` §7 Q3〜Q7）。公開版は v1.1.1 で現行 `manifest.json` と一致しています。docs の分類索引は `docs/README.md` を参照してください。
+- 残作業: 公開後運用（不具合報告対応・X 側変更の追従。手順は `docs/review-response-playbook.md` §3〜§4）と、オーナー未回答の要件確認（`docs/requirements-v2-2026-07.md` §7 Q3〜Q7）。2026-07-15 のレビュー所見3件はローカル再現と回帰検証を終えています。公開版は v1.1.1 で現行 `manifest.json` と一致しています。docs の分類索引は `docs/README.md` を参照してください。
 
 X/Twitter でブロック・ミュート済みアカウント由来の情報露出（RT・引用経由を含む）を減らすことを目指す Chrome 拡張です。データはすべて端末ローカル保存・外部送信なし・権限最小（`storage` + x.com / twitter.com host）を維持します。
 

@@ -22,8 +22,8 @@
       article[data-testid="tweet"] whose author lives in a
       div[data-testid="User-Name"] (or Tweet-User-Avatar). All handles are fake.
       Target = blocked_author. Expected hidden result: card-1 and card-4 are
-      replaced; card-2 (safe), card-3 (quotes blocked_author), and card-5
-      (mentions blocked_author) stay visible.
+      replaced; card-2 (safe), card-3 (quotes blocked_author), card-5
+      (mentions blocked_author), and reserved-path cards stay visible.
     -->
     <main role="main" data-testid="primaryColumn">
       <header><h1>real-DOM-shaped synthetic timeline</h1></header>
@@ -65,6 +65,30 @@
         <div data-testid="User-Name"><a href="/safe_mentioner"><span>Safe Mentioner</span></a> <a href="/safe_mentioner"><span>@safe_mentioner</span></a></div>
         <div data-testid="tweetText">本文で <a href="/blocked_author">@blocked_author</a> にメンション（card-5）。著者は非対象。</div>
       </article>
+
+      <!--
+        User-Name 領域に profile ではない同一 origin URL が現れた場合でも、
+        先頭 path segment を author handle と誤認しないことを synthetic-only で固定する。
+      -->
+      <article data-testid="tweet" data-test-id="card-reserved-hashtag">
+        <div data-testid="User-Name"><a href="/hashtag/synthetic-topic"><span>synthetic hashtag route</span></a></div>
+        <div data-testid="tweetText">予約 path: hashtag。</div>
+      </article>
+
+      <article data-testid="tweet" data-test-id="card-reserved-intent">
+        <div data-testid="User-Name"><a href="/intent/synthetic-action"><span>synthetic intent route</span></a></div>
+        <div data-testid="tweetText">予約 path: intent。</div>
+      </article>
+
+      <article data-testid="tweet" data-test-id="card-reserved-lists">
+        <div data-testid="User-Name"><a href="/lists/synthetic-list"><span>synthetic lists route</span></a></div>
+        <div data-testid="tweetText">予約 path: lists。</div>
+      </article>
+
+      <article data-testid="tweet" data-test-id="card-reserved-communities">
+        <div data-testid="User-Name"><a href="/communities/synthetic-community"><span>synthetic communities route</span></a></div>
+        <div data-testid="tweetText">予約 path: communities。</div>
+      </article>
     </main>
 
     <script>
@@ -103,7 +127,12 @@
 
         async function seedHandleTargets() {
           await Storage.upsertSyncedEntries([
-            { user_id: "9000000000000000001", handle: "blocked_author", listKind: "blocked" }
+            { user_id: "9000000000000000001", handle: "blocked_author", listKind: "blocked" },
+            // 予約 path と同名の synthetic target を入れ、URL 誤認時だけカードが隠れるようにする。
+            { handle: "hashtag", listKind: "blocked" },
+            { handle: "intent", listKind: "blocked" },
+            { handle: "lists", listKind: "blocked" },
+            { handle: "communities", listKind: "blocked" }
           ]);
         }
 
