@@ -375,6 +375,10 @@ async function main() {
       " card3: Boolean(document.querySelector('[data-test-id=\\'card-3\\']'))," +
       " card4: Boolean(document.querySelector('[data-test-id=\\'card-4\\']'))," +
       " card5: Boolean(document.querySelector('[data-test-id=\\'card-5\\']'))," +
+      " reservedHashtag: Boolean(document.querySelector('[data-test-id=\\'card-reserved-hashtag\\']'))," +
+      " reservedIntent: Boolean(document.querySelector('[data-test-id=\\'card-reserved-intent\\']'))," +
+      " reservedLists: Boolean(document.querySelector('[data-test-id=\\'card-reserved-lists\\']'))," +
+      " reservedCommunities: Boolean(document.querySelector('[data-test-id=\\'card-reserved-communities\\']'))," +
       " card3Quote: Boolean(document.querySelector('[data-test-id=\\'card-3\\'] [data-x-tbm-replacement]')) })";
     await evaluate(cdp, realDom.sessionId, "document.querySelector('[data-fixture-action=\"hidden\"]').click()");
     const realDomResult = await pollValue(
@@ -392,6 +396,14 @@ async function main() {
     check(realDomResult.card3 === true, "real-DOM: card-3 (safe author) kept as a post", realDomResult);
     check(realDomResult.card3Quote === true, "real-DOM: card-3's quoted target card is hidden in place", realDomResult);
     check(realDomResult.card5 === true, "real-DOM: card-5 mentions target but safe author -> kept", realDomResult);
+    check(realDomResult.reservedHashtag === true, "real-DOM: /hashtag route is not treated as an author", realDomResult);
+    check(realDomResult.reservedIntent === true, "real-DOM: /intent route is not treated as an author", realDomResult);
+    check(realDomResult.reservedLists === true, "real-DOM: /lists route is not treated as an author", realDomResult);
+    check(
+      realDomResult.reservedCommunities === true,
+      "real-DOM: /communities route is not treated as an author",
+      realDomResult
+    );
 
     // --- Check 6: options page renders in extension context (M6) --------
     // The popup already seeded 2 synthetic entries into this profile and no real

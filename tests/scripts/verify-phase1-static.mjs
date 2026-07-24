@@ -195,6 +195,24 @@ assert(contentScript.includes("data-handle"), "synthetic handle fixture attribut
 assert(!contentScript.includes("fetch("), "production content script must not fetch F1/API data");
 assert(!contentScript.includes("XMLHttpRequest"), "production content script must not hook XHR");
 assert(!contentScript.includes("__xTbmOriginalCard"), "content script must not keep unused original-card expando state");
+assertSameStringArray(
+  extractSetStrings(contentScript, "PROFILE_RESERVED_PATHS"),
+  [
+    "home",
+    "explore",
+    "notifications",
+    "messages",
+    "i",
+    "settings",
+    "search",
+    "compose",
+    "hashtag",
+    "intent",
+    "lists",
+    "communities"
+  ].sort(),
+  "profile reserved paths must reject synthetic non-profile author URLs"
+);
 
 const constantsScript = await readText("src/shared/constants.js");
 const mainWorldHookScript = await readText("src/research/f1-a/main-world-hook.js");

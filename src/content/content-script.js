@@ -16,6 +16,8 @@
     "main",
     "body"
   ].join(",");
+  // User-Name 領域にも profile 以外の同一 origin URL が入り得るため、
+  // handle と同じ文字制約を満たす既知の route 先頭語は著者候補から除外する。
   const PROFILE_RESERVED_PATHS = new Set([
     "home",
     "explore",
@@ -24,7 +26,11 @@
     "i",
     "settings",
     "search",
-    "compose"
+    "compose",
+    "hashtag",
+    "intent",
+    "lists",
+    "communities"
   ]);
 
   let settings = namespace.DEFAULT_SETTINGS;
