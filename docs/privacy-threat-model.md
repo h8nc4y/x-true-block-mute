@@ -76,7 +76,7 @@ The production MAIN-world hook is high-risk because it wraps `fetch` and `XMLHtt
 
 - Declarative content scripts limit the sync bridge and MAIN-world hook to `/settings/blocked/all` and `/settings/muted/all` on x.com/twitter.com.
 - The normal timeline content script excludes those settings pages.
-- The hook gates response-body reads behind the actual settings pathname and recognized block/mute list endpoints before calling `clone().text()` or `responseText`.
+- The hook gates response-body reads behind the actual settings pathname and exact x.com/twitter.com GraphQL operation pathname (`/i/api/graphql/<query-id>/BlockedAccounts|MutedAccounts`) before calling `clone().text()` or `responseText`; operation-like text in a query/fragment or another origin is rejected.
 - The hook posts only `sync-entries` (`user_id`, `handle`, `listKind`) or `sync-complete` (`listKind` only); cursor values, display names, post bodies, and raw response bodies do not leave the page context.
 - The ISOLATED bridge persists only when local sync is enabled and keeps staging/reconcile safety checks separate from the MAIN-world wrapper.
 

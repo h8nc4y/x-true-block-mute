@@ -211,10 +211,20 @@ let nonListXhrTextReadCount = 0;
 let offSettingsXhrTextReadCount = 0;
 let offSettingsListTextReadCount = 0;
 let queryOnlySettingsPathTextReadCount = 0;
+let queryOnlyOperationTextReadCount = 0;
 const location = { origin: "https://x.com", href: "https://x.com/settings/blocked/all" };
 const windowObject = {
   fetch: (url) => {
     const text = String(url || "");
+    if (/HomeTimeline/.test(text) && /query-operation-name/.test(text)) {
+      return Promise.resolve(
+        new FakeResponse(blockedBody, 200, {
+          onText: () => {
+            queryOnlyOperationTextReadCount += 1;
+          }
+        })
+      );
+    }
     if (/BlockedAccounts/.test(text) && /error/.test(text)) return Promise.resolve(new FakeResponse(graphQLErrorBody));
     if (/BlockedAccounts/.test(text) && /transient/.test(text)) return Promise.resolve(new FakeResponse(transientBlockedBody));
     if (/BlockedAccounts/.test(text) && /top-only/.test(text)) return Promise.resolve(new FakeResponse(topOnlyBlockedBody));
@@ -375,6 +385,24 @@ await flush();
 const total = messages.filter((m) => m.message.source === "x-tbm:sync:capture").length;
 check(total === 3, "non-list endpoint produces no sync message", total);
 check(nonListTextReadCount === 0, "non-list fetch response body is not read", nonListTextReadCount);
+
+// operation 名が query 値に現れるだけの無関係な GraphQL 応答も、本文読取前に落とす。
+const beforeQueryOnlyOperation = messages.length;
+await context.window.fetch(
+  "https://x.com/i/api/graphql/abc/HomeTimeline?case=query-operation-name&next=BlockedAccounts"
+);
+await flush();
+await flush();
+check(
+  messages.length === beforeQueryOnlyOperation,
+  "query-only operation name posts no sync message",
+  messages.length - beforeQueryOnlyOperation
+);
+check(
+  queryOnlyOperationTextReadCount === 0,
+  "query-only operation name response body is not read",
+  queryOnlyOperationTextReadCount
+);
 
 // 3. Muted endpoint via XHR after same-document settings SPA navigation.
 location.href = "https://x.com/settings/muted/all?src=spa";

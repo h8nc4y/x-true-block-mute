@@ -4,7 +4,7 @@
 
 この repository の拡張は **Chrome Web Store で公開済み**です（v1.1.1、公開ページ最終更新 2026-06-18、オーナー確認 2026-07-06）。Phase 1 / Phase 1.5（local MV3 shell・popup・storage・synthetic fixture・F1-A research scaffold）、Phase 2 の production 機能、M7 の提出・公開は完了しています。
 
-- **production sync 実装済み**: 宣言的 `world:"MAIN"` content script（`/settings/blocked/all`・`/settings/muted/all` 限定）が、ユーザー自身のブロック・ミュート一覧 GraphQL 応答から `user_id`（rest_id）/ `handle`（screen_name）/ `listKind` のみを抽出し、ISOLATED bridge 経由で `chrome.storage.local` の世代別同期 shard に取り込みます。raw response・cursor 値・表示名・本文は保存しません。実アカウントで blocked 234件 / muted 50件の取り込みを確認済み（件数のみ・2026-06-13）。
+- **production sync 実装済み**: 宣言的 `world:"MAIN"` content script（`/settings/blocked/all`・`/settings/muted/all` 限定）が、ユーザー自身のブロック・ミュート一覧 GraphQL 応答から `user_id`（rest_id）/ `handle`（screen_name）/ `listKind` のみを抽出し、ISOLATED bridge 経由で `chrome.storage.local` の世代別同期 shard に取り込みます。本文を読む対象は x.com / twitter.com の `/i/api/graphql/<query-id>/BlockedAccounts|MutedAccounts` pathname に厳密限定し、query / fragment に同名文字列がある無関係な応答は読みません。raw response・cursor 値・表示名・本文は保存しません。実アカウントで blocked 234件 / muted 50件の取り込みを確認済み（件数のみ・2026-06-13）。
 - **reconciliation 実装済み**: 一覧の末尾（完全同期）に到達したときだけ当該 listKind を全置換し、解除済みアカウントを除去します。部分取得時は追加のみです（完全同期検出 = 抽出0件かつ Bottom cursor、`Storage.replaceSyncedListKind()`）。Top cursor だけの空ページは完了扱いしません。同一ページの再同期では cursor 無し initial request の固定 `sync-start` だけが staging を新しい全走査へ切り替え、pagination / tail-only refetch は前回の完全集合を保持します。request variables / cursor 値は bridge へ送りません。
 - **real-DOM author matching 実装済み**: 通常 content script が投稿カードの User-Name 領域に限定して投稿者を判定し、quote / embed の混在を分離します（引用カードは host 投稿を残したままその場で隠します）。実 TL で誤判定なく動作することを確認済み（M5）。
 - popup から同期の有効化・ブロック / ミュート件数・最終同期時刻の確認・同期データ削除ができます。F1-A 観測メモ（開発用）は本番では非表示です（dev フラグ `RESEARCH_UI_ENABLED`、既定 false）。

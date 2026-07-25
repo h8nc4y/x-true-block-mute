@@ -24,7 +24,7 @@ function check(condition, label, detail) {
   }
 }
 
-const context = createContext({ console });
+const context = createContext({ console, URL });
 context.globalThis = context;
 new Script(await readText("src/sync/sync-capture.js"), { filename: "src/sync/sync-capture.js" }).runInContext(context);
 const { SyncCapture } = context.XTrueBlockMute;
@@ -32,6 +32,18 @@ const { SyncCapture } = context.XTrueBlockMute;
 // listKindFromUrl
 check(SyncCapture.listKindFromUrl("https://x.com/i/api/graphql/abc/BlockedAccounts?x=1") === "blocked", "BlockedAccounts URL -> blocked");
 check(SyncCapture.listKindFromUrl("https://x.com/i/api/graphql/abc/MutedAccounts?x=1") === "muted", "MutedAccounts URL -> muted");
+check(SyncCapture.listKindFromUrl("https://twitter.com/i/api/graphql/abc/MutedAccounts?x=1") === "muted", "twitter.com MutedAccounts URL -> muted");
+check(SyncCapture.listKindFromUrl("/i/api/graphql/abc/BlockedAccounts?x=1") === "blocked", "relative BlockedAccounts URL -> blocked");
+// operation 名は GraphQL pathname の末尾 segment にある場合だけ認識し、
+// 無関係な応答本文を query 値や別 origin の文字列だけで読む経路を閉じる。
+check(
+  SyncCapture.listKindFromUrl("https://x.com/i/api/graphql/abc/HomeTimeline?next=BlockedAccounts") === null,
+  "query-only BlockedAccounts text -> null"
+);
+check(
+  SyncCapture.listKindFromUrl("https://api.x.com/i/api/graphql/abc/BlockedAccounts") === null,
+  "forbidden api.x.com origin -> null"
+);
 check(SyncCapture.listKindFromUrl("https://x.com/i/api/graphql/abc/HomeTimeline") === null, "non-list URL -> null");
 
 // normalizeHandle

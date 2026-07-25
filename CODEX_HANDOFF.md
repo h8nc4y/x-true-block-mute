@@ -5,7 +5,7 @@
 > 本書と `AGENTS.md` が食い違う場合は、現在の `AGENTS.md` に合わせて本書を更新することを最初の自走タスクにしてよい（§11・§6 参照）。
 > **§10 データ保護不変条件** と **§9 4ゲート** は、どの作業でも上書きできない最優先ルール。
 
-初版: 2026/06/19 ／ 最終更新: 2026/07/23 ／ リポジトリ: 本リポジトリ root（remote `origin` = `github.com/h8nc4y/x-true-block-mute`、default branch `main`）
+初版: 2026/06/19 ／ 最終更新: 2026/07/25 ／ リポジトリ: 本リポジトリ root（remote `origin` = `github.com/h8nc4y/x-true-block-mute`、default branch `main`）
 
 ---
 
@@ -69,7 +69,7 @@ content_scripts（宣言的・3 登録）:
 
 ---
 
-## 4. リポジトリの現状（2026-07-24 時点）
+## 4. リポジトリの現状（2026-07-25 時点）
 
 - **version `1.1.1`**（`manifest.json` が真実。`minimum_chrome_version:111`）。`dist/TrueBlock-Mute-v1.1.1.zip` は生成済み（`dist/` は gitignore・再生成可）。
 - **Chrome Web Store: 公開済み**（store item ID `anpgfamnbjoajbapfeclnjkklbcoknkb`、2026-06-14 にオーナーが「審査のため送信」→ 公開ページの最終更新 2026-06-18・公開版 v1.1.1。2026-07-06 にオーナーがダッシュボードで公開を確認し、エージェントが公開ストアページで version / 掲載文を確認。旧状態「提出済み・審査結果待ち」は公開で解消）。Codex は Chrome Web Store の管理画面確認・再提出・公開操作を行わない。
@@ -77,7 +77,8 @@ content_scripts（宣言的・3 登録）:
 - 2026-07-21 に PR #40（現況・所見台帳同期、merge commit `3155c63`）を merge。続く PR #41 では同一ページ再同期の staging lifecycle を、cursor 無し initial request の固定 `sync-start` と synthetic 回帰で修正した。
 - 2026-07-23 に `REVIEW-2026-07-15-STORAGE-LANE` を TDD で再現。同期行を generation 別 shard へ分離し、popup clear 後の stale upsert は旧 shard だけを cleanup / reject する。4 context の連続 clear 中も最新 shard を保持し、旧 single-key は失敗再試行可能な二段階移行後に whole-key remove、base / synthetic / sync は別 key、同期状態は field 別 key とした。retired cleanup の一時失敗後も active generation を止めず次回 clear で再処理する回帰を固定した。
 - 2026-07-24 に `REVIEW-2026-07-15-RESERVED-PATHS` を Class M の synthetic-only TDD で再現。User-Name 領域の `/hashtag`、`/intent`、`/lists`、`/communities` が同名 target を author と誤認して4カードを隠す RED を確認後、既知 route 先頭語を予約集合へ追加した。既存 author 2件＋quote 1件の置換を保ち、予約 path 4件を表示維持する headless Chromium 回帰と静的10本を PASS。権限・データソース・外部送信・公開版は変更していない。
-- 2026-07-24 実測で `node scripts/check-all.mjs` は静的10本 PASS。docs は現行資料と歴史資料（`docs/archive/`）を分離済みで、分類索引は `docs/README.md`。
+- 2026-07-25 に `REVIEW-2026-07-25-SYNC-ENDPOINT-PATH` を Class M の synthetic-only TDD で再現。設定ページ上の無関係な GraphQL URLでも query 値に operation 名があれば本文読取へ進む RED を確認し、許可 origin と GraphQL operation pathname を厳密化した。相対 list URL の互換を保ち、query-only operation と `api.x.com` は本文読取前に拒否する。実 X・raw response・新権限・公開操作は使っていない。
+- 2026-07-25 実測で `node scripts/check-all.mjs` は静的10本 PASS。docs は現行資料と歴史資料（`docs/archive/`）を分離済みで、分類索引は `docs/README.md`。
 - プロダクト機能は完成し公開済み（本番同期・実DOM著者照合・reconcile・popup/options・プライバシーポリシー JA/EN・allowlist パッケージ）。以後は公開後運用（`docs/review-response-playbook.md` §3〜§4）と、`docs/requirements-v2-2026-07.md` §7 のオーナー未回答質問（Q3〜Q7: 公開範囲・告知・サポート窓口・費用・v1.2 優先度）への回答待ちが主戦場。CI workflow の追加・Chrome Web Store 操作・release/tag は §9 ゲート。
 - v1.2 候補（**実装しない・オーナー承認待ち＝§9④**）: 同期忘れ/鮮度切れの警告 UI（仕様は `docs/requirements-v2-2026-07.md` §5 に定義済み）、初回オンボーディング、Firefox 移植。
 - ブランチ: `main`（＋ `feature/*`・`research/*`・`backup/*` の旧ブランチは温存。merge/delete しない）。
@@ -212,7 +213,7 @@ foreach ($s in @('verify-phase1-static','verify-docs-consistency','audit-operati
 1. **ハンドオフ/トラッカー整合の維持** — `CODEX_HANDOFF.md`、`AGENTS.md`、`TASKS_BACKLOG.md`、`README.md`、`docs/deferred-findings-register.md` が同じ現状を指すよう保つ。古い ChatGPT 承認制、`storage + scripting` 旧記述、`TASKS_BACKLOG.md` 陳腐化前提、Vault 書き込み不可前提、「審査待ち」旧状態を再導入しない。
 2. **ローカル検証ハーネス保守** — 静的10本が、権限・外部送信・raw 値禁止・ハンドオフ drift を検知し続けるようにする。ドキュメント編集後は `audit-operational-alignment.mjs` と `verify-docs-consistency.mjs` を必ず再実行。
 3. **公開後の不具合報告対応（`docs/review-response-playbook.md` §3〜§4 の runbook 実行）** — ユーザー報告が来たら「48時間以内一次判断・14日以内修正版 zip 作成」の指標で動く。報告から raw handle/user_id/スクショを受け取らず、synthetic fixture 化 → 修正 → check:all 緑 → zip 生成まで。**ストアへの再提出・公開はオーナー（§9①）**。
-4. **`PHASE2-HOOK-PRODUCTION` の bounded review** — MAIN-world hook の lifecycle / teardown / idempotency はローカル fixture と静的レビューだけで扱う。明示 teardown、in-flight停止、再 install 契約、tail 厳格化（PR #34）、安全な全走査開始検出（PR #41）は固定済み。今後も新権限・新データソース・raw response 取得・live X 読み取りはしない。
+4. **`PHASE2-HOOK-PRODUCTION` の bounded review** — MAIN-world hook の lifecycle / teardown / idempotency はローカル fixture と静的レビューだけで扱う。明示 teardown、in-flight停止、再 install 契約、tail 厳格化（PR #34）、安全な全走査開始検出（PR #41）、exact GraphQL endpoint pathname gate（2026-07-25）は固定済み。今後も新権限・新データソース・raw response 取得・live X 読み取りはしない。
 5. **オーナー回答の文書反映** — `docs/requirements-v2-2026-07.md` §7 の Q3〜Q7（公開範囲・告知・サポート窓口・費用・v1.2 優先度）への回答が共有されたら、要件 v2 の確定・backlog への v1.2 タスク起票・掲載文言の改善計画に反映する。回答が来るまで v1.2 実装には着手しない。
 6. **CI の草案作成のみ** — `.github/workflows` の新規作成・変更は §9① に該当するため、workflow を有効化しない。必要なら静的10本を走らせる CI 手順の Markdown 草案までに留める。
 
