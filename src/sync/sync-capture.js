@@ -21,17 +21,35 @@
     return handle.replace(/^@/, "").trim().toLowerCase();
   }
 
+  const SYNC_ORIGINS = new Set(["https://x.com", "https://twitter.com"]);
+  const SYNC_OPERATION_PATH =
+    /^\/i\/api\/graphql\/[^/]+\/(BlockedAccounts|MutedAccounts)\/?$/i;
+
   // Derive which list a response belongs to from its request URL. The list
   // GraphQL operations are BlockedAccounts / MutedAccounts.
   function listKindFromUrl(url) {
-    const text = String(url || "");
-    if (/BlockedAccounts/i.test(text)) {
-      return "blocked";
+    try {
+      // MAIN world で相対 URL が渡る場合は現在の X origin を基準にする。単体試験の
+      // location 非存在時だけ x.com を既定値にし、許可 origin 自体は厳密に固定する。
+      const currentOrigin =
+        globalThis.location && SYNC_ORIGINS.has(String(globalThis.location.origin || ""))
+          ? globalThis.location.origin
+          : "https://x.com";
+      const requestUrl = new URL(String(url || ""), currentOrigin);
+      if (!SYNC_ORIGINS.has(requestUrl.origin)) {
+        return null;
+      }
+      // operation 名は pathname の末尾 segment でだけ認識する。query/fragment に
+      // 同名文字列がある無関係な応答本文を clone().text()/responseText で読まない。
+      const match = SYNC_OPERATION_PATH.exec(requestUrl.pathname);
+      if (!match) {
+        return null;
+      }
+      return match[1].toLowerCase() === "blockedaccounts" ? "blocked" : "muted";
+    } catch (_error) {
+      // URL として解釈できない入力は、本文を読まない安全側へ倒す。
+      return null;
     }
-    if (/MutedAccounts/i.test(text)) {
-      return "muted";
-    }
-    return null;
   }
 
   function readScreenName(userObject) {

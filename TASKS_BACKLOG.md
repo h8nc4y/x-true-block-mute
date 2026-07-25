@@ -2,7 +2,7 @@
 
 ## Status
 
-最終更新: 2026-07-23
+最終更新: 2026-07-25
 
 このファイルは現行タスクのトラッカーです。Codex は現行のユーザー指示とハンドオフを優先し、ここではロードマップとタスク状態を実装実態に合わせて記録します。旧 ChatGPT 承認制は廃止済みです。現行ユーザー指示で許可された自律開発の範囲では、Codex / Claude Code が通常の docs・test・code 健全性タスクを進めます。権限追加、Phase 移行、配布、外部送信などの境界変更は人間承認ゲートです。
 
@@ -72,7 +72,7 @@ M1 ──→ M2 ──→ M3(分岐点) ──→ M4 ──→ M5 ──→ M6 �
 
 ## Validation evidence
 
-現行の検証正本は `node scripts/check-all.mjs`（静的10本一括。コミット前に毎回緑を確認する）。直近の全緑実測は 2026-07-23。M1〜M7 期の個別コマンドのベースライン記録（2026-06-12/13）は、本ファイルの git 履歴旧版を参照。
+現行の検証正本は `node scripts/check-all.mjs`（静的10本一括。コミット前に毎回緑を確認する）。直近の全緑実測は 2026-07-25。M1〜M7 期の個別コマンドのベースライン記録（2026-06-12/13）は、本ファイルの git 履歴旧版を参照。
 
 ## Done criteria
 
@@ -91,6 +91,7 @@ M1 ──→ M2 ──→ M3(分岐点) ──→ M4 ──→ M5 ──→ M6 �
 - 2026-07-15: 読取専用の横断レビュー3所見を PR #39 で台帳化。2026-07-21 に安定 ID・優先順・検証条件を追記し、最上位を sync staging の再現・修正に確定。
 - 2026-07-21: PR #40 で現況資料と所見 ID を同期。PR #41 で `REVIEW-2026-07-15-SYNC-STAGING` を TDD 解消し、次の最上位を storage lane の再現性検証へ更新。
 - 2026-07-23: PR #42 で `REVIEW-2026-07-15-STORAGE-LANE` を独立 VM 2〜4 context の共有 storage stub で TDD 再現。同期行を generation 別 shard、base / synthetic を専用 key、同期状態を field 別 key へ分離した。popup clear の削除優先、連続 clear 中の最新 shard 保持、旧 single-key の二段階移行失敗と whole-key cleanup、cleanup 一時失敗からの再処理、全競合テストの timeout を固定。
+- 2026-07-25: `REVIEW-2026-07-25-SYNC-ENDPOINT-PATH` を synthetic TDD で解消。MAIN-world hook の list 判定を URL 全体の operation 名部分一致から、x.com / twitter.com の exact GraphQL operation pathname へ狭め、無関係な応答本文を query 値だけで読まない回帰を固定した。
 
 ## 外部レビュー指摘の台帳（2026-07-15 maxエフォート横断レビュー）
 
