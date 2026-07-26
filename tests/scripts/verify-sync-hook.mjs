@@ -690,6 +690,149 @@ check(
   teardownMessages
 );
 
+// uninstall前から存在するXHR objectも、再install後は現世代のlistenerを得る。
+// 旧世代listenerはinactiveのままなので、本文読取とmessageはそれぞれ1回だけ。
+const beforeReusedXhrMessages = teardownMessages.length;
+inFlightTeardownXhr.open(
+  "GET",
+  "https://x.com/i/api/graphql/abc/BlockedAccounts?case=reused-xhr-after-reinstall"
+);
+inFlightTeardownXhr.responseText = blockedBody;
+inFlightTeardownXhr.dispatch("loadend");
+await flush();
+check(
+  teardownXhrTextReadCount === 1,
+  "reinstalled hook reads a reused XHR response exactly once",
+  teardownXhrTextReadCount
+);
+check(
+  teardownMessages
+    .slice(beforeReusedXhrMessages)
+    .filter(
+      (m) =>
+        m.message.source === "x-tbm:sync:capture" &&
+        m.message.kind === "sync-entries" &&
+        m.message.listKind === "blocked"
+    ).length === 1,
+  "reinstalled hook posts one message for a reused XHR object",
+  teardownMessages.slice(beforeReusedXhrMessages)
+);
+
+// 12. 外部wrapperが旧hookを保持していても、inactive世代は新規XHRへ
+// noop listenerを追加しない。再install回数に比例するcallback蓄積を防ぐ。
+let wrapperFetchTextReadCount = 0;
+let foreignFetchCallCount = 0;
+let wrapperFetchUrlReadCount = 0;
+let wrapperXhrTextReadCount = 0;
+let foreignOpenCallCount = 0;
+const wrapperMessages = [];
+const wrapperLocation = { origin: "https://x.com", href: "https://x.com/settings/blocked/all" };
+const wrapperContext = createContext({
+  console,
+  JSON,
+  URL,
+  location: wrapperLocation,
+  window: {
+    fetch: () =>
+      Promise.resolve(
+        new FakeResponse(blockedBody, 200, {
+          onText: () => {
+            wrapperFetchTextReadCount += 1;
+          }
+        })
+      ),
+    postMessage: (message, targetOrigin) => {
+      wrapperMessages.push({ message, targetOrigin });
+    }
+  },
+  XMLHttpRequest: createFakeXMLHttpRequestClass()
+});
+wrapperContext.globalThis = wrapperContext;
+new Script(await readText("src/sync/sync-capture.js"), { filename: "src/sync/sync-capture.js" }).runInContext(
+  wrapperContext
+);
+new Script(await readText("src/sync/sync-hook.js"), { filename: "src/sync/sync-hook.js" }).runInContext(
+  wrapperContext
+);
+const firstGenerationFetch = wrapperContext.window.fetch;
+const firstGenerationOpen = wrapperContext.XMLHttpRequest.prototype.open;
+function foreignFetch() {
+  foreignFetchCallCount += 1;
+  return firstGenerationFetch.apply(this, arguments);
+}
+function foreignOpen() {
+  foreignOpenCallCount += 1;
+  return firstGenerationOpen.apply(this, arguments);
+}
+wrapperContext.window.fetch = foreignFetch;
+wrapperContext.XMLHttpRequest.prototype.open = foreignOpen;
+wrapperContext.XTrueBlockMuteSyncHook.uninstallSyncHook();
+check(wrapperContext.window.fetch === foreignFetch, "uninstall preserves a foreign fetch wrapper");
+check(
+  wrapperContext.XMLHttpRequest.prototype.open === foreignOpen,
+  "uninstall preserves a foreign XMLHttpRequest.open wrapper"
+);
+wrapperContext.XTrueBlockMuteSyncHook.installSyncHook("x-tbm:sync:capture");
+const wrapperFetchInput = {};
+Object.defineProperty(wrapperFetchInput, "url", {
+  enumerable: true,
+  get() {
+    wrapperFetchUrlReadCount += 1;
+    return "https://x.com/i/api/graphql/abc/BlockedAccounts?case=foreign-fetch-wrapper-reinstall";
+  }
+});
+await wrapperContext.window.fetch(wrapperFetchInput);
+await flush();
+await flush();
+check(
+  wrapperFetchUrlReadCount === 2,
+  "inactive hook generation does not reevaluate fetch input through a foreign wrapper",
+  wrapperFetchUrlReadCount
+);
+check(foreignFetchCallCount === 1, "reinstalled hook preserves one foreign fetch call", foreignFetchCallCount);
+check(wrapperFetchTextReadCount === 1, "current hook reads the foreign-wrapped fetch once", wrapperFetchTextReadCount);
+check(
+  wrapperMessages.filter(
+    (m) =>
+      m.message.source === "x-tbm:sync:capture" &&
+      m.message.kind === "sync-entries" &&
+      m.message.listKind === "blocked"
+  ).length === 1,
+  "current hook posts one message through a foreign fetch wrapper",
+  wrapperMessages
+);
+const beforeWrappedAgainXhrMessages = wrapperMessages.length;
+const wrappedAgainXhr = new wrapperContext.XMLHttpRequest();
+wrappedAgainXhr.open(
+  "GET",
+  "https://x.com/i/api/graphql/abc/BlockedAccounts?case=foreign-wrapper-reinstall"
+);
+wrappedAgainXhr.responseText = blockedBody;
+wrappedAgainXhr.onResponseTextRead = () => {
+  wrapperXhrTextReadCount += 1;
+};
+check(
+  (wrappedAgainXhr.listeners.loadend || []).length === 1,
+  "inactive hook generation does not add a stale loadend listener through a foreign wrapper",
+  (wrappedAgainXhr.listeners.loadend || []).length
+);
+wrappedAgainXhr.dispatch("loadend");
+await flush();
+check(foreignOpenCallCount === 1, "reinstalled hook preserves one foreign open call", foreignOpenCallCount);
+check(wrapperXhrTextReadCount === 1, "current hook reads the foreign-wrapped XHR once", wrapperXhrTextReadCount);
+check(
+  wrapperMessages
+    .slice(beforeWrappedAgainXhrMessages)
+    .filter(
+      (m) =>
+        m.message.source === "x-tbm:sync:capture" &&
+        m.message.kind === "sync-entries" &&
+        m.message.listKind === "blocked"
+    ).length === 1,
+  "current hook posts one message through a foreign XMLHttpRequest.open wrapper",
+  wrapperMessages.slice(beforeWrappedAgainXhrMessages)
+);
+
 if (failures.length > 0) {
   console.error(`\nSync hook verification FAILED: ${failures.length} check(s) failed`);
   process.exit(1);

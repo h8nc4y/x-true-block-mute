@@ -31,6 +31,7 @@
 | `privacy-threat-model.md` | プライバシー脅威モデル（raw 値の境界・禁止権限） |
 | `deferred-findings-register.md` | 保留・解決済み所見の台帳（CL-AUDIT / PHASE2 系 ID） |
 | `phase2-readiness-gates.md` | Phase 2 移行時のゲート定義（f1a_viable 判定等・履歴込み） |
+| `sync-hook-xhr-reinstall-contract.md` | hook世代をまたぐXHR再利用とteardown / 再installの検証契約 |
 | `decisions/f1-source-selection.md` | データソース選定（F1-A primary）の決定記録 |
 | `research/f1-a-main-world-hook.md` | F1-A MAIN-world hook の調査記録・資格情報境界 |
 | `manual-popup-verification.md` | popup の手動確認手順（非エンジニア向け） |
