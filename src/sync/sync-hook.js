@@ -29,6 +29,10 @@
     const originalFetch = window.fetch;
     const originalOpen = XMLHttpRequest.prototype.open;
     const hookState = { originalFetch, originalOpen, wrappedFetch: null, wrappedOpen: null, active: true };
+    // XHR object側の公開flagではなく、hook世代ごとにlistener所有を追跡する。
+    // これによりuninstall前からあるXHRを再install後に再利用しても、現世代の
+    // listenerを1回だけ追加でき、旧世代listenerはinactiveのまま無害化される。
+    const observedXhrs = new WeakSet();
 
     function isCurrentHook() {
       return installedHook === hookState && hookState.active;
@@ -144,6 +148,11 @@
 
     function wrappedFetch(input, init) {
       const result = originalFetch.apply(this, arguments);
+      // 外部wrapper経由で旧世代が呼ばれても、native/次wrapperのrequestだけは
+      // 維持し、uninstall済み世代では入力getter評価やcallback追加を行わない。
+      if (!isCurrentHook()) {
+        return result;
+      }
       const url = requestUrlFromInput(input);
       // Gate before clone().text() so off-settings and non-list X responses are never read by this hook.
       if (shouldReadListResponse(url)) {
@@ -165,11 +174,16 @@
     }
 
     function wrappedOpen(method, url) {
+      // 外部wrapperが旧世代の関数を保持していても、uninstall済み世代は
+      // URL評価やlistener登録をせず、その世代が捕捉した次のopenへ素通しする。
+      if (!isCurrentHook()) {
+        return originalOpen.apply(this, arguments);
+      }
       this.__xTbmSyncUrl = requestUrlFromInput(url);
       this.__xTbmSyncShouldRead = shouldReadListResponse(this.__xTbmSyncUrl);
-      if (!this.__xTbmSyncLoadEndAttached) {
-        // 同じ XHR インスタンスで open() が再実行されても、loadend listener は一度だけ登録する。
-        this.__xTbmSyncLoadEndAttached = true;
+      if (!observedXhrs.has(this)) {
+        // 同じhook世代ではXHRを何度openしてもlistenerを1つに保つ。再install時は
+        // 新しいWeakSetになるため、世代をまたいだXHR再利用だけ現listenerを追加する。
         this.addEventListener("loadend", function onLoadEnd() {
           try {
             // Avoid touching responseText unless this XHR started on a settings list endpoint.
@@ -182,6 +196,7 @@
             /* ignore unreadable responses */
           }
         });
+        observedXhrs.add(this);
       }
       return originalOpen.apply(this, arguments);
     }

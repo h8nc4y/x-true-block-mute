@@ -2,7 +2,7 @@
 
 ## Status
 
-最終更新: 2026-07-25
+最終更新: 2026-07-26
 
 このファイルは現行タスクのトラッカーです。Codex は現行のユーザー指示とハンドオフを優先し、ここではロードマップとタスク状態を実装実態に合わせて記録します。旧 ChatGPT 承認制は廃止済みです。現行ユーザー指示で許可された自律開発の範囲では、Codex / Claude Code が通常の docs・test・code 健全性タスクを進めます。権限追加、Phase 移行、配布、外部送信などの境界変更は人間承認ゲートです。
 
@@ -92,6 +92,7 @@ M1 ──→ M2 ──→ M3(分岐点) ──→ M4 ──→ M5 ──→ M6 �
 - 2026-07-21: PR #40 で現況資料と所見 ID を同期。PR #41 で `REVIEW-2026-07-15-SYNC-STAGING` を TDD 解消し、次の最上位を storage lane の再現性検証へ更新。
 - 2026-07-23: PR #42 で `REVIEW-2026-07-15-STORAGE-LANE` を独立 VM 2〜4 context の共有 storage stub で TDD 再現。同期行を generation 別 shard、base / synthetic を専用 key、同期状態を field 別 key へ分離した。popup clear の削除優先、連続 clear 中の最新 shard 保持、旧 single-key の二段階移行失敗と whole-key cleanup、cleanup 一時失敗からの再処理、全競合テストの timeout を固定。
 - 2026-07-25: `REVIEW-2026-07-25-SYNC-ENDPOINT-PATH` を synthetic TDD で解消。MAIN-world hook の list 判定を URL 全体の operation 名部分一致から、x.com / twitter.com の exact GraphQL operation pathname へ狭め、無関係な応答本文を query 値だけで読まない回帰を固定した。
+- 2026-07-26: `PHASE2-HOOK-PRODUCTION` のbounded lifecycle reviewで、hook世代をまたいで再利用するXHR objectのlistener所有を世代別`WeakSet`へ分離した。uninstall後の旧listenerは本文を読まず、再install後の現listenerが1回だけ処理するsynthetic回帰を固定した。外部`fetch` / `open` wrapperが旧hookを保持する場合もinactive世代は入力URL・callback / listenerを追加処理せず、外部wrapper所有権と現世代の1回処理を維持する。
 
 ## 外部レビュー指摘の台帳（2026-07-15 maxエフォート横断レビュー）
 
