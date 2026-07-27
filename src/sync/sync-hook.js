@@ -184,14 +184,26 @@
       if (!observedXhrs.has(this)) {
         // 同じhook世代ではXHRを何度openしてもlistenerを1つに保つ。再install時は
         // 新しいWeakSetになるため、世代をまたいだXHR再利用だけ現listenerを追加する。
-        this.addEventListener("loadend", function onLoadEnd() {
+        // 成功応答は load より前の DONE readystatechange で処理する。ページ側の
+        // load listener が同じXHRを次requestへopenし直すと、loadend時点では
+        // URL/responseが次requestへ再初期化済みになり得るため、対応付けを先に確定する。
+        this.addEventListener("readystatechange", function onReadyStateChange() {
           try {
+            if (this.readyState !== 4) {
+              return;
+            }
             // Avoid touching responseText unless this XHR started on a settings list endpoint.
             if (!isCurrentHook() || !this.__xTbmSyncShouldRead) {
               return;
             }
+            // network error / abort でも一時的に DONE 通知は発生する。status 0 や
+            // non-2xx は本文へ触れる前に拒否し、失敗応答を同期入力にしない。
+            const status = this.status;
+            if (typeof status === "number" && (status < 200 || status >= 300)) {
+              return;
+            }
             const body = this.responseType === "json" ? JSON.stringify(this.response) : this.responseText;
-            handleResponse(this.__xTbmSyncUrl, body || "", this.status);
+            handleResponse(this.__xTbmSyncUrl, body || "", status);
           } catch (_error) {
             /* ignore unreadable responses */
           }
