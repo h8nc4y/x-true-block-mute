@@ -52,6 +52,7 @@ function createFakeXMLHttpRequestClass() {
       this._responseText = "";
       this.onResponseTextRead = null;
       this.status = 200;
+      this.readyState = 0;
     }
     get responseText() {
       if (this.onResponseTextRead) {
@@ -71,11 +72,33 @@ function createFakeXMLHttpRequestClass() {
     open(method, url) {
       this.method = method;
       this.url = url;
+      this.readyState = 1;
     }
     dispatch(type) {
       for (const listener of this.listeners[type] || []) {
         listener.call(this);
       }
+    }
+    complete() {
+      // WHATWG XHR の成功順序(DONE readystatechange → load → loadend)を合成する。
+      this.readyState = 4;
+      this.dispatch("readystatechange");
+      this.dispatch("load");
+      this.dispatch("loadend");
+    }
+    fail(eventType = "error") {
+      // network error stepsはstatus 0のDONEを通知してからerror/abortとloadendへ進む。
+      this.status = 0;
+      this.readyState = 4;
+      this.dispatch("readystatechange");
+      this.dispatch(eventType);
+      this.dispatch("loadend");
+    }
+    abort() {
+      // 実ブラウザのabort()はerror steps後にDONEからUNSENT(0)へ戻し、
+      // その最終遷移自体ではreadystatechangeを追加送出しない。
+      this.fail("abort");
+      this.readyState = 0;
     }
   };
 }
@@ -410,7 +433,7 @@ const xhr = new context.XMLHttpRequest();
 const initialMutedVariables = encodeURIComponent(JSON.stringify({ count: 20 }));
 xhr.open("GET", `https://x.com/i/api/graphql/abc/MutedAccounts?variables=${initialMutedVariables}`);
 xhr.responseText = mutedBody;
-xhr.dispatch("loadend");
+xhr.complete();
 await flush();
 const mutedStartMsgs = messages.filter(
   (m) =>
@@ -436,7 +459,7 @@ xhrHome.responseText = '{"data":{"home":{"entries":[]}}}';
 xhrHome.onResponseTextRead = () => {
   nonListXhrTextReadCount += 1;
 };
-xhrHome.dispatch("loadend");
+xhrHome.complete();
 await flush();
 check(nonListXhrTextReadCount === 0, "non-list XHR response body is not read", nonListXhrTextReadCount);
 
@@ -448,7 +471,7 @@ xhrOffSettings.responseText = blockedBody;
 xhrOffSettings.onResponseTextRead = () => {
   offSettingsXhrTextReadCount += 1;
 };
-xhrOffSettings.dispatch("loadend");
+xhrOffSettings.complete();
 await flush();
 check(
   messages.length === beforeOffSettingsXhr,
@@ -462,13 +485,13 @@ check(
 );
 location.href = "https://x.com/settings/blocked/all";
 
-// 4. Reopened XHR object -> only one loadend listener may process the final request.
+// 4. Reopened XHR object -> only one readystatechange listener may process the final request.
 const beforeReopenedXhr = messages.length;
 const reopenedXhr = new context.XMLHttpRequest();
 reopenedXhr.open("GET", "https://x.com/i/api/graphql/abc/HomeTimeline?case=reopen-first");
 reopenedXhr.open("GET", "https://x.com/i/api/graphql/abc/BlockedAccounts?case=reopen-final");
 reopenedXhr.responseText = blockedBody;
-reopenedXhr.dispatch("loadend");
+reopenedXhr.complete();
 await flush();
 const reopenedXhrMsgs = messages
   .slice(beforeReopenedXhr)
@@ -480,14 +503,83 @@ const reopenedXhrMsgs = messages
   );
 check(reopenedXhrMsgs.length === 1, "reopened XHR object posts one sync-entries message", reopenedXhrMsgs.length);
 
-// 5. Top-only cursor page -> ignored, not treated as full-list completion
+// 5. ページの load listener が同じ XHR を次 request へ開き直しても、
+// 最初の eligible response は次 request の URL で上書きされる前に処理する。
+const beforeLoadReopenXhr = messages.length;
+let loadReopenTextReadCount = 0;
+const loadReopenXhr = new context.XMLHttpRequest();
+loadReopenXhr.addEventListener("load", () => {
+  loadReopenXhr.open("GET", "https://x.com/i/api/graphql/abc/HomeTimeline?case=load-reopen-next");
+});
+loadReopenXhr.open("GET", "https://x.com/i/api/graphql/abc/BlockedAccounts?case=load-reopen-first");
+loadReopenXhr.responseText = blockedBody;
+loadReopenXhr.onResponseTextRead = () => {
+  loadReopenTextReadCount += 1;
+};
+loadReopenXhr.complete();
+await flush();
+const loadReopenXhrMsgs = messages
+  .slice(beforeLoadReopenXhr)
+  .filter(
+    (m) =>
+      m.message.source === "x-tbm:sync:capture" &&
+      m.message.kind === "sync-entries" &&
+      m.message.listKind === "blocked"
+  );
+check(
+  loadReopenTextReadCount === 1,
+  "eligible XHR response is read before a page load listener reopens the object",
+  loadReopenTextReadCount
+);
+check(
+  loadReopenXhrMsgs.length === 1,
+  "eligible XHR response posts once before a page load listener reopens the object",
+  loadReopenXhrMsgs.length
+);
+
+// 6. network errorはDONEへ遷移してもstatus 0の本文を読まず、messageを送らない。
+const beforeNetworkErrorXhr = messages.length;
+let networkErrorTextReadCount = 0;
+let networkErrorThrew = false;
+const networkErrorXhr = new context.XMLHttpRequest();
+networkErrorXhr.open("GET", "https://x.com/i/api/graphql/abc/BlockedAccounts?case=network-error");
+networkErrorXhr.responseText = blockedBody;
+networkErrorXhr.onResponseTextRead = () => {
+  networkErrorTextReadCount += 1;
+};
+try {
+  networkErrorXhr.fail();
+} catch (_error) {
+  networkErrorThrew = true;
+}
+await flush();
+check(!networkErrorThrew, "network-error DONE is handled without throwing");
+check(networkErrorTextReadCount === 0, "network-error XHR response body is not read", networkErrorTextReadCount);
+check(messages.length === beforeNetworkErrorXhr, "network-error XHR posts no sync message");
+
+// 7. abortは一時的なDONE通知後にUNSENTへ戻り、本文もmessageも残さない。
+const beforeAbortedXhr = messages.length;
+let abortedXhrTextReadCount = 0;
+const abortedXhr = new context.XMLHttpRequest();
+abortedXhr.open("GET", "https://x.com/i/api/graphql/abc/MutedAccounts?case=abort");
+abortedXhr.responseText = mutedBody;
+abortedXhr.onResponseTextRead = () => {
+  abortedXhrTextReadCount += 1;
+};
+abortedXhr.abort();
+await flush();
+check(abortedXhr.readyState === 0, "aborted XHR returns to UNSENT readyState", abortedXhr.readyState);
+check(abortedXhrTextReadCount === 0, "aborted XHR response body is not read", abortedXhrTextReadCount);
+check(messages.length === beforeAbortedXhr, "aborted XHR posts no sync message");
+
+// 8. Top-only cursor page -> ignored, not treated as full-list completion
 const beforeTopOnly = messages.length;
 await context.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?case=top-only");
 await flush();
 await flush();
 check(messages.length === beforeTopOnly, "top-only cursor page posts no sync-complete", messages.length - beforeTopOnly);
 
-// 6. Empty tail page -> completion signal only, no entries/cursor leakage
+// 9. Empty tail page -> completion signal only, no entries/cursor leakage
 const beforeBottom = messages.length;
 await context.window.fetch("https://x.com/i/api/graphql/abc/BlockedAccounts?cursor=tail");
 await flush();
@@ -654,7 +746,7 @@ check(
   "uninstall restores original XMLHttpRequest.open"
 );
 check(!teardownContext.window.__xTbmSyncHookInstalled, "uninstall clears installed guard");
-inFlightTeardownXhr.dispatch("loadend");
+inFlightTeardownXhr.complete();
 await inFlightTeardownFetch;
 await flush();
 await flush();
@@ -698,7 +790,7 @@ inFlightTeardownXhr.open(
   "https://x.com/i/api/graphql/abc/BlockedAccounts?case=reused-xhr-after-reinstall"
 );
 inFlightTeardownXhr.responseText = blockedBody;
-inFlightTeardownXhr.dispatch("loadend");
+inFlightTeardownXhr.complete();
 await flush();
 check(
   teardownXhrTextReadCount === 1,
@@ -812,11 +904,11 @@ wrappedAgainXhr.onResponseTextRead = () => {
   wrapperXhrTextReadCount += 1;
 };
 check(
-  (wrappedAgainXhr.listeners.loadend || []).length === 1,
-  "inactive hook generation does not add a stale loadend listener through a foreign wrapper",
-  (wrappedAgainXhr.listeners.loadend || []).length
+  (wrappedAgainXhr.listeners.readystatechange || []).length === 1,
+  "inactive hook generation does not add a stale readystatechange listener through a foreign wrapper",
+  (wrappedAgainXhr.listeners.readystatechange || []).length
 );
-wrappedAgainXhr.dispatch("loadend");
+wrappedAgainXhr.complete();
 await flush();
 check(foreignOpenCallCount === 1, "reinstalled hook preserves one foreign open call", foreignOpenCallCount);
 check(wrapperXhrTextReadCount === 1, "current hook reads the foreign-wrapped XHR once", wrapperXhrTextReadCount);

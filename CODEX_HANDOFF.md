@@ -69,7 +69,7 @@ content_scripts（宣言的・3 登録）:
 
 ---
 
-## 4. リポジトリの現状（2026-07-26 時点）
+## 4. リポジトリの現状（2026-07-27 時点）
 
 - **version `1.1.1`**（`manifest.json` が真実。`minimum_chrome_version:111`）。`dist/TrueBlock-Mute-v1.1.1.zip` は生成済み（`dist/` は gitignore・再生成可）。
 - **Chrome Web Store: 公開済み**（store item ID `anpgfamnbjoajbapfeclnjkklbcoknkb`、2026-06-14 にオーナーが「審査のため送信」→ 公開ページの最終更新 2026-06-18・公開版 v1.1.1。2026-07-06 にオーナーがダッシュボードで公開を確認し、エージェントが公開ストアページで version / 掲載文を確認。旧状態「提出済み・審査結果待ち」は公開で解消）。Codex は Chrome Web Store の管理画面確認・再提出・公開操作を行わない。
@@ -79,7 +79,8 @@ content_scripts（宣言的・3 登録）:
 - 2026-07-24 に `REVIEW-2026-07-15-RESERVED-PATHS` を Class M の synthetic-only TDD で再現。User-Name 領域の `/hashtag`、`/intent`、`/lists`、`/communities` が同名 target を author と誤認して4カードを隠す RED を確認後、既知 route 先頭語を予約集合へ追加した。既存 author 2件＋quote 1件の置換を保ち、予約 path 4件を表示維持する headless Chromium 回帰と静的10本を PASS。権限・データソース・外部送信・公開版は変更していない。
 - 2026-07-25 に `REVIEW-2026-07-25-SYNC-ENDPOINT-PATH` を Class M の synthetic-only TDD で再現。設定ページ上の無関係な GraphQL URLでも query 値に operation 名があれば本文読取へ進む RED を確認し、許可 origin と GraphQL operation pathname を厳密化した。相対 list URL の互換を保ち、query-only operation と `api.x.com` は本文読取前に拒否する。実 X・raw response・新権限・公開操作は使っていない。
 - 2026-07-26 に `PHASE2-HOOK-PRODUCTION` の Class M bounded reviewで、uninstall前からあるXHR objectを再install後に再利用すると、旧世代の公開flagにより現世代listenerを登録できないREDをsynthetic再現した。listener所有をhook世代ごとの`WeakSet`へ分離し、旧世代は本文を読まず、現世代が1回だけ処理する契約を固定した。さらに外部`fetch` / `open` wrapperが旧hookを保持する経路でも、inactive世代はrequest委譲後にURL評価・callback / listener追加をせず、世代数に比例するnoop処理の蓄積を防ぐ。
-- 2026-07-26 実測で `node scripts/check-all.mjs` は静的10本 PASS。docs は現行資料と歴史資料（`docs/archive/`）を分離済みで、分類索引は `docs/README.md`。
+- 2026-07-27 に同じ bounded review を継続し、ページ側の通常 `load` listener が同じXHRを次requestへ開き直すと、`loadend` 時点の共有metadataが次URLへ上書きされて直前のeligible responseを取りこぼすREDをsynthetic再現した。成功応答の処理をDONE `readystatechange` へ移し、後続の`load` listenerによる再初期化前にURLと本文を1回だけ対応付ける回帰を固定した。ローカル Chromium のsynthetic Blob XHRでも DONE→load再open→loadend の順と、DONE時点だけが元responseを保持することを確認した。
+- 2026-07-27 実測で `node scripts/check-all.mjs` は静的10本 PASS。docs は現行資料と歴史資料（`docs/archive/`）を分離済みで、分類索引は `docs/README.md`。
 - プロダクト機能は完成し公開済み（本番同期・実DOM著者照合・reconcile・popup/options・プライバシーポリシー JA/EN・allowlist パッケージ）。以後は公開後運用（`docs/review-response-playbook.md` §3〜§4）と、`docs/requirements-v2-2026-07.md` §7 のオーナー未回答質問（Q3〜Q7: 公開範囲・告知・サポート窓口・費用・v1.2 優先度）への回答待ちが主戦場。CI workflow の追加・Chrome Web Store 操作・release/tag は §9 ゲート。
 - v1.2 候補（**実装しない・オーナー承認待ち＝§9④**）: 同期忘れ/鮮度切れの警告 UI（仕様は `docs/requirements-v2-2026-07.md` §5 に定義済み）、初回オンボーディング、Firefox 移植。
 - ブランチ: `main`（＋ `feature/*`・`research/*`・`backup/*` の旧ブランチは温存。merge/delete しない）。
