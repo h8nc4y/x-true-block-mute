@@ -28,6 +28,7 @@ const requiredFiles = [
   "tests/fixtures/f1-a-local-simulator.html",
   "tests/fixtures/f1-a-masked-summary.fixture.json",
   "tests/scripts/evaluate-f1-observation.mjs",
+  "tests/scripts/verify-extension-load-chrome.mjs",
   "scripts/check-all.mjs",
   "tests/scripts/audit-operational-alignment.mjs",
   "tests/scripts/verify-f1a-main-hook-simulator.mjs",
@@ -213,6 +214,50 @@ assertSameStringArray(
   ].sort(),
   "profile reserved paths must reject synthetic non-profile author URLs"
 );
+
+// synthetic Chromium証跡はresponsive options画面、bounded diagnostics、
+// watchdog cleanupを一体で保持する。キャッシュ済みbrowserがない環境で
+// 実機runを省略しても、重要な契約の削除は既存の静的suiteで先に検出する。
+const extensionLoadHarness = await readText("tests/scripts/verify-extension-load-chrome.mjs");
+for (const requiredToken of [
+  "OPTIONS_VIEWPORTS",
+  'width: 390, height: 844',
+  'width: 768, height: 1024',
+  'width: 1280, height: 900',
+  "Emulation.setDeviceMetricsOverride",
+  "Runtime.exceptionThrown",
+  "Runtime.consoleAPICalled",
+  "Log.entryAdded",
+  "Network.loadingFailed",
+  "document.documentElement.scrollWidth",
+  "activeCleanup",
+  "terminateProcessTree",
+  "XTBM_FORCE_WATCHDOG",
+  "XTBM_FORCE_BROWSER_CLOSE_TIMEOUT",
+  "watchdogTriggered",
+  "cleanupComplete",
+  "XTBM_FORCE_WATCHDOG_RACE",
+  "XTBM_FORCE_CLEANUP_STATUS_FAILURE",
+  "XTBM_FORCE_TASKKILL_TIMEOUT",
+  "XTBM_FORCE_TASKKILL_NONZERO",
+  "XTBM_FORCE_HELPER_SPAWN_ERROR",
+  "XTBM_FORCE_HELPER_AFTER_SPAWN_ERROR",
+  "XTBM_FORCE_HELPER_KILL_ERROR",
+  "helperSpawned",
+  "postSpawnErrorCode",
+  "killRetryAttempted",
+  "taskkillStatus",
+  "taskkillExitCode",
+  "taskkillErrorCode",
+  "taskkillHelperExited",
+  "taskkillStderrRedacted",
+  "taskkillFallbackStatus"
+]) {
+  assert(
+    extensionLoadHarness.includes(requiredToken),
+    `Chromium evidence harness must retain ${requiredToken}`
+  );
+}
 
 const constantsScript = await readText("src/shared/constants.js");
 const mainWorldHookScript = await readText("src/research/f1-a/main-world-hook.js");
