@@ -51,6 +51,7 @@ function createFakeXMLHttpRequestClass() {
       this.responseType = "";
       this._responseText = "";
       this.onResponseTextRead = null;
+      this.onAddEventListener = null;
       this.status = 200;
       this.readyState = 0;
     }
@@ -64,12 +65,21 @@ function createFakeXMLHttpRequestClass() {
       this._responseText = value;
     }
     addEventListener(type, listener) {
+      // XHR自身がevent targetのため、capture指定の有無よりlistener登録順が先行する。
+      // ページlistenerが先にある再入経路を、実Chromiumと同じ順序で合成する。
+      if (this.onAddEventListener) {
+        this.onAddEventListener(type, listener);
+      }
       (this.listeners[type] = this.listeners[type] || []).push(listener);
     }
     getResponseHeader() {
       return "application/json";
     }
     open(method, url) {
+      // WHATWG XHRのforbidden method検査は、既存response stateを初期化する前にthrowする。
+      if (method === "CONNECT") {
+        throw new SyntaxError("synthetic forbidden method");
+      }
       this.method = method;
       this.url = url;
       this.readyState = 1;
@@ -503,7 +513,141 @@ const reopenedXhrMsgs = messages
   );
 check(reopenedXhrMsgs.length === 1, "reopened XHR object posts one sync-entries message", reopenedXhrMsgs.length);
 
-// 5. ページの load listener が同じ XHR を次 request へ開き直しても、
+// 5. hookより先に登録されたページの通常readystatechange listenerがDONEで
+// 同じXHRを再openしても、最初のeligible responseをhookが先に処理する。
+const beforeReadyStateReopenXhr = messages.length;
+let readyStateReopenTextReadCount = 0;
+const readyStateReopenXhr = new context.XMLHttpRequest();
+readyStateReopenXhr.addEventListener("readystatechange", () => {
+  if (readyStateReopenXhr.readyState === 4) {
+    readyStateReopenXhr.open(
+      "GET",
+      "https://x.com/i/api/graphql/abc/HomeTimeline?case=readystatechange-reopen-next"
+    );
+  }
+});
+readyStateReopenXhr.open(
+  "GET",
+  "https://x.com/i/api/graphql/abc/BlockedAccounts?case=readystatechange-reopen-first"
+);
+readyStateReopenXhr.responseText = blockedBody;
+readyStateReopenXhr.onResponseTextRead = () => {
+  readyStateReopenTextReadCount += 1;
+};
+readyStateReopenXhr.complete();
+await flush();
+const readyStateReopenXhrMsgs = messages
+  .slice(beforeReadyStateReopenXhr)
+  .filter(
+    (m) =>
+      m.message.source === "x-tbm:sync:capture" &&
+      m.message.kind === "sync-entries" &&
+      m.message.listKind === "blocked"
+  );
+check(
+  readyStateReopenTextReadCount === 1,
+  "eligible XHR response is read before an earlier page readystatechange listener reopens the object",
+  readyStateReopenTextReadCount
+);
+check(
+  readyStateReopenXhrMsgs.length === 1,
+  "eligible XHR response posts once before an earlier page readystatechange listener reopens the object",
+  readyStateReopenXhrMsgs.length
+);
+
+// 6. originalOpenが同期throwしたrequest stateを残さず、直前のnon-list DONE本文を
+// 失敗したeligible URLへ誤対応しない。
+const beforeFailedOpenXhr = messages.length;
+let failedOpenTextReadCount = 0;
+let failedOpenThrew = false;
+const failedOpenXhr = new context.XMLHttpRequest();
+failedOpenXhr.open("GET", "https://x.com/i/api/graphql/abc/HomeTimeline?case=before-failed-open");
+failedOpenXhr.responseText = blockedBody;
+failedOpenXhr.onResponseTextRead = () => {
+  failedOpenTextReadCount += 1;
+};
+failedOpenXhr.complete();
+await flush();
+try {
+  failedOpenXhr.open(
+    "CONNECT",
+    "https://x.com/i/api/graphql/abc/BlockedAccounts?case=failed-open"
+  );
+} catch (error) {
+  failedOpenThrew = error instanceof SyntaxError;
+}
+failedOpenXhr.open("GET", "https://x.com/i/api/graphql/abc/HomeTimeline?case=after-failed-open");
+await flush();
+const failedOpenXhrMsgs = messages
+  .slice(beforeFailedOpenXhr)
+  .filter((m) => m.message.source === "x-tbm:sync:capture");
+check(failedOpenThrew, "forbidden XHR method preserves the original synchronous error");
+check(
+  failedOpenTextReadCount === 0,
+  "failed eligible open does not make the previous non-list response readable",
+  failedOpenTextReadCount
+);
+check(
+  failedOpenXhrMsgs.length === 0,
+  "failed eligible open does not post from the previous non-list response",
+  failedOpenXhrMsgs.length
+);
+
+// 7. 初回listener登録が同期throwしてもprovisional stateを残さない。
+// 登録済みか不明なため同じ世代では再登録せず、そのXHRだけをfail closedにする。
+const beforeListenerThrowXhr = messages.length;
+let listenerThrowTextReadCount = 0;
+let listenerThrowPreservedError = false;
+let listenerRegistrationAttempts = 0;
+const listenerThrowXhr = new context.XMLHttpRequest();
+listenerThrowXhr.readyState = 4;
+listenerThrowXhr.responseText = blockedBody;
+listenerThrowXhr.onResponseTextRead = () => {
+  listenerThrowTextReadCount += 1;
+};
+listenerThrowXhr.onAddEventListener = (_type, listener) => {
+  listenerRegistrationAttempts += 1;
+  if (listenerRegistrationAttempts === 1) {
+    // MAIN worldの外部wrapperがcallbackを同期実行してからthrowしても、
+    // 次request stateはまだ公開されていないため旧bodyを新URLで処理しない。
+    listener.call(listenerThrowXhr);
+    throw new Error("synthetic addEventListener failure");
+  }
+};
+try {
+  listenerThrowXhr.open(
+    "GET",
+    "https://x.com/i/api/graphql/abc/BlockedAccounts?case=listener-registration-throw"
+  );
+} catch (error) {
+  listenerThrowPreservedError = error.message === "synthetic addEventListener failure";
+}
+listenerThrowXhr.open(
+  "GET",
+  "https://x.com/i/api/graphql/abc/HomeTimeline?case=after-listener-registration-throw"
+);
+await flush();
+const listenerThrowXhrMsgs = messages
+  .slice(beforeListenerThrowXhr)
+  .filter((m) => m.message.source === "x-tbm:sync:capture");
+check(listenerThrowPreservedError, "XHR listener registration preserves its synchronous error");
+check(
+  listenerRegistrationAttempts === 1,
+  "failed XHR listener registration is not retried with ambiguous ownership",
+  listenerRegistrationAttempts
+);
+check(
+  listenerThrowTextReadCount === 0,
+  "failed XHR listener registration does not make the previous non-list response readable",
+  listenerThrowTextReadCount
+);
+check(
+  listenerThrowXhrMsgs.length === 0,
+  "failed XHR listener registration posts no message from the previous non-list response",
+  listenerThrowXhrMsgs.length
+);
+
+// 8. ページの load listener が同じ XHR を次 request へ開き直しても、
 // 最初の eligible response は次 request の URL で上書きされる前に処理する。
 const beforeLoadReopenXhr = messages.length;
 let loadReopenTextReadCount = 0;
@@ -537,7 +681,7 @@ check(
   loadReopenXhrMsgs.length
 );
 
-// 6. network errorはDONEへ遷移してもstatus 0の本文を読まず、messageを送らない。
+// 9. network errorはDONEへ遷移してもstatus 0の本文を読まず、messageを送らない。
 const beforeNetworkErrorXhr = messages.length;
 let networkErrorTextReadCount = 0;
 let networkErrorThrew = false;
@@ -854,7 +998,11 @@ function foreignFetch() {
 }
 function foreignOpen() {
   foreignOpenCallCount += 1;
-  return firstGenerationOpen.apply(this, arguments);
+  const result = firstGenerationOpen.apply(this, arguments);
+  if (arguments[0] === "FOREIGN_THROW_AFTER_OPEN") {
+    throw new Error("synthetic foreign wrapper failure after delegate");
+  }
+  return result;
 }
 wrapperContext.window.fetch = foreignFetch;
 wrapperContext.XMLHttpRequest.prototype.open = foreignOpen;
@@ -923,6 +1071,42 @@ check(
     ).length === 1,
   "current hook posts one message through a foreign XMLHttpRequest.open wrapper",
   wrapperMessages.slice(beforeWrappedAgainXhrMessages)
+);
+
+// 外部wrapperがnative相当のopenへ委譲した後でthrowした場合、旧request stateを
+// 復元すると新しいnon-list responseを旧eligible URLへ誤対応する。stateを破棄してfail closedにする。
+const beforeForeignThrowMessages = wrapperMessages.length;
+let foreignThrowTextReadCount = 0;
+let foreignThrowPreservedError = false;
+const foreignThrowXhr = new wrapperContext.XMLHttpRequest();
+foreignThrowXhr.open(
+  "GET",
+  "https://x.com/i/api/graphql/abc/BlockedAccounts?case=before-foreign-throw"
+);
+try {
+  foreignThrowXhr.open(
+    "FOREIGN_THROW_AFTER_OPEN",
+    "https://x.com/i/api/graphql/abc/HomeTimeline?case=foreign-throw-after-open"
+  );
+} catch (error) {
+  foreignThrowPreservedError = error.message === "synthetic foreign wrapper failure after delegate";
+}
+foreignThrowXhr.responseText = blockedBody;
+foreignThrowXhr.onResponseTextRead = () => {
+  foreignThrowTextReadCount += 1;
+};
+foreignThrowXhr.complete();
+await flush();
+check(foreignThrowPreservedError, "foreign open wrapper preserves its synchronous delegated error");
+check(
+  foreignThrowTextReadCount === 0,
+  "foreign throw after delegate does not read the new non-list response through the previous eligible state",
+  foreignThrowTextReadCount
+);
+check(
+  wrapperMessages.length === beforeForeignThrowMessages,
+  "foreign throw after delegate posts no message from the new non-list response",
+  wrapperMessages.slice(beforeForeignThrowMessages)
 );
 
 if (failures.length > 0) {

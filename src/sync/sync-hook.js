@@ -33,6 +33,9 @@
     // これによりuninstall前からあるXHRを再install後に再利用しても、現世代の
     // listenerを1回だけ追加でき、旧世代listenerはinactiveのまま無害化される。
     const observedXhrs = new WeakSet();
+    // request単位のURL・読取可否・処理済み状態はhook世代内に閉じる。
+    // XHR object上の公開expandoを使わず、次のopenや旧世代へ状態を漏らさない。
+    const xhrRequestStates = new WeakMap();
 
     function isCurrentHook() {
       return installedHook === hookState && hookState.active;
@@ -173,44 +176,85 @@
       return result;
     }
 
+    function processCompletedXhr(xhr) {
+      const requestState = xhrRequestStates.get(xhr);
+      if (
+        !requestState ||
+        requestState.handled ||
+        xhr.readyState !== 4 ||
+        !isCurrentHook() ||
+        !requestState.shouldRead
+      ) {
+        return;
+      }
+
+      // network error / abort でも一時的に DONE 通知は発生する。status 0 や
+      // non-2xx は本文へ触れる前に拒否し、失敗応答を同期入力にしない。
+      const status = xhr.status;
+      if (typeof status === "number" && (status < 200 || status >= 300)) {
+        requestState.handled = true;
+        return;
+      }
+
+      // responseText getterや抽出処理が再入しても二重処理しないよう、本文読取より先に確定する。
+      requestState.handled = true;
+      const body = xhr.responseType === "json" ? JSON.stringify(xhr.response) : xhr.responseText;
+      handleResponse(requestState.url, body || "", status);
+    }
+
     function wrappedOpen(method, url) {
       // 外部wrapperが旧世代の関数を保持していても、uninstall済み世代は
       // URL評価やlistener登録をせず、その世代が捕捉した次のopenへ素通しする。
       if (!isCurrentHook()) {
         return originalOpen.apply(this, arguments);
       }
-      this.__xTbmSyncUrl = requestUrlFromInput(url);
-      this.__xTbmSyncShouldRead = shouldReadListResponse(this.__xTbmSyncUrl);
-      if (!observedXhrs.has(this)) {
-        // 同じhook世代ではXHRを何度openしてもlistenerを1つに保つ。再install時は
-        // 新しいWeakSetになるため、世代をまたいだXHR再利用だけ現listenerを追加する。
-        // 成功応答は load より前の DONE readystatechange で処理する。ページ側の
-        // load listener が同じXHRを次requestへopenし直すと、loadend時点では
-        // URL/responseが次requestへ再初期化済みになり得るため、対応付けを先に確定する。
-        this.addEventListener("readystatechange", function onReadyStateChange() {
-          try {
-            if (this.readyState !== 4) {
-              return;
-            }
-            // Avoid touching responseText unless this XHR started on a settings list endpoint.
-            if (!isCurrentHook() || !this.__xTbmSyncShouldRead) {
-              return;
-            }
-            // network error / abort でも一時的に DONE 通知は発生する。status 0 や
-            // non-2xx は本文へ触れる前に拒否し、失敗応答を同期入力にしない。
-            const status = this.status;
-            if (typeof status === "number" && (status < 200 || status >= 300)) {
-              return;
-            }
-            const body = this.responseType === "json" ? JSON.stringify(this.response) : this.responseText;
-            handleResponse(this.__xTbmSyncUrl, body || "", status);
-          } catch (_error) {
-            /* ignore unreadable responses */
-          }
-        });
-        observedXhrs.add(this);
+
+      // 先行するページlistenerがDONE中に同じXHRを再openした場合、originalOpenが
+      // responseを初期化する前に直前requestを処理する。通常のDONE listenerで既に
+      // 処理済みならhandledで無害なno-opになる。
+      try {
+        processCompletedXhr(this);
+      } catch (_error) {
+        /* ignore unreadable responses */
       }
-      return originalOpen.apply(this, arguments);
+
+      const requestUrl = requestUrlFromInput(url);
+      const nextRequestState = {
+        url: requestUrl,
+        shouldRead: shouldReadListResponse(requestUrl),
+        handled: false
+      };
+      try {
+        if (!observedXhrs.has(this)) {
+          // 外部addEventListener wrapperがlistener登録の前後どちらでthrowしたかは
+          // 判別できない。登録を試す前に所有済みとし、曖昧な再試行による重複を防ぐ。
+          observedXhrs.add(this);
+          // 同じhook世代ではXHRを何度openしてもlistenerを1つに保つ。再install時は
+          // 新しいWeakSetになるため、世代をまたいだXHR再利用だけ現listenerを追加する。
+          // 成功応答は load より前の DONE readystatechange で処理する。ページ側の
+          // load listener が同じXHRを次requestへopenし直すと、loadend時点では
+          // URL/responseが次requestへ再初期化済みになり得るため、対応付けを先に確定する。
+          this.addEventListener("readystatechange", function onReadyStateChange() {
+            try {
+              processCompletedXhr(this);
+            } catch (_error) {
+              /* ignore unreadable responses */
+            }
+          });
+        }
+        // listener登録が完了するまで次requestを公開しない。外部wrapperが登録時に
+        // callbackを同期実行・throwしても、そのURLで旧DONE本文を処理させない。
+        xhrRequestStates.set(this, nextRequestState);
+        return originalOpen.apply(this, arguments);
+      } catch (error) {
+        // listener登録失敗やmethod/URL検査なら旧responseが残り、外部wrapperなら
+        // native open済みで新responseへ進んでいる可能性がある。判別できないため、
+        // 今回setしたstateを所有している場合だけ破棄し、本文読取をfail closedにする。
+        if (xhrRequestStates.get(this) === nextRequestState) {
+          xhrRequestStates.delete(this);
+        }
+        throw error;
+      }
     }
 
     hookState.wrappedFetch = wrappedFetch;
