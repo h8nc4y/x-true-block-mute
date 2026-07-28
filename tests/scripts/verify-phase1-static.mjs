@@ -1,5 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { Script } from "node:vm";
+import {
+  isBenignTaskkillNoProcessRace,
+  shouldAttemptTaskkillFallback
+} from "./chromium-cleanup-policy.mjs";
 
 const root = new URL("../../", import.meta.url);
 // observation-utils.js and main-world-hook.js are RETAINED as offline F1-A
@@ -28,6 +32,7 @@ const requiredFiles = [
   "tests/fixtures/f1-a-local-simulator.html",
   "tests/fixtures/f1-a-masked-summary.fixture.json",
   "tests/scripts/evaluate-f1-observation.mjs",
+  "tests/scripts/chromium-cleanup-policy.mjs",
   "tests/scripts/verify-extension-load-chrome.mjs",
   "scripts/check-all.mjs",
   "tests/scripts/audit-operational-alignment.mjs",
@@ -251,13 +256,106 @@ for (const requiredToken of [
   "taskkillErrorCode",
   "taskkillHelperExited",
   "taskkillStderrRedacted",
-  "taskkillFallbackStatus"
+  "taskkillFallbackStatus",
+  "isBenignTaskkillNoProcessRace",
+  "shouldAttemptTaskkillFallback",
+  "childExitedBeforeFallback",
+  "taskkillNoProcessRaceBenign",
+  "taskkillFallbackNoProcessRaceBenign"
 ]) {
   assert(
     extensionLoadHarness.includes(requiredToken),
     `Chromium evidence harness must retain ${requiredToken}`
   );
 }
+
+// taskkill が対象なしの exit 128 を返す終了競合は、直接 child と profile の
+// cleanup が完了した既知ケースだけを収束させる。exit code だけを見た一般的な
+// nonzero 無視へ退行しないよう、許可条件と拒否条件を同じ単体境界で固定する。
+const observedNoProcessRace = {
+  browserClose: "ok",
+  treeTerminateAttempted: true,
+  childExited: true,
+  profileRemoved: true,
+  childExitedBeforeFallback: true,
+  taskkillStatus: "nonzero",
+  taskkillExitCode: 128,
+  taskkillErrorCode: null,
+  taskkillHelperSpawned: true,
+  taskkillPostSpawnErrorCode: null,
+  taskkillKillRetryAttempted: false,
+  taskkillHelperExited: true,
+  taskkillStderrRedacted: "[redacted:51 chars]",
+  taskkillFallbackStatus: "nonzero",
+  taskkillFallbackExitCode: 128,
+  taskkillFallbackErrorCode: null,
+  taskkillFallbackHelperSpawned: true,
+  taskkillFallbackPostSpawnErrorCode: null,
+  taskkillFallbackKillRetryAttempted: false,
+  taskkillFallbackHelperExited: true,
+  taskkillFallbackStderrRedacted: "[redacted:51 chars]"
+};
+assert(
+  isBenignTaskkillNoProcessRace(observedNoProcessRace, "taskkill"),
+  "known primary taskkill no-process race must be benign after verified cleanup"
+);
+assert(
+  isBenignTaskkillNoProcessRace(observedNoProcessRace, "taskkillFallback"),
+  "known fallback taskkill no-process race must be benign after verified cleanup"
+);
+assert(
+  !isBenignTaskkillNoProcessRace(
+    {
+      ...observedNoProcessRace,
+      childExitedBeforeFallback: false,
+      taskkillFallbackStatus: "ok",
+      taskkillFallbackExitCode: 0,
+      taskkillFallbackStderrRedacted: ""
+    },
+    "taskkill"
+  ),
+  "primary exit 128 must remain a failure when only the fallback proves cleanup"
+);
+for (const [label, patch] of [
+  ["browser close timeout", { browserClose: "timeout" }],
+  ["tree termination not attempted", { treeTerminateAttempted: false }],
+  ["child still running", { childExited: false }],
+  ["profile remains", { profileRemoved: false }],
+  ["unknown nonzero exit", { taskkillExitCode: 23 }],
+  ["helper timeout", { taskkillStatus: "timeout", taskkillExitCode: null }],
+  ["helper spawn error", { taskkillStatus: "spawn-error", taskkillExitCode: null }],
+  ["helper did not spawn", { taskkillHelperSpawned: false }],
+  ["helper error", { taskkillErrorCode: "EACCES" }],
+  ["post-spawn helper error", { taskkillPostSpawnErrorCode: "POST_SPAWN_ERROR" }],
+  ["helper kill retry", { taskkillKillRetryAttempted: true }],
+  ["helper not exited", { taskkillHelperExited: false }],
+  ["missing redacted taskkill diagnostic", { taskkillStderrRedacted: "" }]
+]) {
+  assert(
+    !isBenignTaskkillNoProcessRace({ ...observedNoProcessRace, ...patch }, "taskkill"),
+    `${label} must remain a cleanup failure`
+  );
+}
+assert(
+  !isBenignTaskkillNoProcessRace(observedNoProcessRace, "unknownTaskkill"),
+  "unknown taskkill result prefix must fail closed"
+);
+assert(
+  !shouldAttemptTaskkillFallback({ status: "nonzero", helperExited: true }, true),
+  "failed primary taskkill must not retry after direct child exit"
+);
+assert(
+  shouldAttemptTaskkillFallback({ status: "nonzero", helperExited: true }, false),
+  "failed primary taskkill must retry while direct child remains"
+);
+assert(
+  shouldAttemptTaskkillFallback({ status: "ok", helperExited: false }, false),
+  "primary helper without a verified exit must retry while child remains"
+);
+assert(
+  !shouldAttemptTaskkillFallback({ status: "ok", helperExited: true }, false),
+  "successful primary taskkill must not run a redundant fallback"
+);
 
 const constantsScript = await readText("src/shared/constants.js");
 const mainWorldHookScript = await readText("src/research/f1-a/main-world-hook.js");

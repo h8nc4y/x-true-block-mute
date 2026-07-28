@@ -18,7 +18,7 @@
 - 各 viewport で `scrollWidth <= innerWidth` を満たし、見出し、プライバシー説明、管理ボタンが表示され、既定の本文・見出し・ボタン文字サイズと操作領域が読みやすさの下限を満たす。
 - `Runtime.exceptionThrown`、error-level `Runtime.consoleAPICalled` / `Log.entryAdded`、`Network.loadingFailed` を session ごとに上限付きで収集し、synthetic 検証中は 0 件であることを確認する。response body は読まない。
 - options page の3 viewport screenshot を `tmp/` に生成し、生成だけで合格にせず目視する。
-- watchdog でも通常終了と同じ冪等 cleanup を通し、`Browser.close` を短時間で打ち切った場合は Chromium の process tree を明示終了して一時 profile を削除する。watchdog 発火、cleanup 不完了、`taskkill` timeout / nonzero は必ず非 0 終了へ接続する。
+- watchdog でも通常終了と同じ冪等 cleanup を通し、`Browser.close` を短時間で打ち切った場合は Chromium の process tree を明示終了して一時 profile を削除する。watchdog 発火、cleanup 不完了、`taskkill` timeout / unknown nonzero は必ず非 0 終了へ接続する。例外は `Browser.close=ok`、直接 child の実終了、profile 削除、helper の正常終了を全て確認した後の既知 no-process exit 128 に限定し、それ以外を一般化して無視しない。
 - 既存の popup、storage、fixture、real-DOM author / quote / reserved path 回帰を保つ。
 - `node scripts/check-all.mjs`、`node tests/scripts/verify-extension-load-chrome.mjs`、package 検査、`git diff --check` を通す。
 
@@ -45,6 +45,23 @@
 - 同じ commit の初回 run で `node tests/scripts/verify-extension-load-chrome.mjs` を headful Chromium で bounded 実行し、73 checks と cleanup が全て PASS。popup、home fixture、real-DOM fixture、options `390x844 / 768x1024 / 1280x900` の計6枚を目視した。options は3幅とも横 overflow なし、主要見出し・プライバシー説明・管理ボタンを判読可能で、これら6つの機能確認 session の runtime/page error・console error・failed request は各0だった。collector の false-green 防止専用 session は意図した error 3種を捕捉している。
 - 初回の通常 cleanup は `browserClose=ok`、`childExited=true`、`profileRemoved=true`、`cleanupComplete=true`。今回の開始時刻以降の最終更新を持つ `xtbm-tb002-*` 一時 profile と、対象 repository path / extension ID を持つ `chrome.exe` は各0件だった。既知の旧 profile 46件には触れていない。
 - 独立レビュー向けに同条件で証跡を保存した再実行は、機能73件が全 PASSし、`Browser.close=ok`、`childExited=true`、`profileRemoved=true`、残存 process / profile 各0だった一方、process-tree fallback と child の自然終了が競合して primary / fallback `taskkill` が exit 128。これを cleanup failure と集約したため runner 全体は exit 1 だった。残存を見逃した成功ではなく、既に終了した child を fallback failure と扱う false-negative 候補として `POST-2026-07-29-BROWSER-CLEANUP-RACE` に昇格した。
+
+### `POST-2026-07-29-BROWSER-CLEANUP-RACE` 受け入れ条件
+
+- cleanup policy を副作用のない関数として単体検証し、観測済みの exit 128 race だけを benign と判定する。
+- benign 条件は `Browser.close=ok`、tree termination 試行済み、直接 child 終了済み、profile 削除済み、helper が spawn 後に実終了、error / post-spawn error / kill retry なし、status `nonzero`、exit 128 の全一致とする。
+- exit 23、timeout、spawn error、post-spawn error、kill error、child 未終了、profile 残存、`Browser.close` timeout は従来どおり fail-closed とする。
+- synthetic Chromium の通常 run と、既存の forced failure 自己試験を再実行する。新規 profile と対象 Chromium process の残存を各0件で確認する。
+- 実 X、ログイン済み profile、raw response、Cookie、権限、製品 UI、公開版は変更・使用しない。
+
+実測結果:
+
+- 観測済み summary を許可する期待値に対し、未実装 policy が `false` を返す RED（`verify-phase1-static.mjs` exit 1）を確認した。
+- `chromium-cleanup-policy.mjs` に副作用のない判定を分離し、primary / fallback の既知 exit 128だけを上記全条件で許可した。unknown prefix、exit 23、timeout、spawn / post-spawn / kill error、helper未終了、child未終了、profile未削除、diagnostic欠落は全て拒否する。
+- primary helper失敗後は直接childの実exitを先に bounded 確認し、終了済みならfallbackを省く。childが残る場合とhelper終了未確認の場合だけ従来のfallbackを維持する。
+- `node scripts/check-all.mjs` は最終 source で静的10本 PASS。通常 headful Chromium 73 checks と cleanup complete はpolicy本体追加直後の実測であり、その後にfallback判断前のchild-exit確認と単体境界を追加したため、exact freezeの通常run証跡ではない。
+- 最終cleanup制御は forced exit 23 で直接実行し、`taskkillNoProcessRaceBenign=false` のまま `browserClose:timeout` と `taskkill:nonzero` をfailure集約してexit 1。fallbackは実行され、child / profile cleanup後の残存は各0件だった。追加browser再実行は行わず、最終静的10本とpolicy単体境界で補完した。
+- 実 X、ログイン済み profile、raw response、Cookie、権限、製品 UI、公開版は変更・使用していない。
 - この closeout でも実 X、ログイン済み profile、raw response、Cookie、権限、製品 UI、公開版は変更・使用していない。
 
 ## 確認した baseline
