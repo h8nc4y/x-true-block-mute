@@ -2,7 +2,7 @@
 
 ## Status
 
-最終更新: 2026-07-28
+最終更新: 2026-07-29
 
 このファイルは現行タスクのトラッカーです。Codex は現行のユーザー指示とハンドオフを優先し、ここではロードマップとタスク状態を実装実態に合わせて記録します。旧 ChatGPT 承認制は廃止済みです。現行ユーザー指示で許可された自律開発の範囲では、Codex / Claude Code が通常の docs・test・code 健全性タスクを進めます。権限追加、Phase 移行、配布、外部送信などの境界変更は人間承認ゲートです。
 
@@ -55,6 +55,12 @@ M1 ──→ M2 ──→ M3(分岐点) ──→ M4 ──→ M5 ──→ M6 �
 | P2-020 | M7 | ストア掲載物一式（説明文・スクショ・single purpose・permissions justification） | 中 | M | done: `docs/store-listing.md`（name/category/summary/詳細説明 日英・single purpose・各権限の justification・CWS データ使用フォーム回答＝端末内のみで収集なし・提出前チェックリスト）。スクショは `scripts/make-screenshots.mjs`（CDP・synthetic のみ・実 X 不使用）で 1280×800 を3枚生成し `store-assets/`（store-1-timeline=placeholder フィルタ実証 / store-2-options / store-3-popup）。実 Chromium で生成・視覚確認済み。 | P2-016, P2-018 |
 | P2-021 | M7 | Web Store 提出と審査対応サイクル（デベロッパー登録・決済・最終送信はユーザー） | 高 | M | done: 2026-06-14 にユーザーが「審査のため送信」（store item ID `anpgfamnbjoajbapfeclnjkklbcoknkb`）→ 審査通過・**公開済み**（公開ページ最終更新 2026-06-18・公開版 v1.1.1）。2026-07-06 にオーナーがダッシュボードで公開を確認し、エージェントが公開ストアページで version/掲載文を確認。 | P2-017〜P2-020 |
 
+## 公開後保守キュー
+
+| ID | タスク名 | 優先度 | 規模 | 状態 | 根拠 |
+| --- | --- | --- | --- | --- | --- |
+| POST-2026-07-29-BROWSER-CLEANUP-RACE | Chromium 正常終了と `taskkill` fallback の競合による cleanup false-negative を解消 | 高 | M | ready: exact-main の証跡保存用再実行で、機能73件は全 PASS、`Browser.close=ok`、`childExited=true`、`profileRemoved=true`、残存 process / profile 各0にもかかわらず、primary / fallback `taskkill` exit 128 が failure 集約され runner exit 1 を再現。 | PR #50 closeout |
+
 ## 旧 TB 系列タスクの扱い
 
 2026-06-12 までの棚卸し結果（旧ガバナンス時点）。状態変更の根拠は 2026-06-13 のユーザー決定。
@@ -72,7 +78,7 @@ M1 ──→ M2 ──→ M3(分岐点) ──→ M4 ──→ M5 ──→ M6 �
 
 ## Validation evidence
 
-現行の検証正本は `node scripts/check-all.mjs`（静的10本一括。コミット前に毎回緑を確認する）。直近の全緑実測は 2026-07-28。M1〜M7 期の個別コマンドのベースライン記録（2026-06-12/13）は、本ファイルの git 履歴旧版を参照。
+現行の検証正本は `node scripts/check-all.mjs`（静的10本一括。コミット前に毎回緑を確認する）。静的10本の直近全緑実測は 2026-07-29。Chromium harness は同日の初回 run が73 checksとcleanupを全緑、証跡保存用再実行は機能73件 PASS後に `POST-2026-07-29-BROWSER-CLEANUP-RACE` を再現して exit 1。M1〜M7 期の個別コマンドのベースライン記録（2026-06-12/13）は、本ファイルの git 履歴旧版を参照。
 
 ## Done criteria
 
@@ -96,6 +102,7 @@ M1 ──→ M2 ──→ M3(分岐点) ──→ M4 ──→ M5 ──→ M6 �
 - 2026-07-27: 同じXHRをページ側の通常`load` listenerが次requestへ再利用すると、`loadend`時点の共有URL metadataが次requestへ上書きされ、直前のeligible responseを取りこぼすREDをsynthetic再現。hookの成功応答処理をDONE `readystatechange`へ移し、後続の`load` listenerによる再初期化前に1回だけ本文を読む契約を固定した。ローカル Chromium のsynthetic Blob XHRでも DONE→load再open→loadend の順序と元response保持境界を実測し、PR #46（merge `cef39f5`）でmainへ統合した。
 - 2026-07-28: hookより先に登録された通常のDONE `readystatechange` listenerが同じXHRを再openし、hook処理前にrequest stateを上書きするREDをsynthetic再現。Chromium実測でcapture listenerも先行listenerを追い越さないことを確認し、request stateを世代別`WeakMap`へ分離した。再入`open()`入口で未処理responseを1回確定し、listener登録・native validation・外部wrapperの同期throwでは曖昧なstateを破棄してfail closedに本文を読まない。94件のhook回帰、静的10本、headless Chromium 30件をPASSし、PR #48（merge `454c32b`）でmainへ統合した。
 - 2026-07-28: `POST-2026-07-28-BROWSER-EVIDENCE` を test-only Class M で完了。既存 headless Chromium harness に options page の `390x844 / 768x1024 / 1280x900` responsive probe、主要 text / control の readability、session 別の bounded Runtime / console / failed-request 収集、3幅の full-page screenshot を追加した。collector 自体の synthetic error 3種を検出する false-green 防止を含む73 checks PASS、3枚を目視し、横 overflow・実pageの runtime/page error・console error・failed request は各0。独立レビューで見つけた watchdog cleanup 迂回と exit 0 race、通常 cleanup 不完了の false-green、taskkill helper 未評価を、共有する冪等 cleanup、terminal latch、failure 集約、bounded helper の timeout / exit code / redacted stderr / helper exit 確認で解消した。pre/post-spawn error も分離し、spawn 後 error は実 exit まで終了扱いにせず、grace 後は exact helper PID へ再送する。race・profile status failure・taskkill timeout / nonzero・helper spawn / post-spawn / kill error 自己試験は全て非 0、PID / profile / helper 残存なし。実 X・権限・製品 UI・公開版は変更していない。
+- 2026-07-29: PR #50（head `30d490a`、merge `232d12e`）の統合を確認。GitHub の check rollup と `main` push run はともに0件で今回の変更を検証する remote CI 証跡はないため、exact merge commit で `node scripts/check-all.mjs` の静的10本と headful Chromium harness を再実行した。初回は73 checksとcleanupが全緑。popup、home fixture、real-DOM、options 3 viewport の計6枚を目視し、3幅の横 overflow と、これら6つの機能確認 session の runtime/page error・console error・failed request は各0、cleanup 完了、一時 profile と対象 Chromium process の残存も各0だった。証跡保存用の同条件再実行では機能73件が全 PASSした後、既に child / profile が消えた終了競合で primary / fallback `taskkill` が exit 128となり runner exit 1を再現したため、`POST-2026-07-29-BROWSER-CLEANUP-RACE` へ昇格した。
 
 ## 外部レビュー指摘の台帳（2026-07-15 maxエフォート横断レビュー）
 

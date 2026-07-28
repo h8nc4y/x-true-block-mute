@@ -38,6 +38,15 @@
 - 通常 run は `Browser.close=ok`、`childExited=true`、`profileRemoved=true`、`cleanupComplete=true`。対象repo pathを持つ残留 `chrome.exe` は 0 件だった。
 - 今回の各自己試験で記録した PID / 一時 profile / timeout helper は残存 0。これとは別に、OS temp には旧 harness が残した同一接頭辞の profile が46件あった。active process 利用は0件だったが、削除操作が実行ポリシーで拒否されたため再試行せず、削除0件のまま残置した。
 
+### 2026-07-29 統合後 closeout
+
+- PR #50 は head `30d490a4699518b3897a92e6f3764df7c4f23dcc`、merge commit `232d12e5d006012dcaf590f3a8741bfe3181a006` で `main` へ統合済み。GitHub の check rollup と `main` push run はともに0件で、今回の変更を検証する remote CI 証跡は存在しない。
+- exact merge commit `232d12e5d006012dcaf590f3a8741bfe3181a006` で `node scripts/check-all.mjs` を再実行し、静的10本 PASS。
+- 同じ commit の初回 run で `node tests/scripts/verify-extension-load-chrome.mjs` を headful Chromium で bounded 実行し、73 checks と cleanup が全て PASS。popup、home fixture、real-DOM fixture、options `390x844 / 768x1024 / 1280x900` の計6枚を目視した。options は3幅とも横 overflow なし、主要見出し・プライバシー説明・管理ボタンを判読可能で、これら6つの機能確認 session の runtime/page error・console error・failed request は各0だった。collector の false-green 防止専用 session は意図した error 3種を捕捉している。
+- 初回の通常 cleanup は `browserClose=ok`、`childExited=true`、`profileRemoved=true`、`cleanupComplete=true`。今回の開始時刻以降の最終更新を持つ `xtbm-tb002-*` 一時 profile と、対象 repository path / extension ID を持つ `chrome.exe` は各0件だった。既知の旧 profile 46件には触れていない。
+- 独立レビュー向けに同条件で証跡を保存した再実行は、機能73件が全 PASSし、`Browser.close=ok`、`childExited=true`、`profileRemoved=true`、残存 process / profile 各0だった一方、process-tree fallback と child の自然終了が競合して primary / fallback `taskkill` が exit 128。これを cleanup failure と集約したため runner 全体は exit 1 だった。残存を見逃した成功ではなく、既に終了した child を fallback failure と扱う false-negative 候補として `POST-2026-07-29-BROWSER-CLEANUP-RACE` に昇格した。
+- この closeout でも実 X、ログイン済み profile、raw response、Cookie、権限、製品 UI、公開版は変更・使用していない。
+
 ## 確認した baseline
 
 - local branch: `main`
