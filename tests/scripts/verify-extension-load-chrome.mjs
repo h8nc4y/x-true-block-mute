@@ -7,6 +7,7 @@
 //      which only happens when chrome.storage is readable inside the extension).
 //   3. Seeding synthetic data updates the popup (#entry-count "0件" -> "2件").
 //   4. The synthetic fixture filters cards: placeholder=2, hidden=2, off=0, clear=0.
+//   5. XHR EventTarget preserves registration order even when the later listener uses capture.
 //
 // Why a cached Chromium instead of the installed Chrome: branded Chrome 137+
 // disables --load-extension, which is the most likely cause of the earlier
@@ -321,6 +322,26 @@ async function main() {
         return { ok: value === true, value };
       },
       { timeout: 8000, desc: "fixture scripts to load" }
+    );
+
+    // XHR自身がevent targetのため、後から登録したcapture listenerは先行listenerを追い越さない。
+    // 実X通信は行わず、合成readystatechangeを手動dispatchして再入対策の前提だけを実測する。
+    const xhrListenerOrder = await evaluate(
+      cdp,
+      fixture.sessionId,
+      `(() => {
+        const xhr = new XMLHttpRequest();
+        const order = [];
+        xhr.addEventListener("readystatechange", () => order.push("normal"));
+        xhr.addEventListener("readystatechange", () => order.push("capture"), true);
+        xhr.dispatchEvent(new Event("readystatechange"));
+        return order.join(",");
+      })()`
+    );
+    check(
+      xhrListenerOrder === "normal,capture",
+      "XHR target preserves an earlier normal readystatechange listener before later capture",
+      String(xhrListenerOrder)
     );
 
     const replacementCount = (sessionId) =>
