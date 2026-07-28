@@ -232,7 +232,7 @@ node tests/scripts/evaluate-f1-observation.mjs --live path\to\masked-summary.jso
 
 2026-06-13 以降、ユーザー承認の下で Claude Code が自動検証（Chrome Load unpacked は Playwright/CDP、live X は Chrome MCP の masked observation）を実施しました。
 
-- Chrome の `Load unpacked` / popup 動作 / synthetic + 実DOM フィルタは `tests/scripts/verify-extension-load-chrome.mjs`（実 Chromium CDP）で自動検証済み（M2 / M5）。2026-07-28 に options page の `390x844 / 768x1024 / 1280x900` responsive layout、主要 text / control、Runtime / console error、failed request の bounded 検証を追加した。watchdog も通常終了と同じ冪等 cleanup を通り、発火後の exit 0 を禁止する。`Browser.close` / `taskkill` / child exit / 一時 profile の失敗は集約して非 0 終了とする。
+- Chrome の `Load unpacked` / popup 動作 / synthetic + 実DOM フィルタは `tests/scripts/verify-extension-load-chrome.mjs`（実 Chromium CDP）で自動検証済み（M2 / M5）。2026-07-28 に options page の `390x844 / 768x1024 / 1280x900` responsive layout、主要 text / control、Runtime / console error、failed request の bounded 検証を追加した。watchdog も通常終了と同じ冪等 cleanup を通り、発火後の exit 0 を禁止する。`Browser.close` / `taskkill` / child exit / 一時 profile の失敗は集約して非 0 終了とする。2026-07-29 に、`Browser.close=ok`・直接 child 終了・profile 削除・helper 正常終了を確認済みの既知 no-process exit 128 だけを benign とする cleanup policy を追加し、unknown nonzero / timeout / helper 異常は fail-closed のまま固定した。
 - 実 X 画面での F1-A endpoint / response shape / pagination / identity は M3 の live masked summary 評価で `f1a_viable` を確認済み。production sync は実アカウントで件数のみ確認済み（M4、blocked 234 / muted 50）。
 - 実 X DOM の投稿者判定は User-Name 領域限定 + quote / embed 分離で実装・確認済み（M5）。同期の主キー `user_id`（rest_id）と補助キー handle（screen_name）は一覧 GraphQL 応答から取得する。
 - Chrome Web Store 提出（M7）は審査を通過し公開済み（v1.1.1、オーナー確認 2026-07-06）。

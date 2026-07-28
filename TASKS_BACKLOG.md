@@ -59,7 +59,7 @@ M1 ──→ M2 ──→ M3(分岐点) ──→ M4 ──→ M5 ──→ M6 �
 
 | ID | タスク名 | 優先度 | 規模 | 状態 | 根拠 |
 | --- | --- | --- | --- | --- | --- |
-| POST-2026-07-29-BROWSER-CLEANUP-RACE | Chromium 正常終了と `taskkill` fallback の競合による cleanup false-negative を解消 | 高 | M | ready: exact-main の証跡保存用再実行で、機能73件は全 PASS、`Browser.close=ok`、`childExited=true`、`profileRemoved=true`、残存 process / profile 各0にもかかわらず、primary / fallback `taskkill` exit 128 が failure 集約され runner exit 1 を再現。 | PR #50 closeout |
+| POST-2026-07-29-BROWSER-CLEANUP-RACE | Chromium 正常終了と `taskkill` fallback の競合による cleanup false-negative を解消 | 高 | M | done: 観測済み summary が旧 policy で失敗する RED を固定し、既知 no-process exit 128 だけを `Browser.close=ok`・tree試行・child終了・profile削除・helper spawn/exit・helper error不在・redacted診断の全条件で benign とする純関数へ分離。primaryはfallback判断前のchild終了も必須とし、終了済みならPID再利用後の別processを狙わないようfallbackを省く。exit 23 / timeout / helper異常 / child・profile未完了はfail-closed。policy本体追加直後の通常Chromium 73件、最終cleanup制御のforced exit 23非0終了、最終静的10本、残存process/profile各0を確認。 | PR #50 closeout |
 
 ## 旧 TB 系列タスクの扱い
 
@@ -78,7 +78,7 @@ M1 ──→ M2 ──→ M3(分岐点) ──→ M4 ──→ M5 ──→ M6 �
 
 ## Validation evidence
 
-現行の検証正本は `node scripts/check-all.mjs`（静的10本一括。コミット前に毎回緑を確認する）。静的10本の直近全緑実測は 2026-07-29。Chromium harness は同日の初回 run が73 checksとcleanupを全緑、証跡保存用再実行は機能73件 PASS後に `POST-2026-07-29-BROWSER-CLEANUP-RACE` を再現して exit 1。M1〜M7 期の個別コマンドのベースライン記録（2026-06-12/13）は、本ファイルの git 履歴旧版を参照。
+現行の検証正本は `node scripts/check-all.mjs`（静的10本一括。コミット前に毎回緑を確認する）。静的10本の直近全緑実測は 2026-07-29。Chromium harness は同日のpolicy本体追加直後（fallback前child-exit制御の最終追加前）の通常 run が73 checksとcleanupを全緑。最終cleanup制御はforced exit 23をcleanup failureに集約して期待どおりexit 1とし、最終静的10本でも契約を確認した。各runで作成したprofileと対象 Chromium processは各0件だった。M1〜M7 期の個別コマンドのベースライン記録（2026-06-12/13）は、本ファイルの git 履歴旧版を参照。
 
 ## Done criteria
 
@@ -103,6 +103,7 @@ M1 ──→ M2 ──→ M3(分岐点) ──→ M4 ──→ M5 ──→ M6 �
 - 2026-07-28: hookより先に登録された通常のDONE `readystatechange` listenerが同じXHRを再openし、hook処理前にrequest stateを上書きするREDをsynthetic再現。Chromium実測でcapture listenerも先行listenerを追い越さないことを確認し、request stateを世代別`WeakMap`へ分離した。再入`open()`入口で未処理responseを1回確定し、listener登録・native validation・外部wrapperの同期throwでは曖昧なstateを破棄してfail closedに本文を読まない。94件のhook回帰、静的10本、headless Chromium 30件をPASSし、PR #48（merge `454c32b`）でmainへ統合した。
 - 2026-07-28: `POST-2026-07-28-BROWSER-EVIDENCE` を test-only Class M で完了。既存 headless Chromium harness に options page の `390x844 / 768x1024 / 1280x900` responsive probe、主要 text / control の readability、session 別の bounded Runtime / console / failed-request 収集、3幅の full-page screenshot を追加した。collector 自体の synthetic error 3種を検出する false-green 防止を含む73 checks PASS、3枚を目視し、横 overflow・実pageの runtime/page error・console error・failed request は各0。独立レビューで見つけた watchdog cleanup 迂回と exit 0 race、通常 cleanup 不完了の false-green、taskkill helper 未評価を、共有する冪等 cleanup、terminal latch、failure 集約、bounded helper の timeout / exit code / redacted stderr / helper exit 確認で解消した。pre/post-spawn error も分離し、spawn 後 error は実 exit まで終了扱いにせず、grace 後は exact helper PID へ再送する。race・profile status failure・taskkill timeout / nonzero・helper spawn / post-spawn / kill error 自己試験は全て非 0、PID / profile / helper 残存なし。実 X・権限・製品 UI・公開版は変更していない。
 - 2026-07-29: PR #50（head `30d490a`、merge `232d12e`）の統合を確認。GitHub の check rollup と `main` push run はともに0件で今回の変更を検証する remote CI 証跡はないため、exact merge commit で `node scripts/check-all.mjs` の静的10本と headful Chromium harness を再実行した。初回は73 checksとcleanupが全緑。popup、home fixture、real-DOM、options 3 viewport の計6枚を目視し、3幅の横 overflow と、これら6つの機能確認 session の runtime/page error・console error・failed request は各0、cleanup 完了、一時 profile と対象 Chromium process の残存も各0だった。証跡保存用の同条件再実行では機能73件が全 PASSした後、既に child / profile が消えた終了競合で primary / fallback `taskkill` が exit 128となり runner exit 1を再現したため、`POST-2026-07-29-BROWSER-CLEANUP-RACE` へ昇格した。
+- 2026-07-29: `POST-2026-07-29-BROWSER-CLEANUP-RACE` を test-only Class M で完了。cleanup 判定を純関数へ分離し、観測済み exit 128 と終了証拠の全一致だけを benign とした。primary helper失敗後は直接childの実exitを先に待ち、終了済みならfallbackを省いてPID再利用後の誤killを避ける。単体境界でexit 23 / timeout / spawn・post-spawn・kill異常 / child・profile未完了を拒否した。policy本体追加直後の通常Chromium 73件はexit 0、fallback前child-exit制御追加後のforced exit 23はexit 1、最終静的10本もPASSし、各runの新規profileと対象Chromium processの残存0を確認した。
 
 ## 外部レビュー指摘の台帳（2026-07-15 maxエフォート横断レビュー）
 

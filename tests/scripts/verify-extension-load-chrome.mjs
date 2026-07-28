@@ -27,6 +27,10 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import {
+  isBenignTaskkillNoProcessRace,
+  shouldAttemptTaskkillFallback
+} from "./chromium-cleanup-policy.mjs";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(scriptDir, "..", "..");
@@ -353,6 +357,7 @@ async function terminateProcessTree(child) {
     taskkillKillRetryAttempted: false,
     taskkillHelperExited: true,
     taskkillStderrRedacted: "",
+    childExitedBeforeFallback: false,
     taskkillFallbackStatus: "not-run",
     taskkillFallbackExitCode: null,
     taskkillFallbackErrorCode: null,
@@ -392,9 +397,15 @@ async function terminateProcessTree(child) {
     result.taskkillHelperExited = taskkill.helperExited;
     result.taskkillStderrRedacted = taskkill.stderrRedacted;
 
-    // 最初のhelperが失敗しても実Chromium treeを残さない。self-testの疑似helper
-    // または実taskkill失敗後に、実taskkillをもう1回だけboundedに実行する。
+    // primary失敗後は直接childの実exitを先に待つ。既に終了していればPID再利用後の
+    // 別processをfallbackが狙わないよう再送を省き、残っている場合だけ再試行する。
     if (taskkill.status !== "ok" || !taskkill.helperExited) {
+      result.childExitedBeforeFallback = await waitForChildExit(
+        child,
+        CHILD_EXIT_GRACE_MS
+      );
+    }
+    if (shouldAttemptTaskkillFallback(taskkill, result.childExitedBeforeFallback)) {
       const fallback = await runTaskkill(child);
       result.taskkillFallbackStatus = fallback.status;
       result.taskkillFallbackExitCode = fallback.exitCode;
@@ -462,6 +473,8 @@ function createBrowserCleanup({ child, userDataDir, getCdp }) {
         taskkillKillRetryAttempted: false,
         taskkillHelperExited: true,
         taskkillStderrRedacted: "",
+        childExitedBeforeFallback: false,
+        taskkillNoProcessRaceBenign: false,
         taskkillFallbackStatus: "not-run",
         taskkillFallbackExitCode: null,
         taskkillFallbackErrorCode: null,
@@ -470,6 +483,7 @@ function createBrowserCleanup({ child, userDataDir, getCdp }) {
         taskkillFallbackKillRetryAttempted: false,
         taskkillFallbackHelperExited: true,
         taskkillFallbackStderrRedacted: "",
+        taskkillFallbackNoProcessRaceBenign: false,
         childExited: false,
         profileRemoved: false,
         cleanupFailures: [],
@@ -507,19 +521,32 @@ function createBrowserCleanup({ child, userDataDir, getCdp }) {
       // 消した後にstatusだけを失敗へ固定し、残存物を作らず終了判定を検証する。
       summary.profileRemoved = FORCE_CLEANUP_STATUS_FAILURE ? false : profileRemoved;
 
+      // taskkill helper の失敗を評価する前に、終了済み PID との既知 race かを
+      // 副作用のない厳格な policy で判定し、summary に明示して監査可能にする。
+      summary.taskkillNoProcessRaceBenign = isBenignTaskkillNoProcessRace(
+        summary,
+        "taskkill"
+      );
+      summary.taskkillFallbackNoProcessRaceBenign = isBenignTaskkillNoProcessRace(
+        summary,
+        "taskkillFallback"
+      );
+
       if (cdp && summary.browserClose !== "ok") {
         summary.cleanupFailures.push(`browserClose:${summary.browserClose}`);
       }
       if (
         summary.treeTerminateAttempted &&
         process.platform === "win32" &&
-        (summary.taskkillStatus !== "ok" || !summary.taskkillHelperExited)
+        (summary.taskkillStatus !== "ok" || !summary.taskkillHelperExited) &&
+        !summary.taskkillNoProcessRaceBenign
       ) {
         summary.cleanupFailures.push(`taskkill:${summary.taskkillStatus}`);
       }
       if (
         summary.taskkillFallbackStatus !== "not-run" &&
-        (summary.taskkillFallbackStatus !== "ok" || !summary.taskkillFallbackHelperExited)
+        (summary.taskkillFallbackStatus !== "ok" || !summary.taskkillFallbackHelperExited) &&
+        !summary.taskkillFallbackNoProcessRaceBenign
       ) {
         summary.cleanupFailures.push(`taskkillFallback:${summary.taskkillFallbackStatus}`);
       }
