@@ -6,6 +6,10 @@
 `XMLHttpRequest` object が hook 世代をまたいで再利用される場合にも成立させる。
 現行実装の object 共通フラグは旧世代の listener を「登録済み」と誤認し、
 再 install 後の eligible response を読まない可能性がある。
+さらに、ページ側が hook より先に通常の DONE `readystatechange` listener を登録し、
+その listener 内で同じ XHR object を再openすると、hook が元responseを読む前に
+共有request stateが次requestへ更新される。今回の Class M 修正では、この登録順でも
+最初の eligible response を取りこぼさないことを目的とする。
 
 ## 影響
 
@@ -40,6 +44,10 @@
 - ページ側が hook より先に通常の `load` listener を登録し、その listener 内で
   同じ XHR を non-list request へ開き直す synthetic case でも、hook が最初の
   eligible response を1回だけ読み、`sync-entries` を1件だけ送る。
+- ページ側が hook より先に通常の `readystatechange` listener を登録し、その
+  listener が DONE 時に同じ XHR を non-list request へ開き直す synthetic case でも、
+  hook が listener 登録順に依存せず最初の eligible response を1回だけ読み、
+  `sync-entries` を1件だけ送る。
 - ローカル Chromium の synthetic Blob XHR で、DONE `readystatechange` →
   ページ `load` listener の再open → `loadend` の順を実測し、DONE 時点だけが
   最初の固定 synthetic response を保持することを確認する。
