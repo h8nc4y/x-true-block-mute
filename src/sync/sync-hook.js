@@ -1,6 +1,19 @@
 (function () {
   "use strict";
 
+  // 宣言的scriptが同一documentで再評価された場合は、稼働中の世代と公開APIを
+  // そのまま正本として保持する。APIだけを新しいclosureで上書きすると、そのAPIの
+  // uninstallでは旧wrapperを停止・復元できず、再install後に本文読取が重複する。
+  const existingHookApi = globalThis.XTrueBlockMuteSyncHook;
+  if (
+    window.__xTbmSyncHookInstalled &&
+    existingHookApi &&
+    typeof existingHookApi.installSyncHook === "function" &&
+    typeof existingHookApi.uninstallSyncHook === "function"
+  ) {
+    return;
+  }
+
   // Production sync capture hook (M4), MAIN world. It wraps fetch / XMLHttpRequest
   // on the settings pages and, only for the block/mute list endpoints, extracts
   // the user's own [{user_id, handle, listKind}] entries via SyncCapture and posts

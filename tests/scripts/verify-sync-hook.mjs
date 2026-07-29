@@ -834,7 +834,95 @@ check(
   deferredMessages
 );
 
-// 11. Explicit teardown -> future requests are not wrapped, and the hook remains reinstallable.
+// 11. 同じ宣言的scriptが同一documentで再評価されても、最初のhook APIを保持する。
+// APIを上書きすると2回目のuninstallが初回世代を停止できず、再install後に本文読取と
+// messageが世代数だけ重複するため、script評価単位でもidempotentであることを固定する。
+let duplicateEvaluationTextReadCount = 0;
+const duplicateEvaluationMessages = [];
+const duplicateEvaluationLocation = {
+  origin: "https://x.com",
+  href: "https://x.com/settings/blocked/all"
+};
+const duplicateEvaluationContext = createContext({
+  console,
+  JSON,
+  URL,
+  location: duplicateEvaluationLocation,
+  window: {
+    fetch: () =>
+      Promise.resolve(
+        new FakeResponse(blockedBody, 200, {
+          onText: () => {
+            duplicateEvaluationTextReadCount += 1;
+          }
+        })
+      ),
+    postMessage: (message, targetOrigin) => {
+      duplicateEvaluationMessages.push({ message, targetOrigin });
+    }
+  },
+  XMLHttpRequest: createFakeXMLHttpRequestClass()
+});
+duplicateEvaluationContext.globalThis = duplicateEvaluationContext;
+new Script(await readText("src/sync/sync-capture.js"), {
+  filename: "src/sync/sync-capture.js"
+}).runInContext(duplicateEvaluationContext);
+const duplicateEvaluationOriginalFetch = duplicateEvaluationContext.window.fetch;
+const duplicateEvaluationOriginalXhrOpen = duplicateEvaluationContext.XMLHttpRequest.prototype.open;
+const duplicateEvaluationHookSource = await readText("src/sync/sync-hook.js");
+new Script(duplicateEvaluationHookSource, { filename: "src/sync/sync-hook.js" }).runInContext(
+  duplicateEvaluationContext
+);
+const firstEvaluationApi = duplicateEvaluationContext.XTrueBlockMuteSyncHook;
+const firstEvaluationFetch = duplicateEvaluationContext.window.fetch;
+const firstEvaluationXhrOpen = duplicateEvaluationContext.XMLHttpRequest.prototype.open;
+new Script(duplicateEvaluationHookSource, { filename: "src/sync/sync-hook.js" }).runInContext(
+  duplicateEvaluationContext
+);
+check(
+  duplicateEvaluationContext.XTrueBlockMuteSyncHook === firstEvaluationApi,
+  "duplicate script evaluation preserves the installed hook API"
+);
+check(
+  duplicateEvaluationContext.window.fetch === firstEvaluationFetch,
+  "duplicate script evaluation does not wrap fetch again"
+);
+check(
+  duplicateEvaluationContext.XMLHttpRequest.prototype.open === firstEvaluationXhrOpen,
+  "duplicate script evaluation does not wrap XMLHttpRequest.open again"
+);
+duplicateEvaluationContext.XTrueBlockMuteSyncHook.uninstallSyncHook();
+check(
+  duplicateEvaluationContext.window.fetch === duplicateEvaluationOriginalFetch,
+  "duplicate script evaluation keeps fetch teardown ownership"
+);
+check(
+  duplicateEvaluationContext.XMLHttpRequest.prototype.open === duplicateEvaluationOriginalXhrOpen,
+  "duplicate script evaluation keeps XMLHttpRequest.open teardown ownership"
+);
+duplicateEvaluationContext.XTrueBlockMuteSyncHook.installSyncHook("x-tbm:sync:capture");
+await duplicateEvaluationContext.window.fetch(
+  "https://x.com/i/api/graphql/abc/BlockedAccounts?case=duplicate-evaluation-reinstall"
+);
+await flush();
+await flush();
+check(
+  duplicateEvaluationTextReadCount === 1,
+  "reinstall after duplicate script evaluation reads an eligible response once",
+  duplicateEvaluationTextReadCount
+);
+check(
+  duplicateEvaluationMessages.filter(
+    (m) =>
+      m.message.source === "x-tbm:sync:capture" &&
+      m.message.kind === "sync-entries" &&
+      m.message.listKind === "blocked"
+  ).length === 1,
+  "reinstall after duplicate script evaluation posts one sync-entries message",
+  duplicateEvaluationMessages
+);
+
+// 12. Explicit teardown -> future requests are not wrapped, and the hook remains reinstallable.
 let teardownListTextReadCount = 0;
 let teardownXhrTextReadCount = 0;
 const teardownMessages = [];
@@ -954,7 +1042,7 @@ check(
   teardownMessages.slice(beforeReusedXhrMessages)
 );
 
-// 12. 外部wrapperが旧hookを保持していても、inactive世代は新規XHRへ
+// 13. 外部wrapperが旧hookを保持していても、inactive世代は新規XHRへ
 // noop listenerを追加しない。再install回数に比例するcallback蓄積を防ぐ。
 let wrapperFetchTextReadCount = 0;
 let foreignFetchCallCount = 0;
