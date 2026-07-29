@@ -27,6 +27,42 @@
   // ISOLATED bridge is responsible for gating whether anything is persisted.
 
   let installedHook = null;
+  // open coordinatorはinstall世代をまたいでXHRごとに共有する。delegation depthが
+  // 1以上の間にactive世代へ再入したらtree全体をambiguousに固定し、inner / outerの
+  // どちらもstateをcommitしない。depth 0へ戻った後の独立openだけが次treeを開始する。
+  const xhrOpenCoordinators = new WeakMap();
+
+  function getXhrOpenCoordinator(xhr) {
+    let coordinator = xhrOpenCoordinators.get(xhr);
+    if (!coordinator) {
+      coordinator = {
+        depth: 0,
+        phase: "idle",
+        ambiguous: false,
+        epoch: null,
+        inactiveWrappers: new Set()
+      };
+      xhrOpenCoordinators.set(xhr, coordinator);
+    }
+    return coordinator;
+  }
+
+  function invalidateXhrOpenTree(coordinator) {
+    // 世代別WeakMapのstateを直接列挙できないため、共有tokenを消して全世代から
+    // 到達不能にする。ambiguous treeは同じcall tree内で再armしない。
+    coordinator.phase = "ambiguous";
+    coordinator.ambiguous = true;
+    coordinator.epoch = null;
+    coordinator.inactiveWrappers.clear();
+  }
+
+  function resetXhrOpenCoordinator(coordinator) {
+    // depth 0の新しいtop-level openだけが、直前treeの曖昧性を明示的に終了できる。
+    coordinator.phase = "idle";
+    coordinator.ambiguous = false;
+    coordinator.epoch = null;
+    coordinator.inactiveWrappers.clear();
+  }
 
   function installSyncHook(messageSource) {
     if (window.__xTbmSyncHookInstalled) {
@@ -191,9 +227,14 @@
 
     function processCompletedXhr(xhr) {
       const requestState = xhrRequestStates.get(xhr);
+      const coordinator = xhrOpenCoordinators.get(xhr);
       if (
         !requestState ||
         requestState.handled ||
+        !coordinator ||
+        coordinator.ambiguous ||
+        coordinator.phase !== "committed" ||
+        coordinator.epoch !== requestState.openToken ||
         xhr.readyState !== 4 ||
         !isCurrentHook() ||
         !requestState.shouldRead
@@ -218,8 +259,47 @@
     function wrappedOpen(method, url) {
       // 外部wrapperが旧世代の関数を保持していても、uninstall済み世代は
       // URL評価やlistener登録をせず、その世代が捕捉した次のopenへ素通しする。
+      // ただしcommit後の直呼びはcurrent wrapperを迂回する新requestなので、
+      // 共有tokenを破棄し、現世代listenerが旧eligible URLで本文を読まないようにする。
       if (!isCurrentHook()) {
-        return originalOpen.apply(this, arguments);
+        const coordinator = getXhrOpenCoordinator(this);
+        if (
+          coordinator.depth === 0 &&
+          coordinator.phase === "committed" &&
+          coordinator.epoch
+        ) {
+          invalidateXhrOpenTree(coordinator);
+        } else if (
+          coordinator.depth > 0 &&
+          coordinator.phase === "delegating" &&
+          !coordinator.ambiguous
+        ) {
+          // current wrapperから外部wrapperを経た通常の委譲鎖では、inactive世代を
+          // 1回だけ通す。同じ旧wrapperを再度通った場合はnative open順が曖昧なため、
+          // tokenを破棄し、外側も復帰時の不一致でstateをcommitしない。
+          if (coordinator.inactiveWrappers.has(wrappedOpen)) {
+            invalidateXhrOpenTree(coordinator);
+          } else {
+            coordinator.inactiveWrappers.add(wrappedOpen);
+          }
+        }
+        // retained inactive wrapperの直呼びもdelegation ancestorである。通常のactive
+        // wrapper鎖と直呼びを区別せずdepthへ含め、配下のactive openが独立treeとして
+        // ambiguous状態をresetしないよう、throw時もfinallyで必ずunwindする。
+        coordinator.depth += 1;
+        try {
+          return originalOpen.apply(this, arguments);
+        } finally {
+          coordinator.depth -= 1;
+        }
+      }
+
+      const coordinator = getXhrOpenCoordinator(this);
+      const nestedInDelegation = coordinator.depth > 0;
+      if (nestedInDelegation) {
+        // 未復帰のdelegationが1つでもある間のactive openは、世代や最終native順を
+        // 問わず同じtreeの再入とする。innerが同期DONEまで完了してもcommitさせない。
+        invalidateXhrOpenTree(coordinator);
       }
 
       // 先行するページlistenerがDONE中に同じXHRを再openした場合、originalOpenが
@@ -230,12 +310,22 @@
       } catch (_error) {
         /* ignore unreadable responses */
       }
+      // 外部open wrapperの内部では、native openへの委譲前後に同期DONEが発火し得る。
+      // 委譲中は旧stateも次stateも正本にせず、どちらの本文か判別できない応答を
+      // fail closedに未読とする。正常return後にだけ次requestを有効化する。
+      xhrRequestStates.delete(this);
+      if (!nestedInDelegation) {
+        // depth 0で開始した呼出しだけが、直前に完了したtreeを閉じて次treeを準備する。
+        resetXhrOpenCoordinator(coordinator);
+      }
 
       const requestUrl = requestUrlFromInput(url);
+      const openToken = nestedInDelegation ? null : {};
       const nextRequestState = {
         url: requestUrl,
         shouldRead: shouldReadListResponse(requestUrl),
-        handled: false
+        handled: false,
+        openToken
       };
       try {
         if (!observedXhrs.has(this)) {
@@ -255,17 +345,61 @@
             }
           });
         }
-        // listener登録が完了するまで次requestを公開しない。外部wrapperが登録時に
-        // callbackを同期実行・throwしても、そのURLで旧DONE本文を処理させない。
-        xhrRequestStates.set(this, nextRequestState);
-        return originalOpen.apply(this, arguments);
-      } catch (error) {
-        // listener登録失敗やmethod/URL検査なら旧responseが残り、外部wrapperなら
-        // native open済みで新responseへ進んでいる可能性がある。判別できないため、
-        // 今回setしたstateを所有している場合だけ破棄し、本文読取をfail closedにする。
-        if (xhrRequestStates.get(this) === nextRequestState) {
+
+        if (!nestedInDelegation) {
+          // URL getterやlistener登録中にdepth 0の独立openが完了していても、この外側openの
+          // native委譲が最後に始まる。ここで新tokenへ切り替え、古いstateを無効化する。
           xhrRequestStates.delete(this);
+          resetXhrOpenCoordinator(coordinator);
+          coordinator.phase = "delegating";
+          coordinator.epoch = openToken;
         }
+
+        // depthはnative相当の委譲に入る直前から、正常return／throwのどちらでも
+        // 必ず減らす。innerは同じcoordinatorを見てtree全体をambiguousにできる。
+        coordinator.depth += 1;
+        let result;
+        try {
+          result = originalOpen.apply(this, arguments);
+        } finally {
+          coordinator.depth -= 1;
+        }
+
+        if (
+          nestedInDelegation ||
+          coordinator.ambiguous ||
+          coordinator.phase !== "delegating" ||
+          coordinator.epoch !== openToken
+        ) {
+          // ambiguous treeはdepthが0へ戻っても、このreturn処理では再armしない。
+          // 後続の独立top-level openだけがresetして新しいtokenを作れる。
+          xhrRequestStates.delete(this);
+          return result;
+        }
+        if (!isCurrentHook()) {
+          resetXhrOpenCoordinator(coordinator);
+          xhrRequestStates.delete(this);
+          return result;
+        }
+
+        // originalOpenが正常復帰した時点をrequest stateのcommit境界とする。
+        // 外部wrapperがnative委譲後・return前に同期DONEを送出した場合はlistenerが
+        // 委譲中として見送るため、commit後にreadyStateを再確認して1回だけ回収する。
+        coordinator.phase = "committed";
+        coordinator.inactiveWrappers.clear();
+        xhrRequestStates.set(this, nextRequestState);
+        try {
+          processCompletedXhr(this);
+        } catch (_error) {
+          /* ignore unreadable responses */
+        }
+        return result;
+      } catch (error) {
+        // listener登録失敗、native validation、外部wrapperのどこで失敗したかは
+        // 判別できない。共有tokenを削除して別install世代のstateも無効化し、
+        // このXHRのrequest state全体をfail closedに破棄する。
+        invalidateXhrOpenTree(coordinator);
+        xhrRequestStates.delete(this);
         throw error;
       }
     }
