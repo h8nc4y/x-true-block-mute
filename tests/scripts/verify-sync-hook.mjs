@@ -834,9 +834,65 @@ check(
   deferredMessages
 );
 
-// 11. 同じ宣言的scriptが同一documentで再評価されても、最初のhook APIを保持する。
+// 11. 公開installed flagがfalseへdriftしても、同じAPIからの再installは現世代を再利用する。
+// privateなinstalledHookとactive状態を正本にしないと、現在のwrapperをoriginalとして
+// 二重wrapし、続くuninstallがnative fetch / openまで復元できなくなる。
+const sameApiFalseDriftLocation = {
+  origin: "https://x.com",
+  href: "https://x.com/settings/blocked/all"
+};
+const sameApiFalseDriftContext = createContext({
+  console,
+  JSON,
+  URL,
+  location: sameApiFalseDriftLocation,
+  window: {
+    fetch: () => Promise.resolve(new FakeResponse(blockedBody)),
+    postMessage: () => {}
+  },
+  XMLHttpRequest: createFakeXMLHttpRequestClass()
+});
+sameApiFalseDriftContext.globalThis = sameApiFalseDriftContext;
+new Script(await readText("src/sync/sync-capture.js"), {
+  filename: "src/sync/sync-capture.js"
+}).runInContext(sameApiFalseDriftContext);
+const sameApiFalseDriftOriginalFetch = sameApiFalseDriftContext.window.fetch;
+const sameApiFalseDriftOriginalXhrOpen = sameApiFalseDriftContext.XMLHttpRequest.prototype.open;
+const sameApiFalseDriftHookSource = await readText("src/sync/sync-hook.js");
+new Script(sameApiFalseDriftHookSource, { filename: "src/sync/sync-hook.js" }).runInContext(
+  sameApiFalseDriftContext
+);
+const sameApiFalseDriftApi = sameApiFalseDriftContext.XTrueBlockMuteSyncHook;
+const sameApiFalseDriftFetch = sameApiFalseDriftContext.window.fetch;
+const sameApiFalseDriftXhrOpen = sameApiFalseDriftContext.XMLHttpRequest.prototype.open;
+sameApiFalseDriftContext.window.__xTbmSyncHookInstalled = false;
+sameApiFalseDriftApi.installSyncHook("x-tbm:sync:capture");
+check(
+  sameApiFalseDriftContext.window.fetch === sameApiFalseDriftFetch,
+  "same API ignores a false public flag drift without wrapping fetch again"
+);
+check(
+  sameApiFalseDriftContext.XMLHttpRequest.prototype.open === sameApiFalseDriftXhrOpen,
+  "same API ignores a false public flag drift without wrapping XMLHttpRequest.open again"
+);
+check(
+  sameApiFalseDriftContext.window.__xTbmSyncHookInstalled === true,
+  "same API self-heals the public installed flag from private active state"
+);
+sameApiFalseDriftApi.uninstallSyncHook();
+check(
+  sameApiFalseDriftContext.window.fetch === sameApiFalseDriftOriginalFetch,
+  "same API false drift preserves native fetch teardown ownership"
+);
+check(
+  sameApiFalseDriftContext.XMLHttpRequest.prototype.open === sameApiFalseDriftOriginalXhrOpen,
+  "same API false drift preserves native XMLHttpRequest.open teardown ownership"
+);
+
+// 12. 同じ宣言的scriptが同一documentで再評価されても、最初のhook APIを保持する。
 // APIを上書きすると2回目のuninstallが初回世代を停止できず、再install後に本文読取と
-// messageが世代数だけ重複するため、script評価単位でもidempotentであることを固定する。
+// messageが世代数だけ重複する。公開flagがfalseでも、既存APIが保持するprivate active
+// ownershipを確認し、script評価単位でもidempotentであることを固定する。
 let duplicateEvaluationTextReadCount = 0;
 const duplicateEvaluationMessages = [];
 const duplicateEvaluationLocation = {
@@ -876,6 +932,7 @@ new Script(duplicateEvaluationHookSource, { filename: "src/sync/sync-hook.js" })
 const firstEvaluationApi = duplicateEvaluationContext.XTrueBlockMuteSyncHook;
 const firstEvaluationFetch = duplicateEvaluationContext.window.fetch;
 const firstEvaluationXhrOpen = duplicateEvaluationContext.XMLHttpRequest.prototype.open;
+duplicateEvaluationContext.window.__xTbmSyncHookInstalled = false;
 new Script(duplicateEvaluationHookSource, { filename: "src/sync/sync-hook.js" }).runInContext(
   duplicateEvaluationContext
 );
@@ -890,6 +947,10 @@ check(
 check(
   duplicateEvaluationContext.XMLHttpRequest.prototype.open === firstEvaluationXhrOpen,
   "duplicate script evaluation does not wrap XMLHttpRequest.open again"
+);
+check(
+  duplicateEvaluationContext.window.__xTbmSyncHookInstalled === true,
+  "duplicate script evaluation self-heals a false public installed flag"
 );
 duplicateEvaluationContext.XTrueBlockMuteSyncHook.uninstallSyncHook();
 check(
@@ -922,7 +983,48 @@ check(
   duplicateEvaluationMessages
 );
 
-// 12. Explicit teardown -> future requests are not wrapped, and the hook remains reinstallable.
+// 13. private stateが無いのに公開flagだけtrueへdriftしても、fresh scriptはinstallできる。
+const trueDriftLocation = { origin: "https://x.com", href: "https://x.com/settings/blocked/all" };
+const trueDriftContext = createContext({
+  console,
+  JSON,
+  URL,
+  location: trueDriftLocation,
+  window: {
+    __xTbmSyncHookInstalled: true,
+    fetch: () => Promise.resolve(new FakeResponse(blockedBody)),
+    postMessage: () => {}
+  },
+  XMLHttpRequest: createFakeXMLHttpRequestClass()
+});
+trueDriftContext.globalThis = trueDriftContext;
+new Script(await readText("src/sync/sync-capture.js"), {
+  filename: "src/sync/sync-capture.js"
+}).runInContext(trueDriftContext);
+const trueDriftOriginalFetch = trueDriftContext.window.fetch;
+const trueDriftOriginalXhrOpen = trueDriftContext.XMLHttpRequest.prototype.open;
+new Script(await readText("src/sync/sync-hook.js"), { filename: "src/sync/sync-hook.js" }).runInContext(
+  trueDriftContext
+);
+check(
+  trueDriftContext.window.fetch !== trueDriftOriginalFetch,
+  "true public flag drift without private state does not block fetch install"
+);
+check(
+  trueDriftContext.XMLHttpRequest.prototype.open !== trueDriftOriginalXhrOpen,
+  "true public flag drift without private state does not block XMLHttpRequest.open install"
+);
+trueDriftContext.XTrueBlockMuteSyncHook.uninstallSyncHook();
+check(
+  trueDriftContext.window.fetch === trueDriftOriginalFetch,
+  "true public flag drift install restores native fetch on uninstall"
+);
+check(
+  trueDriftContext.XMLHttpRequest.prototype.open === trueDriftOriginalXhrOpen,
+  "true public flag drift install restores native XMLHttpRequest.open on uninstall"
+);
+
+// 14. Explicit teardown -> future requests are not wrapped, and the hook remains reinstallable.
 let teardownListTextReadCount = 0;
 let teardownXhrTextReadCount = 0;
 const teardownMessages = [];

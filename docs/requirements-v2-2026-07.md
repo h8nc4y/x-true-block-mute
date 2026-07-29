@@ -134,4 +134,8 @@ v1.2 候補（実装しない・記録のみ）: §5 の警告 UI（仕様定義
 | 同期取り込み破損 | X が設定ページの GraphQL レスポンス形状（BlockedAccounts/MutedAccounts）や URL を変更し、同期が 0 件になる | ユーザー報告（popup の件数が増えない）／オーナー自身の再同期 | `verify-sync-extraction/hook/bridge`（`legacy.`/`core.` 両形と、外部 XHR wrapper の同期 DONE／throw 時に正常復帰後だけ request state を有効化する境界を検証。install世代共有のper-XHR coordinatorはactive／inactive wrapperのdelegationをdepthへ含め、`depth > 0` 中のnested open treeを全世代でambiguous化し、inner / outerのcommit・即時処理を禁止する。commit後のinactive旧wrapper直呼び、同一inactive wrapperの二重通過、retained inactive ancestor配下のactive nested openもfail closedにし、tree unwind後の独立top-level openだけ再armする）。破損時は masked observation の再収集（Claude Code 担当・§10 遵守）で新形状を特定し fixture 更新 |
 | タイムライン表示フィルタ破損 | X がタイムラインの DOM 構造（`data-testid` 等）を変更し、非表示が効かなくなる／誤爆する | ユーザー報告（隠れない・隠れすぎ） | `verify-phase1-static`＋synthetic fixture。報告を synthetic fixture 化して回帰に追加（プレイブック §3 手順） |
 
+同期hookのlifecycleでは、private active ownershipをinstall済み判定の正本とする。公開installed flagは
+mirrorに限定し、false drift時の同一API再install／script再評価でwrapperを重ねず自己修復する。
+private stateが無い場合は、公開flagだけがtrueでもfresh installを妨げない。
+
 いずれも成功指標の「48 時間以内一次判断・14 日以内修正版作成」で運用する。

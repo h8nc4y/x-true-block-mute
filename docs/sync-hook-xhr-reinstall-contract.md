@@ -12,6 +12,9 @@
 最初の eligible response を取りこぼさないことを目的とする。
 加えて、宣言的script全体が同一documentで再評価されても、既存hookの公開APIと
 wrapper所有権を失わず、teardown / 再install後も処理を1世代に保つ。
+公開installed flagはprivateなhook ownershipを写すmirrorに限定し、falseへdriftしても
+同じAPIまたはscript再評価がwrapperを重ねない。反対にprivate stateが無い場合は、
+公開flagだけがtrueでもfresh installを妨げない。
 外部 `open` wrapperがnative相当処理への委譲前後にDONEを同期送出する場合も、
 正常復帰していない次requestへ旧本文・新本文を対応付けない。
 
@@ -22,6 +25,12 @@ wrapper所有権を失わず、teardown / 再install後も処理を1世代に保
 - 稼働中に同じ `sync-hook.js` が再評価された場合は、既存の公開APIとhook世代を
   正本として保持する。新しいclosureでAPIだけを上書きせず、既存APIのuninstallが
   元の `fetch` / `XMLHttpRequest.open` を復元できる状態を保つ。
+- 同じAPIのprivate `installedHook` がactiveなら、公開installed flagがfalseでも
+  wrapper identityを変えず、flagだけをtrueへ自己修復する。script再評価も既存APIの
+  private active ownershipを問い合わせて同じAPIとwrapperを再利用する。
+- private active ownershipが無い場合は公開installed flagをinstall guardに使わない。
+  flagだけがtrueへdriftしたfresh contextでも通常どおりwrapperをinstallし、
+  uninstallで元の `fetch` / `XMLHttpRequest.open` を復元する。
 - 正常応答の `load` 中にページ側の通常 listener が同じ XHR object を次の
   request へ再利用しても、再初期化前の URL と本文を1回だけ対応付けて処理する。
   次 request の URL を前 response に誤適用せず、eligible response の取りこぼしも
@@ -86,6 +95,12 @@ wrapper所有権を失わず、teardown / 再install後も処理を1世代に保
 - 同じscriptを2回評価しても公開APIとwrapper identityは初回のまま変わらず、
   そのAPIでuninstallすると元の `fetch` / `XMLHttpRequest.open` を復元する。
   続く再install後のeligible responseは本文読取・`sync-entries`とも各1回に保つ。
+- 同じAPIの稼働中に公開installed flagをfalseへ変更して再installしても、fetch / openの
+  wrapper identityは変わらず、flagをtrueへ戻し、uninstallはnativeを復元する。
+- 稼働中の公開installed flagをfalseへ変更してscriptを再評価しても、既存APIと
+  fetch / open wrapperを保持し、flagをtrueへ戻す。
+- private stateが無いfresh contextで公開installed flagだけをtrueにしてもinstallを行い、
+  uninstallでnative fetch / openへ戻す。
 - ページ側が hook より先に通常の `load` listener を登録し、その listener 内で
   同じ XHR を non-list request へ開き直す synthetic case でも、hook が最初の
   eligible response を1回だけ読み、`sync-entries` を1件だけ送る。

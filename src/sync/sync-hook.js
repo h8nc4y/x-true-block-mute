@@ -1,16 +1,25 @@
 (function () {
   "use strict";
 
-  // 宣言的scriptが同一documentで再評価された場合は、稼働中の世代と公開APIを
-  // そのまま正本として保持する。APIだけを新しいclosureで上書きすると、そのAPIの
-  // uninstallでは旧wrapperを停止・復元できず、再install後に本文読取が重複する。
+  // 宣言的scriptが同一documentで再評価された場合は、公開flagではなく既存APIが
+  // 保持するprivateなactive ownershipを確認する。flagは外部からdriftし得るmirrorであり、
+  // APIだけを新しいclosureで上書きすると旧wrapperの停止・復元所有権を失う。
   const existingHookApi = globalThis.XTrueBlockMuteSyncHook;
-  if (
-    window.__xTbmSyncHookInstalled &&
-    existingHookApi &&
-    typeof existingHookApi.installSyncHook === "function" &&
-    typeof existingHookApi.uninstallSyncHook === "function"
-  ) {
+  let existingApiOwnsActiveHook = false;
+  try {
+    existingApiOwnsActiveHook =
+      Boolean(existingHookApi) &&
+      typeof existingHookApi.installSyncHook === "function" &&
+      typeof existingHookApi.uninstallSyncHook === "function" &&
+      typeof existingHookApi.ownsActiveHook === "function" &&
+      existingHookApi.ownsActiveHook();
+  } catch (_error) {
+    // page側が公開APIを差し替えていてもscript評価自体は止めず、fresh installへ進む。
+    existingApiOwnsActiveHook = false;
+  }
+  if (existingApiOwnsActiveHook) {
+    // 公開flagはactive ownershipを表すmirrorとして自己修復する。
+    window.__xTbmSyncHookInstalled = true;
     return;
   }
 
@@ -65,15 +74,18 @@
   }
 
   function installSyncHook(messageSource) {
-    if (window.__xTbmSyncHookInstalled) {
+    // 同じAPI closure内ではprivate stateが正本。公開flagがfalseへdriftしても、
+    // wrapperを重ねずmirrorだけをactiveへ戻し、teardown所有権を維持する。
+    if (installedHook && installedHook.active) {
+      window.__xTbmSyncHookInstalled = true;
       return;
     }
     const SyncCapture = globalThis.XTrueBlockMute && globalThis.XTrueBlockMute.SyncCapture;
     if (!SyncCapture) {
       // sync-capture.js must be injected before this hook.
+      window.__xTbmSyncHookInstalled = false;
       return;
     }
-    window.__xTbmSyncHookInstalled = true;
 
     const originalFetch = window.fetch;
     const originalOpen = XMLHttpRequest.prototype.open;
@@ -409,6 +421,7 @@
     window.fetch = wrappedFetch;
     XMLHttpRequest.prototype.open = wrappedOpen;
     installedHook = hookState;
+    window.__xTbmSyncHookInstalled = true;
   }
 
   function uninstallSyncHook() {
@@ -430,7 +443,18 @@
     window.__xTbmSyncHookInstalled = false;
   }
 
-  globalThis.XTrueBlockMuteSyncHook = { installSyncHook, uninstallSyncHook };
+  function ownsActiveHook() {
+    // 再評価されたscriptが公開flagに依存せず、既存closureのprivate ownershipを
+    // 確認するための問い合わせ。外部wrapperが上に重なっても保持中の所有権は有効。
+    return Boolean(
+      installedHook &&
+        installedHook.active &&
+        typeof installedHook.wrappedFetch === "function" &&
+        typeof installedHook.wrappedOpen === "function"
+    );
+  }
+
+  globalThis.XTrueBlockMuteSyncHook = { installSyncHook, uninstallSyncHook, ownsActiveHook };
 
   // Auto-install when injected as a declarative MAIN-world content script. The
   // literal must match SYNC_MESSAGE_SOURCE in src/shared/constants.js (asserted
