@@ -1086,7 +1086,38 @@ function foreignFetch() {
 }
 function foreignOpen() {
   foreignOpenCallCount += 1;
+  const requestUrl = String(arguments[1] || "");
+  if (
+    requestUrl.includes("case=pre-delegate-done") ||
+    requestUrl.includes("case=ancestor-pre-delegate-done") ||
+    requestUrl.includes("case=cross-generation-ancestor-pre-delegate-done") ||
+    requestUrl.includes("case=inactive-ancestor-pre-delegate-done")
+  ) {
+    // 外部wrapperがnative openへ委譲する前に旧DONEを同期送出する経路を合成する。
+    // 次request stateが先に公開されると、旧本文を新しいeligible URLとして読んでしまう。
+    this.dispatch("readystatechange");
+  }
   const result = firstGenerationOpen.apply(this, arguments);
+  if (requestUrl.includes("case=delegating-inactive-open-bypass")) {
+    // 現世代wrapperの委譲鎖を一度通った後、同じinactive旧wrapperを直接再呼出しする。
+    // 最後のnative requestはnon-listのため、外側eligible stateのcommitを許可してはならない。
+    firstGenerationOpen.call(
+      this,
+      "GET",
+      "https://x.com/i/api/graphql/abc/HomeTimeline?case=delegating-inactive-open-bypass-final"
+    );
+  }
+  if (requestUrl.includes("case=post-delegate-done")) {
+    // 委譲後・return前に新responseのDONEを同期送出するwrapperも、正常return時は
+    // return後の再確認で1回処理できるよう合成する。
+    this.status = 200;
+    this.responseText = blockedBody;
+    this.readyState = 4;
+    this.dispatch("readystatechange");
+  }
+  if (requestUrl.includes("post-delegate-done-throw")) {
+    throw new Error("synthetic foreign wrapper failure after synchronous DONE");
+  }
   if (arguments[0] === "FOREIGN_THROW_AFTER_OPEN") {
     throw new Error("synthetic foreign wrapper failure after delegate");
   }
@@ -1161,6 +1192,63 @@ check(
   wrapperMessages.slice(beforeWrappedAgainXhrMessages)
 );
 
+// 外部scriptが保持したinactive旧世代openをprototype経由でなく直接呼ぶ場合も、
+// 現世代でcommit済みのeligible stateを先に無効化し、後続non-list本文を誤読しない。
+const beforeInactiveOpenBypassMessages = wrapperMessages.length;
+let inactiveOpenBypassTextReadCount = 0;
+const inactiveOpenBypassXhr = new wrapperContext.XMLHttpRequest();
+inactiveOpenBypassXhr.open(
+  "GET",
+  "https://x.com/i/api/graphql/abc/BlockedAccounts?case=before-inactive-open-bypass"
+);
+inactiveOpenBypassXhr.onResponseTextRead = () => {
+  inactiveOpenBypassTextReadCount += 1;
+};
+firstGenerationOpen.call(
+  inactiveOpenBypassXhr,
+  "GET",
+  "https://x.com/i/api/graphql/abc/HomeTimeline?case=inactive-open-bypass"
+);
+inactiveOpenBypassXhr.responseText = blockedBody;
+inactiveOpenBypassXhr.complete();
+await flush();
+check(
+  inactiveOpenBypassTextReadCount === 0,
+  "direct inactive-generation open invalidates the current eligible state before a non-list response",
+  inactiveOpenBypassTextReadCount
+);
+check(
+  wrapperMessages.length === beforeInactiveOpenBypassMessages,
+  "direct inactive-generation open posts no message from the bypassed non-list response",
+  wrapperMessages.slice(beforeInactiveOpenBypassMessages)
+);
+
+// 現世代wrapperのdelegation中は最初のinactive旧wrapper通過を許可する一方、
+// 同じ旧wrapperを二度通る曖昧なnative open順序は全stateを未読にする。
+const beforeDelegatingInactiveBypassMessages = wrapperMessages.length;
+let delegatingInactiveBypassTextReadCount = 0;
+const delegatingInactiveBypassXhr = new wrapperContext.XMLHttpRequest();
+delegatingInactiveBypassXhr.onResponseTextRead = () => {
+  delegatingInactiveBypassTextReadCount += 1;
+};
+delegatingInactiveBypassXhr.open(
+  "GET",
+  "https://x.com/i/api/graphql/abc/BlockedAccounts?case=delegating-inactive-open-bypass"
+);
+delegatingInactiveBypassXhr.responseText = blockedBody;
+delegatingInactiveBypassXhr.complete();
+await flush();
+check(
+  delegatingInactiveBypassTextReadCount === 0,
+  "repeated inactive-generation open during delegation leaves the final non-list response unread",
+  delegatingInactiveBypassTextReadCount
+);
+check(
+  wrapperMessages.length === beforeDelegatingInactiveBypassMessages,
+  "repeated inactive-generation open during delegation posts no message from the final non-list response",
+  wrapperMessages.slice(beforeDelegatingInactiveBypassMessages)
+);
+
 // 外部wrapperがnative相当のopenへ委譲した後でthrowした場合、旧request stateを
 // 復元すると新しいnon-list responseを旧eligible URLへ誤対応する。stateを破棄してfail closedにする。
 const beforeForeignThrowMessages = wrapperMessages.length;
@@ -1195,6 +1283,459 @@ check(
   wrapperMessages.length === beforeForeignThrowMessages,
   "foreign throw after delegate posts no message from the new non-list response",
   wrapperMessages.slice(beforeForeignThrowMessages)
+);
+
+// 14. 外部wrapperがnative openへ委譲する前に旧DONEを同期送出しても、
+// 次のeligible stateを先に公開せず、旧non-list本文を新URLとして読まない。
+const beforePreDelegateDoneMessages = wrapperMessages.length;
+let preDelegateDoneTextReadCount = 0;
+const preDelegateDoneXhr = new wrapperContext.XMLHttpRequest();
+preDelegateDoneXhr.open(
+  "GET",
+  "https://x.com/i/api/graphql/abc/HomeTimeline?case=before-pre-delegate-done"
+);
+preDelegateDoneXhr.responseText = blockedBody;
+preDelegateDoneXhr.readyState = 4;
+preDelegateDoneXhr.onResponseTextRead = () => {
+  preDelegateDoneTextReadCount += 1;
+};
+preDelegateDoneXhr.open(
+  "GET",
+  "https://x.com/i/api/graphql/abc/BlockedAccounts?case=pre-delegate-done"
+);
+await flush();
+check(
+  preDelegateDoneTextReadCount === 0,
+  "pre-delegate synchronous DONE does not read the previous non-list body as the next eligible request",
+  preDelegateDoneTextReadCount
+);
+check(
+  wrapperMessages.length === beforePreDelegateDoneMessages,
+  "pre-delegate synchronous DONE posts no message from the previous non-list body",
+  wrapperMessages.slice(beforePreDelegateDoneMessages)
+);
+preDelegateDoneXhr.responseText = blockedBody;
+preDelegateDoneXhr.complete();
+await flush();
+check(
+  preDelegateDoneTextReadCount === 1,
+  "successful delegated open activates the eligible request for its later DONE",
+  preDelegateDoneTextReadCount
+);
+check(
+  wrapperMessages
+    .slice(beforePreDelegateDoneMessages)
+    .filter(
+      (m) =>
+        m.message.source === "x-tbm:sync:capture" &&
+        m.message.kind === "sync-entries" &&
+        m.message.listKind === "blocked"
+    ).length === 1,
+  "successful delegated open posts once for its later eligible response",
+  wrapperMessages.slice(beforePreDelegateDoneMessages)
+);
+
+// 15. native委譲後に同期DONEを送出するwrapperは、正常return時だけreturn後の
+// 再確認で処理する。続けてthrowした場合は、catch前の本文読取・messageを許さない。
+const beforePostDelegateDoneMessages = wrapperMessages.length;
+let postDelegateDoneTextReadCount = 0;
+const postDelegateDoneXhr = new wrapperContext.XMLHttpRequest();
+postDelegateDoneXhr.onResponseTextRead = () => {
+  postDelegateDoneTextReadCount += 1;
+};
+postDelegateDoneXhr.open(
+  "GET",
+  "https://x.com/i/api/graphql/abc/BlockedAccounts?case=post-delegate-done-success"
+);
+await flush();
+check(
+  postDelegateDoneTextReadCount === 1,
+  "post-delegate synchronous DONE is processed once after a successful open return",
+  postDelegateDoneTextReadCount
+);
+check(
+  wrapperMessages
+    .slice(beforePostDelegateDoneMessages)
+    .filter(
+      (m) =>
+        m.message.source === "x-tbm:sync:capture" &&
+        m.message.kind === "sync-entries" &&
+        m.message.listKind === "blocked"
+    ).length === 1,
+  "post-delegate synchronous DONE posts once after a successful open return",
+  wrapperMessages.slice(beforePostDelegateDoneMessages)
+);
+
+const beforePostDelegateThrowMessages = wrapperMessages.length;
+let postDelegateThrowTextReadCount = 0;
+let postDelegateThrowPreservedError = false;
+const postDelegateThrowXhr = new wrapperContext.XMLHttpRequest();
+postDelegateThrowXhr.onResponseTextRead = () => {
+  postDelegateThrowTextReadCount += 1;
+};
+try {
+  postDelegateThrowXhr.open(
+    "GET",
+    "https://x.com/i/api/graphql/abc/BlockedAccounts?case=post-delegate-done-throw"
+  );
+} catch (error) {
+  postDelegateThrowPreservedError =
+    error.message === "synthetic foreign wrapper failure after synchronous DONE";
+}
+await flush();
+check(
+  postDelegateThrowPreservedError,
+  "foreign wrapper preserves its error after delegated synchronous DONE"
+);
+check(
+  postDelegateThrowTextReadCount === 0,
+  "foreign throw after delegated synchronous DONE reads no provisional response body",
+  postDelegateThrowTextReadCount
+);
+check(
+  wrapperMessages.length === beforePostDelegateThrowMessages,
+  "foreign throw after delegated synchronous DONE posts no provisional response message",
+  wrapperMessages.slice(beforePostDelegateThrowMessages)
+);
+
+// 16. 委譲後・return前の同期DONE中に先行page listenerが同じXHRを再openした場合、
+// 内側の新requestを外側の古いopen復帰処理で上書きせず、最後のnon-list本文を読まない。
+const beforePostDelegateReentrantMessages = wrapperMessages.length;
+let postDelegateReentrantTextReadCount = 0;
+let postDelegateReopened = false;
+const postDelegateReentrantXhr = new wrapperContext.XMLHttpRequest();
+postDelegateReentrantXhr.addEventListener("readystatechange", () => {
+  if (!postDelegateReopened && postDelegateReentrantXhr.readyState === 4) {
+    postDelegateReopened = true;
+    postDelegateReentrantXhr.open(
+      "GET",
+      "https://x.com/i/api/graphql/abc/HomeTimeline?case=reentrant-non-list-after-post-delegate-done"
+    );
+  }
+});
+postDelegateReentrantXhr.onResponseTextRead = () => {
+  postDelegateReentrantTextReadCount += 1;
+};
+postDelegateReentrantXhr.open(
+  "GET",
+  "https://x.com/i/api/graphql/abc/BlockedAccounts?case=post-delegate-done-reentrant-open"
+);
+await flush();
+check(
+  postDelegateReopened,
+  "page listener reopens the XHR during post-delegate synchronous DONE"
+);
+postDelegateReentrantXhr.status = 200;
+postDelegateReentrantXhr.responseText = blockedBody;
+postDelegateReentrantXhr.complete();
+await flush();
+check(
+  postDelegateReentrantTextReadCount === 0,
+  "outer open return does not overwrite the reentrant non-list request state",
+  postDelegateReentrantTextReadCount
+);
+check(
+  wrapperMessages.length === beforePostDelegateReentrantMessages,
+  "reentrant non-list response posts no message through the superseded eligible open",
+  wrapperMessages.slice(beforePostDelegateReentrantMessages)
+);
+
+// 17. 委譲前の同期DONE中に再入した場合は、内側openのnative委譲後に外側openが
+// 委譲されるため、内側を常に最新stateとはみなせない。順序が曖昧なXHR全体を未読にする。
+const beforePreDelegateReentrantMessages = wrapperMessages.length;
+let preDelegateReentrantTextReadCount = 0;
+let preDelegateReopened = false;
+const preDelegateReentrantXhr = new wrapperContext.XMLHttpRequest();
+preDelegateReentrantXhr.addEventListener("readystatechange", () => {
+  if (!preDelegateReopened && preDelegateReentrantXhr.readyState === 4) {
+    preDelegateReopened = true;
+    preDelegateReentrantXhr.open(
+      "GET",
+      "https://x.com/i/api/graphql/abc/BlockedAccounts?case=inner-eligible-from-pre-delegate-done"
+    );
+  }
+});
+preDelegateReentrantXhr.readyState = 4;
+preDelegateReentrantXhr.responseText = blockedBody;
+preDelegateReentrantXhr.onResponseTextRead = () => {
+  preDelegateReentrantTextReadCount += 1;
+};
+preDelegateReentrantXhr.open(
+  "GET",
+  "https://x.com/i/api/graphql/abc/HomeTimeline?case=pre-delegate-done"
+);
+await flush();
+check(
+  preDelegateReopened,
+  "page listener reopens the XHR during pre-delegate synchronous DONE"
+);
+preDelegateReentrantXhr.status = 200;
+preDelegateReentrantXhr.responseText = blockedBody;
+preDelegateReentrantXhr.complete();
+await flush();
+check(
+  preDelegateReentrantTextReadCount === 0,
+  "ambiguous pre-delegate reentry leaves the final non-list response unread",
+  preDelegateReentrantTextReadCount
+);
+check(
+  wrapperMessages.length === beforePreDelegateReentrantMessages,
+  "ambiguous pre-delegate reentry posts no message from the final non-list response",
+  wrapperMessages.slice(beforePreDelegateReentrantMessages)
+);
+
+// 18. 外側の委譲前DONEから再入した内側eligible openが、委譲後DONEを同期送出して
+// 正常復帰しても、未復帰の外側openがある間は内側stateをcommit・処理しない。
+const beforeAncestorDelegationMessages = wrapperMessages.length;
+let ancestorDelegationTextReadCount = 0;
+let ancestorDelegationReopened = false;
+const ancestorDelegationXhr = new wrapperContext.XMLHttpRequest();
+ancestorDelegationXhr.addEventListener("readystatechange", () => {
+  if (!ancestorDelegationReopened && ancestorDelegationXhr.readyState === 4) {
+    ancestorDelegationReopened = true;
+    ancestorDelegationXhr.open(
+      "GET",
+      "https://x.com/i/api/graphql/abc/BlockedAccounts?case=post-delegate-done-success&flow=ancestor"
+    );
+  }
+});
+ancestorDelegationXhr.readyState = 4;
+ancestorDelegationXhr.responseText = blockedBody;
+ancestorDelegationXhr.onResponseTextRead = () => {
+  ancestorDelegationTextReadCount += 1;
+};
+ancestorDelegationXhr.open(
+  "GET",
+  "https://x.com/i/api/graphql/abc/HomeTimeline?case=ancestor-pre-delegate-done"
+);
+await flush();
+check(
+  ancestorDelegationReopened,
+  "page listener completes an inner eligible open while the outer delegation remains active"
+);
+check(
+  ancestorDelegationTextReadCount === 0,
+  "inner synchronous DONE stays unread while an outer delegation ancestor is unresolved",
+  ancestorDelegationTextReadCount
+);
+check(
+  wrapperMessages.length === beforeAncestorDelegationMessages,
+  "inner synchronous DONE posts no message while an outer delegation ancestor is unresolved",
+  wrapperMessages.slice(beforeAncestorDelegationMessages)
+);
+ancestorDelegationXhr.open(
+  "GET",
+  "https://x.com/i/api/graphql/abc/BlockedAccounts?case=recovery-after-ambiguous-tree"
+);
+ancestorDelegationXhr.responseText = blockedBody;
+ancestorDelegationXhr.complete();
+await flush();
+check(
+  ancestorDelegationTextReadCount === 1,
+  "a later independent top-level open can rearm the XHR after the ambiguous tree unwinds",
+  ancestorDelegationTextReadCount
+);
+check(
+  wrapperMessages
+    .slice(beforeAncestorDelegationMessages)
+    .filter(
+      (m) =>
+        m.message.source === "x-tbm:sync:capture" &&
+        m.message.kind === "sync-entries" &&
+        m.message.listKind === "blocked"
+    ).length === 1,
+  "a later independent top-level open posts exactly once after ambiguous-tree recovery",
+  wrapperMessages.slice(beforeAncestorDelegationMessages)
+);
+
+// 19. 委譲前DONE中にuninstall / reinstallを挟む再入openでも、旧世代の外側openが
+// 新世代stateを無効化できること。世代別state mapだけでは最終non-listを誤読する。
+const beforeCrossGenerationReentrantMessages = wrapperMessages.length;
+let crossGenerationReentrantTextReadCount = 0;
+let crossGenerationReopened = false;
+const crossGenerationReentrantXhr = new wrapperContext.XMLHttpRequest();
+crossGenerationReentrantXhr.addEventListener("readystatechange", () => {
+  if (!crossGenerationReopened && crossGenerationReentrantXhr.readyState === 4) {
+    crossGenerationReopened = true;
+    wrapperContext.XTrueBlockMuteSyncHook.uninstallSyncHook();
+    wrapperContext.XTrueBlockMuteSyncHook.installSyncHook("x-tbm:sync:capture");
+    crossGenerationReentrantXhr.open(
+      "GET",
+      "https://x.com/i/api/graphql/abc/BlockedAccounts?case=cross-generation-inner-eligible"
+    );
+  }
+});
+crossGenerationReentrantXhr.readyState = 4;
+crossGenerationReentrantXhr.responseText = blockedBody;
+crossGenerationReentrantXhr.onResponseTextRead = () => {
+  crossGenerationReentrantTextReadCount += 1;
+};
+crossGenerationReentrantXhr.open(
+  "GET",
+  "https://x.com/i/api/graphql/abc/HomeTimeline?case=pre-delegate-done"
+);
+await flush();
+check(
+  crossGenerationReopened,
+  "page listener reinstalls the hook and reopens the XHR during pre-delegate DONE"
+);
+crossGenerationReentrantXhr.status = 200;
+crossGenerationReentrantXhr.responseText = blockedBody;
+crossGenerationReentrantXhr.complete();
+await flush();
+check(
+  crossGenerationReentrantTextReadCount === 0,
+  "cross-generation ambiguous reentry leaves the final non-list response unread",
+  crossGenerationReentrantTextReadCount
+);
+check(
+  wrapperMessages.length === beforeCrossGenerationReentrantMessages,
+  "cross-generation ambiguous reentry posts no message from the final non-list response",
+  wrapperMessages.slice(beforeCrossGenerationReentrantMessages)
+);
+
+// 20. uninstall / reinstall後の内側eligible openが同期DONEまで正常完了しても、
+// 旧世代の外側delegationが未復帰なら新世代stateをcommit・処理しない。
+const beforeCrossGenerationAncestorMessages = wrapperMessages.length;
+let crossGenerationAncestorTextReadCount = 0;
+let crossGenerationAncestorReopened = false;
+const crossGenerationAncestorXhr = new wrapperContext.XMLHttpRequest();
+crossGenerationAncestorXhr.addEventListener("readystatechange", () => {
+  if (!crossGenerationAncestorReopened && crossGenerationAncestorXhr.readyState === 4) {
+    crossGenerationAncestorReopened = true;
+    wrapperContext.XTrueBlockMuteSyncHook.uninstallSyncHook();
+    wrapperContext.XTrueBlockMuteSyncHook.installSyncHook("x-tbm:sync:capture");
+    crossGenerationAncestorXhr.open(
+      "GET",
+      "https://x.com/i/api/graphql/abc/BlockedAccounts?case=post-delegate-done-success&flow=cross-generation-ancestor"
+    );
+  }
+});
+crossGenerationAncestorXhr.readyState = 4;
+crossGenerationAncestorXhr.responseText = blockedBody;
+crossGenerationAncestorXhr.onResponseTextRead = () => {
+  crossGenerationAncestorTextReadCount += 1;
+};
+crossGenerationAncestorXhr.open(
+  "GET",
+  "https://x.com/i/api/graphql/abc/HomeTimeline?case=cross-generation-ancestor-pre-delegate-done"
+);
+await flush();
+check(
+  crossGenerationAncestorReopened,
+  "page listener reinstalls the hook and completes an inner eligible open under an old delegation ancestor"
+);
+check(
+  crossGenerationAncestorTextReadCount === 0,
+  "cross-generation inner synchronous DONE stays unread while the old ancestor is unresolved",
+  crossGenerationAncestorTextReadCount
+);
+check(
+  wrapperMessages.length === beforeCrossGenerationAncestorMessages,
+  "cross-generation inner synchronous DONE posts no message while the old ancestor is unresolved",
+  wrapperMessages.slice(beforeCrossGenerationAncestorMessages)
+);
+crossGenerationAncestorXhr.open(
+  "GET",
+  "https://x.com/i/api/graphql/abc/BlockedAccounts?case=cross-generation-recovery-after-ambiguous-tree"
+);
+crossGenerationAncestorXhr.responseText = blockedBody;
+crossGenerationAncestorXhr.complete();
+await flush();
+check(
+  crossGenerationAncestorTextReadCount === 1,
+  "a later current-generation top-level open rearms after the old ambiguous tree unwinds",
+  crossGenerationAncestorTextReadCount
+);
+check(
+  wrapperMessages
+    .slice(beforeCrossGenerationAncestorMessages)
+    .filter(
+      (m) =>
+        m.message.source === "x-tbm:sync:capture" &&
+        m.message.kind === "sync-entries" &&
+        m.message.listKind === "blocked"
+    ).length === 1,
+  "cross-generation recovery posts exactly once from the later independent top-level open",
+  wrapperMessages.slice(beforeCrossGenerationAncestorMessages)
+);
+
+// 21. retained inactive旧wrapperの直呼びもdelegation ancestorとしてdepthへ含める。
+// その配下で現世代innerが同期DONEまで完了しても独立treeと誤認せず、全体を未読にする。
+const inactiveAncestorOpen = wrapperContext.XMLHttpRequest.prototype.open;
+wrapperContext.XTrueBlockMuteSyncHook.uninstallSyncHook();
+wrapperContext.XTrueBlockMuteSyncHook.installSyncHook("x-tbm:sync:capture");
+const beforeInactiveAncestorMessages = wrapperMessages.length;
+let inactiveAncestorTextReadCount = 0;
+let inactiveAncestorReopened = false;
+let inactiveAncestorArmed = false;
+const inactiveAncestorXhr = new wrapperContext.XMLHttpRequest();
+inactiveAncestorXhr.addEventListener("readystatechange", () => {
+  if (
+    inactiveAncestorArmed &&
+    !inactiveAncestorReopened &&
+    inactiveAncestorXhr.readyState === 4
+  ) {
+    inactiveAncestorReopened = true;
+    inactiveAncestorXhr.open(
+      "GET",
+      "https://x.com/i/api/graphql/abc/BlockedAccounts?case=post-delegate-done-success&flow=inactive-ancestor"
+    );
+  }
+});
+inactiveAncestorXhr.open(
+  "GET",
+  "https://x.com/i/api/graphql/abc/BlockedAccounts?case=before-inactive-ancestor"
+);
+inactiveAncestorXhr.readyState = 4;
+inactiveAncestorXhr.responseText = blockedBody;
+inactiveAncestorXhr.onResponseTextRead = () => {
+  inactiveAncestorTextReadCount += 1;
+};
+inactiveAncestorArmed = true;
+inactiveAncestorOpen.call(
+  inactiveAncestorXhr,
+  "GET",
+  "https://x.com/i/api/graphql/abc/HomeTimeline?case=inactive-ancestor-pre-delegate-done"
+);
+await flush();
+check(
+  inactiveAncestorReopened,
+  "retained inactive wrapper contains a current-generation inner open in its delegation tree"
+);
+check(
+  inactiveAncestorTextReadCount === 0,
+  "inner synchronous DONE under a retained inactive-wrapper ancestor stays unread",
+  inactiveAncestorTextReadCount
+);
+check(
+  wrapperMessages.length === beforeInactiveAncestorMessages,
+  "inner synchronous DONE under a retained inactive-wrapper ancestor posts no message",
+  wrapperMessages.slice(beforeInactiveAncestorMessages)
+);
+inactiveAncestorXhr.open(
+  "GET",
+  "https://x.com/i/api/graphql/abc/BlockedAccounts?case=recovery-after-inactive-ancestor"
+);
+inactiveAncestorXhr.responseText = blockedBody;
+inactiveAncestorXhr.complete();
+await flush();
+check(
+  inactiveAncestorTextReadCount === 1,
+  "a later independent current-generation open rearms after the inactive ancestor unwinds",
+  inactiveAncestorTextReadCount
+);
+check(
+  wrapperMessages
+    .slice(beforeInactiveAncestorMessages)
+    .filter(
+      (m) =>
+        m.message.source === "x-tbm:sync:capture" &&
+        m.message.kind === "sync-entries" &&
+        m.message.listKind === "blocked"
+    ).length === 1,
+  "inactive-ancestor recovery posts exactly once from the later independent open",
+  wrapperMessages.slice(beforeInactiveAncestorMessages)
 );
 
 if (failures.length > 0) {
