@@ -2,7 +2,7 @@
 
 ## Status
 
-Prepared by Codex on 2026-05-31 for Phase 2 readiness coordination. Updated 2026-07-29 for the published v1.1.1 state, the resolved 2026-07-15 review queue, and the PR #46 / #48 / #50 integration state. This register records the rationale and gate state for known findings; implementation status is tracked in `TASKS_BACKLOG.md`.
+Prepared by Codex on 2026-05-31 for Phase 2 readiness coordination. Updated 2026-07-30 for the published v1.1.1 state, the resolved 2026-07-15 review queue, and integration evidence through PR #60. This register records the rationale and gate state for known findings; implementation status is tracked in `TASKS_BACKLOG.md`.
 
 ## Rule
 
