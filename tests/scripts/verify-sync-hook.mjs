@@ -834,6 +834,244 @@ check(
   deferredMessages
 );
 
+// 10a. fetch input の URL accessor は、page / 外部wrapperが所有する実行可能コードである。
+// 同じ accessor を2回読むと、1回目と異なるURLへのTOCTOUや2回目の同期throwで、
+// native fetchが開始済みなのにcallerだけ失敗する。1回のsnapshotで分類を固定する。
+const snapshotMessages = [];
+let snapshotFetchCallCount = 0;
+let snapshotTextReadCount = 0;
+let snapshotOriginalResult = null;
+const snapshotBrowserRequestUrls = [];
+const snapshotLocation = { origin: "https://x.com", href: "https://x.com/settings/blocked/all" };
+const browserRequestUrlDescriptor = Object.getOwnPropertyDescriptor(Request.prototype, "url");
+const browserRequestUrlGetter = browserRequestUrlDescriptor?.get;
+if (typeof browserRequestUrlGetter !== "function") {
+  throw new Error("Request.prototype.url getter is unavailable");
+}
+const snapshotContext = createContext({
+  console,
+  JSON,
+  Request,
+  URL,
+  location: snapshotLocation,
+  window: {
+    fetch: (input) => {
+      snapshotFetchCallCount += 1;
+      // native fetchはRequestのown propertyではなく内部request URLを使うため、
+      // browser-owned getterで実際に委譲されたURLをsyntheticに記録する。
+      snapshotBrowserRequestUrls.push(browserRequestUrlGetter.call(input));
+      snapshotOriginalResult = Promise.resolve(
+        new FakeResponse(blockedBody, 200, {
+          onText: () => {
+            snapshotTextReadCount += 1;
+          }
+        })
+      );
+      return snapshotOriginalResult;
+    },
+    postMessage: (message, targetOrigin) => {
+      snapshotMessages.push({ message, targetOrigin });
+    }
+  },
+  XMLHttpRequest: createFakeXMLHttpRequestClass()
+});
+snapshotContext.globalThis = snapshotContext;
+new Script(await readText("src/sync/sync-capture.js"), { filename: "src/sync/sync-capture.js" }).runInContext(
+  snapshotContext
+);
+new Script(await readText("src/sync/sync-hook.js"), { filename: "src/sync/sync-hook.js" }).runInContext(
+  snapshotContext
+);
+
+let changingUrlReadCount = 0;
+const changingUrlInput = new Request(
+  "https://x.com/i/api/graphql/abc/BlockedAccounts?case=single-url-snapshot"
+);
+Object.defineProperty(changingUrlInput, "url", {
+  get() {
+    changingUrlReadCount += 1;
+    return changingUrlReadCount === 1
+      ? "https://x.com/i/api/graphql/abc/BlockedAccounts?case=single-url-snapshot"
+      : "https://x.com/i/api/graphql/abc/HomeTimeline?case=second-url-read";
+  }
+});
+const changingUrlResult = snapshotContext.window.fetch(changingUrlInput);
+check(changingUrlResult === snapshotOriginalResult, "single URL snapshot preserves the original fetch result");
+await changingUrlResult;
+await flush();
+await flush();
+check(changingUrlReadCount === 1, "active hook reads a fetch input URL accessor exactly once", changingUrlReadCount);
+check(snapshotTextReadCount === 1, "the first snapshotted eligible URL reads one response body", snapshotTextReadCount);
+check(
+  snapshotMessages.filter((m) => m.message.kind === "sync-entries").length === 1,
+  "the first snapshotted eligible URL posts one sync-entries message",
+  snapshotMessages
+);
+
+// 2回目だけthrowするaccessorも、single-readならcallerへthrowせずeligible responseを処理する。
+let secondReadThrowCount = 0;
+const secondReadThrowInput = new Request(
+  "https://x.com/i/api/graphql/abc/BlockedAccounts?case=second-read-throw"
+);
+Object.defineProperty(secondReadThrowInput, "url", {
+  get() {
+    secondReadThrowCount += 1;
+    if (secondReadThrowCount > 1) {
+      throw new Error("synthetic second URL read failure");
+    }
+    return "https://x.com/i/api/graphql/abc/BlockedAccounts?case=second-read-throw";
+  }
+});
+let secondReadThrowError = null;
+let secondReadThrowResult = null;
+try {
+  secondReadThrowResult = snapshotContext.window.fetch(secondReadThrowInput);
+} catch (error) {
+  secondReadThrowError = error;
+}
+check(!secondReadThrowError, "a second-read-only URL getter failure is not observable by the fetch caller");
+check(secondReadThrowResult === snapshotOriginalResult, "second-read guard preserves the original fetch result");
+await snapshotOriginalResult;
+await flush();
+await flush();
+check(secondReadThrowCount === 1, "second-read-only URL getter is evaluated once", secondReadThrowCount);
+check(snapshotTextReadCount === 2, "second single snapshot reads the eligible response once", snapshotTextReadCount);
+check(
+  snapshotMessages.filter((m) => m.message.kind === "sync-entries").length === 2,
+  "second single snapshot posts one additional sync-entries message",
+  snapshotMessages
+);
+
+// 最初のsnapshot自体が失敗した場合は、native fetchのresultだけを返し、本文とmessageは扱わない。
+const beforeUnreadableTextReads = snapshotTextReadCount;
+const beforeUnreadableMessages = snapshotMessages.length;
+let unreadableUrlReadCount = 0;
+const unreadableUrlInput = new Request(
+  "https://x.com/i/api/graphql/abc/BlockedAccounts?case=unreadable-url"
+);
+Object.defineProperty(unreadableUrlInput, "url", {
+  get() {
+    unreadableUrlReadCount += 1;
+    throw new Error("synthetic unreadable URL");
+  }
+});
+let unreadableUrlError = null;
+let unreadableUrlResult = null;
+try {
+  unreadableUrlResult = snapshotContext.window.fetch(unreadableUrlInput);
+} catch (error) {
+  unreadableUrlError = error;
+}
+check(!unreadableUrlError, "unreadable fetch URL fails closed without a synchronous hook error");
+check(unreadableUrlResult === snapshotOriginalResult, "unreadable URL preserves the original fetch result");
+await snapshotOriginalResult;
+await flush();
+await flush();
+check(unreadableUrlReadCount === 1, "unreadable URL accessor is attempted once", unreadableUrlReadCount);
+check(
+  snapshotTextReadCount === beforeUnreadableTextReads,
+  "unreadable URL leaves the response body unread",
+  snapshotTextReadCount
+);
+check(
+  snapshotMessages.length === beforeUnreadableMessages,
+  "unreadable URL posts no sync message",
+  snapshotMessages
+);
+
+// native fetchが使うRequest内部URLとpage-ownedなshadow getterが不一致なら、
+// BlockedAccountsを装った値でHomeTimeline本文を読むfalse-positiveをfail closedにする。
+const beforeMismatchedTextReads = snapshotTextReadCount;
+const beforeMismatchedMessages = snapshotMessages.length;
+const mismatchedInternalUrl =
+  "https://x.com/i/api/graphql/abc/HomeTimeline?case=browser-owned-request-url";
+let mismatchedShadowReadCount = 0;
+const mismatchedRequest = new Request(mismatchedInternalUrl);
+Object.defineProperty(mismatchedRequest, "url", {
+  get() {
+    mismatchedShadowReadCount += 1;
+    return "https://x.com/i/api/graphql/abc/BlockedAccounts?case=shadowed-request-url";
+  }
+});
+const mismatchedResult = snapshotContext.window.fetch(mismatchedRequest);
+check(mismatchedResult === snapshotOriginalResult, "mismatched Request URL preserves the original fetch result");
+await mismatchedResult;
+await flush();
+await flush();
+check(
+  snapshotBrowserRequestUrls.at(-1) === mismatchedInternalUrl,
+  "synthetic native fetch observes the browser-owned HomeTimeline URL",
+  snapshotBrowserRequestUrls.at(-1)
+);
+check(
+  mismatchedShadowReadCount === 1,
+  "mismatched Request shadow URL accessor is evaluated once",
+  mismatchedShadowReadCount
+);
+check(
+  snapshotTextReadCount === beforeMismatchedTextReads,
+  "mismatched Request URL leaves the HomeTimeline response body unread",
+  snapshotTextReadCount
+);
+check(
+  snapshotMessages.length === beforeMismatchedMessages,
+  "mismatched Request URL posts no sync message",
+  snapshotMessages
+);
+
+// page側が初回install後にRequest.prototype.urlを差し替えても、uninstall / reinstallで
+// 偽getterをbrowser-ownedとして再取得してはならない。script評価時の標準getterを固定する。
+const beforePrototypeDriftTextReads = snapshotTextReadCount;
+const beforePrototypeDriftMessages = snapshotMessages.length;
+const prototypeDriftInternalUrl =
+  "https://x.com/i/api/graphql/abc/HomeTimeline?case=request-prototype-drift";
+let prototypeDriftGetterReadCount = 0;
+try {
+  Object.defineProperty(Request.prototype, "url", {
+    configurable: true,
+    enumerable: browserRequestUrlDescriptor.enumerable,
+    get() {
+      prototypeDriftGetterReadCount += 1;
+      return "https://x.com/i/api/graphql/abc/BlockedAccounts?case=request-prototype-drift-shadow";
+    }
+  });
+  snapshotContext.XTrueBlockMuteSyncHook.uninstallSyncHook();
+  snapshotContext.XTrueBlockMuteSyncHook.installSyncHook("x-tbm:sync:capture");
+
+  const prototypeDriftRequest = new Request(prototypeDriftInternalUrl);
+  const prototypeDriftResult = snapshotContext.window.fetch(prototypeDriftRequest);
+  check(
+    prototypeDriftResult === snapshotOriginalResult,
+    "prototype-drift reinstall preserves the original fetch result"
+  );
+  await prototypeDriftResult;
+  await flush();
+  await flush();
+  check(
+    snapshotBrowserRequestUrls.at(-1) === prototypeDriftInternalUrl,
+    "synthetic native fetch keeps the internal HomeTimeline URL after prototype drift",
+    snapshotBrowserRequestUrls.at(-1)
+  );
+  check(
+    prototypeDriftGetterReadCount === 1,
+    "reinstalled hook reads the drifted prototype URL accessor only as the page-visible value",
+    prototypeDriftGetterReadCount
+  );
+  check(
+    snapshotTextReadCount === beforePrototypeDriftTextReads,
+    "prototype-drift reinstall leaves the HomeTimeline response body unread",
+    snapshotTextReadCount
+  );
+  check(
+    snapshotMessages.length === beforePrototypeDriftMessages,
+    "prototype-drift reinstall posts no sync message",
+    snapshotMessages
+  );
+} finally {
+  Object.defineProperty(Request.prototype, "url", browserRequestUrlDescriptor);
+}
+check(snapshotFetchCallCount === 5, "all URL snapshot cases delegate to the original fetch once", snapshotFetchCallCount);
+
 // 11. 公開installed flagがfalseへdriftしても、同じAPIからの再installは現世代を再利用する。
 // privateなinstalledHookとactive状態を正本にしないと、現在のwrapperをoriginalとして
 // 二重wrapし、続くuninstallがnative fetch / openまで復元できなくなる。
@@ -1151,22 +1389,32 @@ let foreignFetchCallCount = 0;
 let wrapperFetchUrlReadCount = 0;
 let wrapperXhrTextReadCount = 0;
 let foreignOpenCallCount = 0;
+let foreignFetchRewriteMode = null;
+let foreignFetchDelegatedResult = null;
+const wrapperNativeFetchUrls = [];
 const wrapperMessages = [];
 const wrapperLocation = { origin: "https://x.com", href: "https://x.com/settings/blocked/all" };
 const wrapperContext = createContext({
   console,
   JSON,
+  Request,
   URL,
   location: wrapperLocation,
   window: {
-    fetch: () =>
-      Promise.resolve(
+    fetch: (input) => {
+      // synthetic native境界はRequestの標準内部URLかprimitive stringを記録し、
+      // 外部wrapperが実際にどのendpointへ置換したかを回帰側から確認可能にする。
+      wrapperNativeFetchUrls.push(
+        typeof input === "string" ? input : browserRequestUrlDescriptor.get.call(input)
+      );
+      return Promise.resolve(
         new FakeResponse(blockedBody, 200, {
           onText: () => {
             wrapperFetchTextReadCount += 1;
           }
         })
-      ),
+      );
+    },
     postMessage: (message, targetOrigin) => {
       wrapperMessages.push({ message, targetOrigin });
     }
@@ -1184,7 +1432,20 @@ const firstGenerationFetch = wrapperContext.window.fetch;
 const firstGenerationOpen = wrapperContext.XMLHttpRequest.prototype.open;
 function foreignFetch() {
   foreignFetchCallCount += 1;
-  return firstGenerationFetch.apply(this, arguments);
+  const delegatedArguments = Array.from(arguments);
+  if (foreignFetchRewriteMode === "request") {
+    // 外部wrapperがpage-visibleなeligible Requestを別のinternal Requestへ置換する。
+    // 現世代hookが外側の入力だけで分類すると、実responseとの対応を誤認する。
+    delegatedArguments[0] = new Request(
+      "https://x.com/i/api/graphql/abc/HomeTimeline?case=foreign-wrapper-request-rewrite"
+    );
+  } else if (foreignFetchRewriteMode === "string") {
+    // string入力もRequestと同じく、外部wrapper配下では委譲先入力との同一性が必要。
+    delegatedArguments[0] =
+      "https://x.com/i/api/graphql/abc/HomeTimeline?case=foreign-wrapper-string-rewrite";
+  }
+  foreignFetchDelegatedResult = firstGenerationFetch.apply(this, delegatedArguments);
+  return foreignFetchDelegatedResult;
 }
 function foreignOpen() {
   foreignOpenCallCount += 1;
@@ -1234,7 +1495,9 @@ check(
   "uninstall preserves a foreign XMLHttpRequest.open wrapper"
 );
 wrapperContext.XTrueBlockMuteSyncHook.installSyncHook("x-tbm:sync:capture");
-const wrapperFetchInput = {};
+const wrapperFetchInput = new Request(
+  "https://x.com/i/api/graphql/abc/BlockedAccounts?case=foreign-fetch-wrapper-reinstall"
+);
 Object.defineProperty(wrapperFetchInput, "url", {
   enumerable: true,
   get() {
@@ -1246,8 +1509,8 @@ await wrapperContext.window.fetch(wrapperFetchInput);
 await flush();
 await flush();
 check(
-  wrapperFetchUrlReadCount === 2,
-  "inactive hook generation does not reevaluate fetch input through a foreign wrapper",
+  wrapperFetchUrlReadCount === 1,
+  "reinstalled hook snapshots fetch input URL once through a foreign wrapper",
   wrapperFetchUrlReadCount
 );
 check(foreignFetchCallCount === 1, "reinstalled hook preserves one foreign fetch call", foreignFetchCallCount);
@@ -1262,6 +1525,448 @@ check(
   "current hook posts one message through a foreign fetch wrapper",
   wrapperMessages
 );
+
+// 外部wrapperが保持しているinactive旧hookへ委譲する途中で、eligibleな外側入力を
+// non-listのinternal入力へ置換した場合、現世代hookは返却Promiseだけを維持し、
+// URL/body対応を証明できないresponseを読まずmessageも送らない。
+const beforeForeignRequestRewriteTextReads = wrapperFetchTextReadCount;
+const beforeForeignRequestRewriteMessages = wrapperMessages.length;
+foreignFetchRewriteMode = "request";
+const foreignRequestRewriteInput = new Request(
+  "https://x.com/i/api/graphql/abc/BlockedAccounts?case=foreign-wrapper-request-rewrite"
+);
+const foreignRequestRewriteResult = wrapperContext.window.fetch(foreignRequestRewriteInput);
+check(
+  foreignRequestRewriteResult === foreignFetchDelegatedResult,
+  "foreign Request rewrite preserves the exact delegated fetch Promise"
+);
+check(
+  wrapperNativeFetchUrls.at(-1) ===
+    "https://x.com/i/api/graphql/abc/HomeTimeline?case=foreign-wrapper-request-rewrite",
+  "foreign Request wrapper delegates the internal HomeTimeline URL",
+  wrapperNativeFetchUrls.at(-1)
+);
+await foreignRequestRewriteResult;
+await flush();
+await flush();
+check(
+  wrapperFetchTextReadCount === beforeForeignRequestRewriteTextReads,
+  "foreign Request rewrite leaves the internal response body unread",
+  wrapperFetchTextReadCount - beforeForeignRequestRewriteTextReads
+);
+check(
+  wrapperMessages.length === beforeForeignRequestRewriteMessages,
+  "foreign Request rewrite posts no sync message",
+  wrapperMessages.slice(beforeForeignRequestRewriteMessages)
+);
+
+// primitive stringも値を書き換えられるため、Requestだけを保護しても境界は閉じない。
+const beforeForeignStringRewriteTextReads = wrapperFetchTextReadCount;
+const beforeForeignStringRewriteMessages = wrapperMessages.length;
+foreignFetchRewriteMode = "string";
+const foreignStringRewriteResult = wrapperContext.window.fetch(
+  "https://x.com/i/api/graphql/abc/BlockedAccounts?case=foreign-wrapper-string-rewrite"
+);
+check(
+  foreignStringRewriteResult === foreignFetchDelegatedResult,
+  "foreign string rewrite preserves the exact delegated fetch Promise"
+);
+check(
+  wrapperNativeFetchUrls.at(-1) ===
+    "https://x.com/i/api/graphql/abc/HomeTimeline?case=foreign-wrapper-string-rewrite",
+  "foreign string wrapper delegates the internal HomeTimeline URL",
+  wrapperNativeFetchUrls.at(-1)
+);
+await foreignStringRewriteResult;
+await flush();
+await flush();
+check(
+  wrapperFetchTextReadCount === beforeForeignStringRewriteTextReads,
+  "foreign string rewrite leaves the internal response body unread",
+  wrapperFetchTextReadCount - beforeForeignStringRewriteTextReads
+);
+check(
+  wrapperMessages.length === beforeForeignStringRewriteMessages,
+  "foreign string rewrite posts no sync message",
+  wrapperMessages.slice(beforeForeignStringRewriteMessages)
+);
+foreignFetchRewriteMode = null;
+
+// 1世代前のhook入口だけが一致しても、そのhook自身のdelegateがopaqueなら証明を
+// 次世代へ渡してはいけない。H2→transparent W1→inactive H1→opaque W0→native
+// の3世代鎖で、W0がeligible入力をinternal HomeTimelineへ置換する経路を固定する。
+let launderingTextReadCount = 0;
+let launderingOpaqueResult = null;
+let launderingTransparentResult = null;
+const launderingNativeUrls = [];
+const launderingMessages = [];
+const launderingLocation = {
+  origin: "https://x.com",
+  href: "https://x.com/settings/blocked/all"
+};
+const launderingNativeFetch = (input) => {
+  launderingNativeUrls.push(
+    typeof input === "string" ? input : browserRequestUrlDescriptor.get.call(input)
+  );
+  return Promise.resolve(
+    new FakeResponse(blockedBody, 200, {
+      onText: () => {
+        launderingTextReadCount += 1;
+      }
+    })
+  );
+};
+const launderingContext = createContext({
+  console,
+  JSON,
+  Request,
+  URL,
+  location: launderingLocation,
+  window: {
+    fetch: launderingNativeFetch,
+    postMessage: (message, targetOrigin) => {
+      launderingMessages.push({ message, targetOrigin });
+    }
+  },
+  XMLHttpRequest: createFakeXMLHttpRequestClass()
+});
+launderingContext.globalThis = launderingContext;
+new Script(await readText("src/sync/sync-capture.js"), {
+  filename: "src/sync/sync-capture.js"
+}).runInContext(launderingContext);
+new Script(await readText("src/sync/sync-hook.js"), {
+  filename: "src/sync/sync-hook.js"
+}).runInContext(launderingContext);
+function launderingOpaqueWrapper(input) {
+  const replacement =
+    typeof input === "string"
+      ? "https://x.com/i/api/graphql/abc/HomeTimeline?case=opaque-string-rewrite"
+      : new Request("https://x.com/i/api/graphql/abc/HomeTimeline?case=opaque-request-rewrite");
+  // H0を迂回して保存済みnativeへ直接委譲するため、このW0配下はH1から観測不能。
+  launderingOpaqueResult = launderingNativeFetch(replacement);
+  return launderingOpaqueResult;
+}
+launderingContext.window.fetch = launderingOpaqueWrapper;
+launderingContext.XTrueBlockMuteSyncHook.uninstallSyncHook();
+launderingContext.XTrueBlockMuteSyncHook.installSyncHook("x-tbm:sync:capture");
+const launderingSecondGenerationFetch = launderingContext.window.fetch;
+
+const beforeSecondGenerationReads = launderingTextReadCount;
+const beforeSecondGenerationMessages = launderingMessages.length;
+await launderingSecondGenerationFetch(
+  new Request("https://x.com/i/api/graphql/abc/BlockedAccounts?case=opaque-unverified")
+);
+await flush();
+await flush();
+check(
+  launderingTextReadCount === beforeSecondGenerationReads,
+  "a generation with an opaque unobserved delegate leaves the response body unread",
+  launderingTextReadCount - beforeSecondGenerationReads
+);
+check(
+  launderingMessages.length === beforeSecondGenerationMessages,
+  "a generation with an opaque unobserved delegate posts no sync message",
+  launderingMessages.slice(beforeSecondGenerationMessages)
+);
+
+function launderingTransparentWrapper() {
+  launderingTransparentResult = launderingSecondGenerationFetch.apply(this, arguments);
+  return launderingTransparentResult;
+}
+launderingContext.window.fetch = launderingTransparentWrapper;
+launderingContext.XTrueBlockMuteSyncHook.uninstallSyncHook();
+launderingContext.XTrueBlockMuteSyncHook.installSyncHook("x-tbm:sync:capture");
+
+const beforeLaunderedRequestReads = launderingTextReadCount;
+const beforeLaunderedRequestMessages = launderingMessages.length;
+const launderedRequestResult = launderingContext.window.fetch(
+  new Request("https://x.com/i/api/graphql/abc/BlockedAccounts?case=laundered-request")
+);
+check(
+  launderedRequestResult === launderingTransparentResult &&
+    launderedRequestResult === launderingOpaqueResult,
+  "three-generation Request delegation preserves the exact opaque Promise"
+);
+check(
+  launderingNativeUrls.at(-1) ===
+    "https://x.com/i/api/graphql/abc/HomeTimeline?case=opaque-request-rewrite",
+  "three-generation Request delegation reaches the internal HomeTimeline URL",
+  launderingNativeUrls.at(-1)
+);
+await launderedRequestResult;
+await flush();
+await flush();
+check(
+  launderingTextReadCount === beforeLaunderedRequestReads,
+  "unverified inner Request provenance cannot be laundered into a body read",
+  launderingTextReadCount - beforeLaunderedRequestReads
+);
+check(
+  launderingMessages.length === beforeLaunderedRequestMessages,
+  "unverified inner Request provenance cannot be laundered into a sync message",
+  launderingMessages.slice(beforeLaunderedRequestMessages)
+);
+
+const beforeLaunderedStringReads = launderingTextReadCount;
+const beforeLaunderedStringMessages = launderingMessages.length;
+const launderedStringResult = launderingContext.window.fetch(
+  "https://x.com/i/api/graphql/abc/BlockedAccounts?case=laundered-string"
+);
+check(
+  launderedStringResult === launderingTransparentResult &&
+    launderedStringResult === launderingOpaqueResult,
+  "three-generation string delegation preserves the exact opaque Promise"
+);
+check(
+  launderingNativeUrls.at(-1) ===
+    "https://x.com/i/api/graphql/abc/HomeTimeline?case=opaque-string-rewrite",
+  "three-generation string delegation reaches the internal HomeTimeline URL",
+  launderingNativeUrls.at(-1)
+);
+await launderedStringResult;
+await flush();
+await flush();
+check(
+  launderingTextReadCount === beforeLaunderedStringReads,
+  "unverified inner string provenance cannot be laundered into a body read",
+  launderingTextReadCount - beforeLaunderedStringReads
+);
+check(
+  launderingMessages.length === beforeLaunderedStringMessages,
+  "unverified inner string provenance cannot be laundered into a sync message",
+  launderingMessages.slice(beforeLaunderedStringMessages)
+);
+
+// inactive旧APIを残したままscriptを再評価したとき、現在見えているforeign wrapperを
+// 新closureのdirect baselineとして再信頼してはならない。旧closureを再利用することで、
+// retained H0が実際に受けた置換後入力を同じprovenance chainへ含める。
+let reevaluationTextReadCount = 0;
+let reevaluationDelegatedResult = null;
+const reevaluationNativeUrls = [];
+const reevaluationMessages = [];
+const reevaluationLocation = {
+  origin: "https://x.com",
+  href: "https://x.com/settings/blocked/all"
+};
+const reevaluationNativeFetch = (input) => {
+  reevaluationNativeUrls.push(
+    typeof input === "string" ? input : browserRequestUrlDescriptor.get.call(input)
+  );
+  return Promise.resolve(
+    new FakeResponse(blockedBody, 200, {
+      onText: () => {
+        reevaluationTextReadCount += 1;
+      }
+    })
+  );
+};
+const reevaluationContext = createContext({
+  console,
+  JSON,
+  Request,
+  URL,
+  location: reevaluationLocation,
+  window: {
+    fetch: reevaluationNativeFetch,
+    postMessage: (message, targetOrigin) => {
+      reevaluationMessages.push({ message, targetOrigin });
+    }
+  },
+  XMLHttpRequest: createFakeXMLHttpRequestClass()
+});
+reevaluationContext.globalThis = reevaluationContext;
+new Script(await readText("src/sync/sync-capture.js"), {
+  filename: "src/sync/sync-capture.js"
+}).runInContext(reevaluationContext);
+const syncHookSource = await readText("src/sync/sync-hook.js");
+new Script(syncHookSource, { filename: "src/sync/sync-hook.js" }).runInContext(
+  reevaluationContext
+);
+const reevaluationFirstGenerationFetch = reevaluationContext.window.fetch;
+function reevaluationForeignWrapper(input) {
+  const replacement =
+    typeof input === "string"
+      ? "https://x.com/i/api/graphql/abc/HomeTimeline?case=reevaluation-string-rewrite"
+      : new Request(
+          "https://x.com/i/api/graphql/abc/HomeTimeline?case=reevaluation-request-rewrite"
+        );
+  reevaluationDelegatedResult = reevaluationFirstGenerationFetch.call(this, replacement);
+  return reevaluationDelegatedResult;
+}
+reevaluationContext.window.fetch = reevaluationForeignWrapper;
+reevaluationContext.XTrueBlockMuteSyncHook.uninstallSyncHook();
+new Script(syncHookSource, { filename: "src/sync/sync-hook.js" }).runInContext(
+  reevaluationContext
+);
+
+const beforeReevaluationRequestReads = reevaluationTextReadCount;
+const beforeReevaluationRequestMessages = reevaluationMessages.length;
+const reevaluationRequestResult = reevaluationContext.window.fetch(
+  new Request("https://x.com/i/api/graphql/abc/BlockedAccounts?case=reevaluation-request")
+);
+check(
+  reevaluationRequestResult === reevaluationDelegatedResult,
+  "re-evaluated Request hook preserves the exact foreign Promise"
+);
+check(
+  reevaluationNativeUrls.at(-1) ===
+    "https://x.com/i/api/graphql/abc/HomeTimeline?case=reevaluation-request-rewrite",
+  "re-evaluated Request hook reaches the internal HomeTimeline URL",
+  reevaluationNativeUrls.at(-1)
+);
+await reevaluationRequestResult;
+await flush();
+await flush();
+check(
+  reevaluationTextReadCount === beforeReevaluationRequestReads,
+  "script re-evaluation does not trust a retained Request-rewriting wrapper",
+  reevaluationTextReadCount - beforeReevaluationRequestReads
+);
+check(
+  reevaluationMessages.length === beforeReevaluationRequestMessages,
+  "script re-evaluation posts no message for a retained Request-rewriting wrapper",
+  reevaluationMessages.slice(beforeReevaluationRequestMessages)
+);
+
+const beforeReevaluationStringReads = reevaluationTextReadCount;
+const beforeReevaluationStringMessages = reevaluationMessages.length;
+const reevaluationStringResult = reevaluationContext.window.fetch(
+  "https://x.com/i/api/graphql/abc/BlockedAccounts?case=reevaluation-string"
+);
+check(
+  reevaluationStringResult === reevaluationDelegatedResult,
+  "re-evaluated string hook preserves the exact foreign Promise"
+);
+check(
+  reevaluationNativeUrls.at(-1) ===
+    "https://x.com/i/api/graphql/abc/HomeTimeline?case=reevaluation-string-rewrite",
+  "re-evaluated string hook reaches the internal HomeTimeline URL",
+  reevaluationNativeUrls.at(-1)
+);
+await reevaluationStringResult;
+await flush();
+await flush();
+check(
+  reevaluationTextReadCount === beforeReevaluationStringReads,
+  "script re-evaluation does not trust a retained string-rewriting wrapper",
+  reevaluationTextReadCount - beforeReevaluationStringReads
+);
+check(
+  reevaluationMessages.length === beforeReevaluationStringMessages,
+  "script re-evaluation posts no message for a retained string-rewriting wrapper",
+  reevaluationMessages.slice(beforeReevaluationStringMessages)
+);
+
+// 公開APIはpage側から差替え可能であり、shape確認のgetter/Proxyも実行可能コードである。
+// probe自体がthrowしてもscript評価を止めず、fresh hookを安全側にinstallできることを固定する。
+const throwingApiLocation = {
+  origin: "https://x.com",
+  href: "https://x.com/settings/blocked/all"
+};
+const throwingApiNativeFetch = () => Promise.resolve(new FakeResponse(blockedBody));
+const throwingApiContext = createContext({
+  console,
+  JSON,
+  Request,
+  URL,
+  location: throwingApiLocation,
+  window: {
+    fetch: throwingApiNativeFetch,
+    postMessage: () => {}
+  },
+  XMLHttpRequest: createFakeXMLHttpRequestClass()
+});
+throwingApiContext.globalThis = throwingApiContext;
+new Script(await readText("src/sync/sync-capture.js"), {
+  filename: "src/sync/sync-capture.js"
+}).runInContext(throwingApiContext);
+new Script(`
+  Object.defineProperty(globalThis, "XTrueBlockMuteSyncHook", {
+    configurable: true,
+    get() {
+      throw new Error("synthetic public API getter failure");
+    },
+    set(value) {
+      Object.defineProperty(globalThis, "XTrueBlockMuteSyncHook", {
+        configurable: true,
+        writable: true,
+        value
+      });
+    }
+  });
+`).runInContext(throwingApiContext);
+let throwingApiEvaluationError = null;
+try {
+  new Script(syncHookSource, { filename: "src/sync/sync-hook.js" }).runInContext(
+    throwingApiContext
+  );
+} catch (error) {
+  throwingApiEvaluationError = error;
+}
+check(
+  throwingApiEvaluationError === null,
+  "throwing public API getter does not abort hook script evaluation",
+  throwingApiEvaluationError?.message
+);
+check(
+  throwingApiContext.window.fetch !== throwingApiNativeFetch,
+  "throwing public API getter falls back to a fresh fetch hook"
+);
+let throwingApiInstalledApi = null;
+try {
+  throwingApiInstalledApi = throwingApiContext.XTrueBlockMuteSyncHook;
+} catch (_error) {
+  throwingApiInstalledApi = null;
+}
+check(
+  typeof throwingApiInstalledApi?.ownsActiveHook === "function",
+  "throwing public API getter is replaced by the fresh hook API"
+);
+
+// shapeだけ一致するpage-owned no-op APIはgenuine inactive closureではない。
+// install後のprivate active ownershipを再確認できなければ無条件returnせずfresh fallbackへ進む。
+let spoofInstallCallCount = 0;
+const spoofApi = {
+  installSyncHook() {
+    spoofInstallCallCount += 1;
+  },
+  uninstallSyncHook() {},
+  ownsActiveHook() {
+    return false;
+  }
+};
+const noOpApiLocation = {
+  origin: "https://x.com",
+  href: "https://x.com/settings/blocked/all"
+};
+const noOpApiNativeFetch = () => Promise.resolve(new FakeResponse(blockedBody));
+const noOpApiContext = createContext({
+  console,
+  JSON,
+  Request,
+  URL,
+  location: noOpApiLocation,
+  XTrueBlockMuteSyncHook: spoofApi,
+  window: {
+    fetch: noOpApiNativeFetch,
+    postMessage: () => {}
+  },
+  XMLHttpRequest: createFakeXMLHttpRequestClass()
+});
+noOpApiContext.globalThis = noOpApiContext;
+new Script(await readText("src/sync/sync-capture.js"), {
+  filename: "src/sync/sync-capture.js"
+}).runInContext(noOpApiContext);
+new Script(syncHookSource, { filename: "src/sync/sync-hook.js" }).runInContext(
+  noOpApiContext
+);
+check(spoofInstallCallCount === 1, "shape-compatible no-op API is probed once", spoofInstallCallCount);
+check(
+  noOpApiContext.XTrueBlockMuteSyncHook !== spoofApi &&
+    noOpApiContext.window.fetch !== noOpApiNativeFetch,
+  "shape-compatible no-op API falls back to a fresh fail-closed hook"
+);
+
 const beforeWrappedAgainXhrMessages = wrapperMessages.length;
 const wrappedAgainXhr = new wrapperContext.XMLHttpRequest();
 wrappedAgainXhr.open(
