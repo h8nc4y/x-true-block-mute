@@ -244,13 +244,9 @@ node tests/scripts/evaluate-f1-observation.mjs --live path\to\masked-summary.jso
 ## プライバシーポリシー
 
 プライバシーポリシーは `docs/privacy-policy.md`（日英併記）と、ホスティング用の自己完結
-HTML `docs/privacy-policy.html` にあります。Chrome Web Store 提出には公開 URL が必要です。
+HTML `docs/privacy-policy.html` にあります。連絡先と想定公開 URL のプレースホルダは 2026-06-14 に解消し、文書は公開済みです。連絡先値と URL 値は README に転記しません。
 
-公開前のユーザー作業:
-
-1. `docs/privacy-policy.md` と `docs/privacy-policy.html` の連絡先プレースホルダ（`[ADD YOUR CONTACT EMAIL BEFORE PUBLISHING]` / `[公開前に連絡先メールアドレスを記入してください]`）に連絡先メールを記入する。
-2. `docs/privacy-policy.html` をホストする（例: リポジトリ設定で GitHub Pages を `/docs` から有効化すると `https://<user>.github.io/<repo>/privacy-policy.html` で公開される）。
-3. その URL をストア掲載情報のプライバシーポリシー欄に設定する（`docs/store-listing.md` 参照）。
+今回の文書同期では、公開 URL の現在の疎通と Chrome Web Store 管理画面の設定値は未確認です。今後の文書更新ではポリシー本文、公開 URL、ストア掲載情報の整合をオーナーが確認し、ストアの更新・再提出・公開は人間承認ゲートとして維持します。
 
 ## パッケージング（Chrome Web Store 用）
 
