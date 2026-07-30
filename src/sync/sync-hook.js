@@ -4,23 +4,57 @@
   // 宣言的scriptが同一documentで再評価された場合は、公開flagではなく既存APIが
   // 保持するprivateなactive ownershipを確認する。flagは外部からdriftし得るmirrorであり、
   // APIだけを新しいclosureで上書きすると旧wrapperの停止・復元所有権を失う。
-  const existingHookApi = globalThis.XTrueBlockMuteSyncHook;
+  let existingHookApi = null;
+  let existingInstallSyncHook = null;
+  let existingUninstallSyncHook = null;
+  let existingOwnsActiveHook = null;
+  let existingApiCanManageHook = false;
   let existingApiOwnsActiveHook = false;
+  let existingApiProbeFailed = false;
   try {
-    existingApiOwnsActiveHook =
+    // 公開API objectと各method getterはpage-ownedな実行可能コードである。shape probe
+    // 全体を隔離し、getter/Proxyのthrowをhook script全体の同期throwへ昇格させない。
+    existingHookApi = globalThis.XTrueBlockMuteSyncHook;
+    existingInstallSyncHook = existingHookApi && existingHookApi.installSyncHook;
+    existingUninstallSyncHook = existingHookApi && existingHookApi.uninstallSyncHook;
+    existingOwnsActiveHook = existingHookApi && existingHookApi.ownsActiveHook;
+    existingApiCanManageHook =
       Boolean(existingHookApi) &&
-      typeof existingHookApi.installSyncHook === "function" &&
-      typeof existingHookApi.uninstallSyncHook === "function" &&
-      typeof existingHookApi.ownsActiveHook === "function" &&
-      existingHookApi.ownsActiveHook();
+      typeof existingInstallSyncHook === "function" &&
+      typeof existingUninstallSyncHook === "function" &&
+      typeof existingOwnsActiveHook === "function";
+    existingApiOwnsActiveHook =
+      existingApiCanManageHook && Boolean(existingOwnsActiveHook.call(existingHookApi));
   } catch (_error) {
     // page側が公開APIを差し替えていてもscript評価自体は止めず、fresh installへ進む。
+    existingApiProbeFailed = true;
+    existingApiCanManageHook = false;
     existingApiOwnsActiveHook = false;
   }
   if (existingApiOwnsActiveHook) {
     // 公開flagはactive ownershipを表すmirrorとして自己修復する。
     window.__xTbmSyncHookInstalled = true;
     return;
+  }
+  if (existingApiCanManageHook) {
+    try {
+      // inactive旧APIが残る再評価でも新closureを作らず、初回評価時の基準fetchと
+      // install世代共有traceを引き継ぐ。現在見えているforeign wrapperを新しい
+      // direct baselineとして再信頼せず、旧wrapperが観測する実委譲入力を照合する。
+      existingInstallSyncHook.call(existingHookApi, "x-tbm:sync:capture");
+      // shape一致のpage-owned no-op APIをgenuine closureと誤認しない。install後にも
+      // 同じAPI identityとprivate active ownershipを再確認できた場合だけ再利用を確定する。
+      if (
+        globalThis.XTrueBlockMuteSyncHook === existingHookApi &&
+        Boolean(existingOwnsActiveHook.call(existingHookApi))
+      ) {
+        window.__xTbmSyncHookInstalled = true;
+        return;
+      }
+    } catch (_error) {
+      // page側の差替えAPIが失敗してもscript評価を止めない。以下のfresh closureは
+      // existing APIが見えていた事実を使ってcurrent fetchを基準扱いせずfail closedにする。
+    }
   }
 
   // Production sync capture hook (M4), MAIN world. It wraps fetch / XMLHttpRequest
@@ -34,6 +68,128 @@
   // an explicit same-origin target so only x.com/twitter.com listeners receive it;
   // the data originated from X's own response, so this adds no exposure to X. The
   // ISOLATED bridge is responsible for gating whether anything is persisted.
+
+  // Request instanceの標準url accessorはscript評価時に一度だけclosureへ固定する。
+  // install後にpage側がprototype getterを差し替えても、uninstall / reinstallで
+  // 偽getterをbrowser-ownedとして再取得しない。取得不能ならobject inputは本文未読。
+  const browserRequestUrlGetter = (() => {
+    try {
+      const requestPrototype =
+        typeof globalThis.Request === "function" ? globalThis.Request.prototype : null;
+      const urlDescriptor =
+        requestPrototype && Object.getOwnPropertyDescriptor(requestPrototype, "url");
+      return urlDescriptor && typeof urlDescriptor.get === "function" ? urlDescriptor.get : null;
+    } catch (_error) {
+      return null;
+    }
+  })();
+
+  // script評価時に見えているfetchを、このclosureが直接委譲できる基準関数として固定する。
+  // uninstallでこの関数へ戻った通常の再installでは、外部wrapper用の追跡を挟まず従来どおり
+  // URLを分類する。後から重なった未知のwrapperはこの集合へ追加せず、別途委譲証明を要求する。
+  const directFetchDelegates = new WeakSet();
+  if (!existingHookApi && !existingApiProbeFailed && typeof window.fetch === "function") {
+    directFetchDelegates.add(window.fetch);
+  }
+  // fetch wrapperの委譲はPromiseを返すまで同期的に進むため、active世代ごとの短命なtraceを
+  // stackで共有する。保持されたinactive旧hookだけが、外部wrapperから実際に渡された入力と
+  // 返却Promiseを観測できる。page-ownedなURL getterはここでは実行せず、同一性だけを比べる。
+  const fetchDelegationTraces = [];
+
+  function createFetchDelegationTrace(expectedInput) {
+    return {
+      expectedInput,
+      observed: false,
+      wrappers: new Set(),
+      depth: 0,
+      rootCompleted: false,
+      ambiguous: false,
+      delegatedResult: null,
+      hasDelegatedResult: false
+    };
+  }
+
+  function beginInactiveFetchDelegation(wrapper, input) {
+    const trace = fetchDelegationTraces[fetchDelegationTraces.length - 1];
+    if (!trace) {
+      return null;
+    }
+
+    // 1つのactive呼出しから独立した複数のinactive枝へ委譲された場合、どのrequestの
+    // Promiseが返ったかを安全に結び付けられない。同じ旧wrapperへの再入も循環扱いにする。
+    if ((trace.depth === 0 && trace.rootCompleted) || trace.wrappers.has(wrapper)) {
+      trace.ambiguous = true;
+    }
+    trace.observed = true;
+    trace.wrappers.add(wrapper);
+    trace.depth += 1;
+
+    // Requestはobject identity、stringはprimitive valueが一致するときだけ同じ入力とする。
+    // URL文字列だけの比較では、method/body等を変えた別Requestを誤って同一視するため行わない。
+    if (!Object.is(input, trace.expectedInput)) {
+      trace.ambiguous = true;
+    }
+    return trace;
+  }
+
+  function finishInactiveFetchDelegation(trace, result, delegateVerified) {
+    if (!trace) {
+      return;
+    }
+    if (trace.depth <= 0) {
+      trace.ambiguous = true;
+      return;
+    }
+    // 入口のinput/Promiseが一致しても、このinactive世代自身のoriginalFetch配下が
+    // 未観測ならancestorへ信頼を渡さない。opaque delegateの世代間launderingを防ぐ。
+    if (!delegateVerified) {
+      trace.ambiguous = true;
+    }
+
+    // nestedな旧世代wrapperがすべて同じPromiseを透過的に返した場合だけ、1本の委譲鎖とみなす。
+    if (!trace.hasDelegatedResult) {
+      trace.delegatedResult = result;
+      trace.hasDelegatedResult = true;
+    } else if (trace.delegatedResult !== result) {
+      trace.ambiguous = true;
+    }
+    trace.depth -= 1;
+    if (trace.depth === 0) {
+      trace.rootCompleted = true;
+    }
+  }
+
+  function abortInactiveFetchDelegation(trace) {
+    if (!trace) {
+      return;
+    }
+    // original fetchの同期例外はcallerへそのまま返すが、途中までの証明は再利用しない。
+    trace.ambiguous = true;
+    trace.depth = Math.max(0, trace.depth - 1);
+    if (trace.depth === 0) {
+      trace.rootCompleted = true;
+    }
+  }
+
+  function closeFetchDelegationTrace(trace) {
+    const poppedTrace = fetchDelegationTraces.pop();
+    if (poppedTrace !== trace) {
+      // 同期stackが予期せず乱れた場合は、分類を続けず本文未読へ倒す。
+      trace.ambiguous = true;
+    }
+  }
+
+  function isVerifiedFetchDelegation(trace, result) {
+    return Boolean(
+      trace &&
+        trace.observed &&
+        trace.rootCompleted &&
+        trace.depth === 0 &&
+        !trace.ambiguous &&
+        trace.hasDelegatedResult &&
+        trace.delegatedResult === result
+    );
+  }
 
   let installedHook = null;
   // open coordinatorはinstall世代をまたいでXHRごとに共有する。delegation depthが
@@ -103,13 +259,49 @@
     }
 
     function requestUrlFromInput(input) {
-      if (typeof input === "string") {
-        return input;
+      try {
+        if (typeof input === "string") {
+          return input;
+        }
+        if (input) {
+          // Request-like objectのurl getterはpage側の実行可能コードである。同じgetterを
+          // typeof判定とreturnで2回呼ぶと値の差し替えや2回目throwを許すため、1回だけ読む。
+          const inputUrl = input.url;
+          if (typeof inputUrl === "string") {
+            return inputUrl;
+          }
+        }
+        return String(input || location.href);
+      } catch (_error) {
+        // native fetchは既に開始済みなのでcallerへhook由来の同期throwを追加しない。
+        // URLを確定できない応答は分類も本文読取もせず、安全側に処理対象外とする。
+        return null;
       }
-      if (input && typeof input.url === "string") {
-        return input.url;
+    }
+
+    function fetchRequestUrlFromInput(input) {
+      try {
+        if (typeof input === "string") {
+          return input;
+        }
+        if (!input || typeof browserRequestUrlGetter !== "function") {
+          return null;
+        }
+
+        // page-owned accessorはsingle-readを維持しつつ、標準getterが返すRequest内部URLと
+        // 完全一致するときだけ分類に使う。shadow値の不一致・brand不一致・throwは、
+        // native fetch resultを保ったまま本文未読／message未送信へ倒す。
+        const exposedUrl = input.url;
+        if (typeof exposedUrl !== "string") {
+          return null;
+        }
+        const browserOwnedUrl = browserRequestUrlGetter.call(input);
+        return typeof browserOwnedUrl === "string" && browserOwnedUrl === exposedUrl
+          ? browserOwnedUrl
+          : null;
+      } catch (_error) {
+        return null;
       }
-      return String(input || location.href);
     }
 
     function isSettingsListPage() {
@@ -211,15 +403,76 @@
     }
 
     function wrappedFetch(input, init) {
-      const result = originalFetch.apply(this, arguments);
       // 外部wrapper経由で旧世代が呼ばれても、native/次wrapperのrequestだけは
       // 維持し、uninstall済み世代では入力getter評価やcallback追加を行わない。
       if (!isCurrentHook()) {
+        const ancestorTrace = beginInactiveFetchDelegation(wrappedFetch, input);
+        // active世代の証明tree外から旧wrapperを直呼びされた場合は、従来どおりrequestを
+        // 1回だけ委譲し、URL評価・trace構築・callback追加を行わない。
+        if (!ancestorTrace) {
+          return originalFetch.apply(this, arguments);
+        }
+
+        // ancestorへproofを返す旧世代は、自分が捕捉したdelegateのprovenanceも再帰検証する。
+        // direct基準でなければ子traceをtopへ積み、さらに内側のinactive旧hookが受けた
+        // 入力とPromiseを証明できた場合だけ、この世代をverifiedとして親へ戻す。
+        const ownTrace = directFetchDelegates.has(originalFetch)
+          ? null
+          : createFetchDelegationTrace(input);
+        if (ownTrace) {
+          fetchDelegationTraces.push(ownTrace);
+        }
+        try {
+          let inactiveResult;
+          try {
+            inactiveResult = originalFetch.apply(this, arguments);
+          } finally {
+            if (ownTrace) {
+              closeFetchDelegationTrace(ownTrace);
+            }
+          }
+          const ownDelegateVerified =
+            ownTrace === null || isVerifiedFetchDelegation(ownTrace, inactiveResult);
+          finishInactiveFetchDelegation(
+            ancestorTrace,
+            inactiveResult,
+            ownDelegateVerified
+          );
+          return inactiveResult;
+        } catch (error) {
+          abortInactiveFetchDelegation(ancestorTrace);
+          throw error;
+        }
+      }
+
+      // 基準fetchへ直接委譲できない世代では、外部wrapperが入力を書き換え得る。
+      // inactive旧hookが同じ入力を受け、同じPromiseを返した直列委譲を観測できた場合だけ、
+      // 外側inputと実requestの対応を証明済みとする。観測不能・分岐・置換はfail closed。
+      const trace = directFetchDelegates.has(originalFetch)
+        ? null
+        : createFetchDelegationTrace(input);
+      if (trace) {
+        fetchDelegationTraces.push(trace);
+      }
+
+      let result;
+      try {
+        result = originalFetch.apply(this, arguments);
+      } finally {
+        if (trace) {
+          closeFetchDelegationTrace(trace);
+        }
+      }
+      // 外部wrapperが同期的にuninstallした場合も、返却Promise以外を扱わない。
+      if (!isCurrentHook()) {
         return result;
       }
-      const url = requestUrlFromInput(input);
+      if (trace && !isVerifiedFetchDelegation(trace, result)) {
+        return result;
+      }
+      const url = fetchRequestUrlFromInput(input);
       // Gate before clone().text() so off-settings and non-list X responses are never read by this hook.
-      if (shouldReadListResponse(url)) {
+      if (url !== null && shouldReadListResponse(url)) {
         result
           .then((response) => {
             // uninstall後に解決したin-flight fetchでは、本文を読む前に停止する。
