@@ -5,7 +5,7 @@
 > 本書と `AGENTS.md` が食い違う場合は、現在の `AGENTS.md` に合わせて本書を更新することを最初の自走タスクにしてよい（§11・§6 参照）。
 > **§10 データ保護不変条件** と **§9 4ゲート** は、どの作業でも上書きできない最優先ルール。
 
-初版: 2026/06/19 ／ 最終更新: 2026/07/29 ／ リポジトリ: 本リポジトリ root（remote `origin` = `github.com/h8nc4y/x-true-block-mute`、default branch `main`）
+初版: 2026/06/19 ／ 最終更新: 2026/07/30 ／ リポジトリ: 本リポジトリ root（remote `origin` = `github.com/h8nc4y/x-true-block-mute`、default branch `main`）
 
 ---
 
