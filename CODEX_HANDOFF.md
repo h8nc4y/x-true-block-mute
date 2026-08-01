@@ -5,7 +5,7 @@
 > 本書と `AGENTS.md` が食い違う場合は、現在の `AGENTS.md` に合わせて本書を更新することを最初の自走タスクにしてよい（§11・§6 参照）。
 > **§10 データ保護不変条件** と **§9 4ゲート** は、どの作業でも上書きできない最優先ルール。
 
-初版: 2026/06/19 ／ 最終更新: 2026/07/30 ／ リポジトリ: 本リポジトリ root（remote `origin` = `github.com/h8nc4y/x-true-block-mute`、default branch `main`）
+初版: 2026/06/19 ／ 最終更新: 2026/08/01 ／ リポジトリ: 本リポジトリ root（remote `origin` = `github.com/h8nc4y/x-true-block-mute`、default branch `main`）
 
 ---
 
@@ -69,7 +69,7 @@ content_scripts（宣言的・3 登録）:
 
 ---
 
-## 4. リポジトリの現状（2026-07-30 時点）
+## 4. リポジトリの現状（2026-08-01 時点）
 
 - **version `1.1.1`**（`manifest.json` が真実。`minimum_chrome_version:111`）。`dist/TrueBlock-Mute-v1.1.1.zip` は生成済み（`dist/` は gitignore・再生成可）。
 - **Chrome Web Store: 公開済み**（store item ID `anpgfamnbjoajbapfeclnjkklbcoknkb`、2026-06-14 にオーナーが「審査のため送信」→ 公開ページの最終更新 2026-06-18・公開版 v1.1.1。2026-07-06 にオーナーがダッシュボードで公開を確認し、エージェントが公開ストアページで version / 掲載文を確認。旧状態「提出済み・審査結果待ち」は公開で解消）。Codex は Chrome Web Store の管理画面確認・再提出・公開操作を行わない。
@@ -91,6 +91,7 @@ content_scripts（宣言的・3 登録）:
 - 2026-07-28 に `POST-2026-07-28-BROWSER-EVIDENCE` を test-only Class M で完了。既存 Chromium harness を、options page の `390x844 / 768x1024 / 1280x900` responsive probe、主要 text / control の readability、session 別の bounded Runtime / console / failed-request 収集へ拡張した。collector 自体の synthetic error 3種を先に検出する false-green 防止を含む headless Chromium 73 checks と、3枚の full-page screenshot 目視で横 overflow・実pageの runtime/page error・console error・failed request が各0であることを確認した。独立レビューで検出した watchdog cleanup 迂回と exit 0 race、通常 cleanup 不完了の false-green、taskkill helper の未評価を修正。watchdog terminal latch、cleanup failure 集約、bounded taskkill の timeout / exit code / redacted stderr / helper exit 確認を追加した。さらに pre/post-spawn error を `spawn` event / PID で分離し、spawn 後 error は実 exit まで settle せず、grace 後は exact helper PID へ再送する。race・profile status failure・taskkill timeout / nonzero・helper spawn / post-spawn / kill error の自己試験はいずれも非 0、PID / profile / helper 残存なしを実測した。PR #50（head `30d490a`、merge `232d12e`）で統合済み。GitHub の check rollup と `main` push run はともに0件で、今回の変更を検証する remote CI 証跡は存在しない。2026-07-29 の exact merge commit `232d12e` 初回 run は静的10本と headful Chromium 73 checks を PASSし、6枚の synthetic screenshot を目視、3 viewport の横 overflow と popup / home fixture / real-DOM / options 3幅の6つの機能確認 session で runtime/page error・console error・failed request が各0、cleanup 完了、一時 profile と対象 Chromium process の残存が各0だった。一方、証跡保存用の同条件再実行では機能73件が全て PASSし `Browser.close=ok`、`childExited=true`、`profileRemoved=true`、残存各0だったにもかかわらず、終了競合で `taskkill` と fallback が exit 128 となり cleanup failure に集約され runner は exit 1。`POST-2026-07-29-BROWSER-CLEANUP-RACE` では観測済み summary が旧判定で失敗するREDを固定し、既知 no-process exit 128 を Browser.close・tree試行・child終了・profile削除・helper正常終了の全条件付きでのみ benign とする純関数へ分離した。primaryはfallback判断前のchild終了も必須とし、終了済みならfallbackを省く。exit 23 / timeout / helper異常 / child・profile未完了はfail-closedに維持。policy本体追加直後の通常Chromium 73件はexit 0、fallback前child-exit制御追加後のforced exit 23はexit 1、最終静的10本もPASSし、各runの残存process/profile各0を確認した。実 X・権限・製品 UI・公開版は変更していない。
 - OS temp には旧 harness 由来の `xtbm-tb002-*` profile が46件残存（active process 利用0、今回の試験で作ったものとは分離確認済み）。direct child / non-reparse を検証して削除しようとしたが実行ポリシーに拒否されたため、迂回・再試行せず削除0件で残置した。現行 harness の合否や current cleanup 証跡を妨げる blocker ではない。
 - 2026-07-30 実測で `node scripts/check-all.mjs` は静的10本 PASS。docs は現行資料と歴史資料（`docs/archive/`）を分離済みで、分類索引は `docs/README.md`。
+- 2026-08-01 のcurrent `main@d87c86e`で `node scripts/check-all.mjs` を再実測し、静的10本は10 / 10 PASS（1.5秒）。同SHAのGitHub check-runs 3件は自動Pagesのbuild / deploy / reportが各successで、code-test CIではないためlocal gateの代替にしない。deployment metadataは1件。production UI、Chrome Web Store管理画面、公開版の手動再確認は未実施。
 - プロダクト機能は完成し公開済み（本番同期・実DOM著者照合・reconcile・popup/options・プライバシーポリシー JA/EN・allowlist パッケージ）。以後は公開後運用（`docs/review-response-playbook.md` §3〜§4）と、`docs/requirements-v2-2026-07.md` §7 のオーナー未回答質問（Q3〜Q7: 公開範囲・告知・サポート窓口・費用・v1.2 優先度）への回答待ちが主戦場。CI workflow の追加・Chrome Web Store 操作・release/tag は §9 ゲート。
 - v1.2 候補（**実装しない・オーナー承認待ち＝§9④**）: 同期忘れ/鮮度切れの警告 UI（仕様は `docs/requirements-v2-2026-07.md` §5 に定義済み）、初回オンボーディング、Firefox 移植。
 - ブランチ: `main`。旧ブランチ／作業 residue はカテゴリ名や固定本数を正本にせず、作業開始時に local ref、`origin/main` への祖先関係、worktree 参照を再計測する。非祖先または由来未確定の tip は merge/delete しない。2026-08-01 の再計測では `fix/claude-sync-scope`（tip `aa63fb987ab80ebc81596320f825d05487deabae`）に対応 PR がなく、`origin/main` の非祖先だったため、由来未確定 residue として温存する。

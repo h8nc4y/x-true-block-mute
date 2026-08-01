@@ -82,7 +82,7 @@ M1 ──→ M2 ──→ M3(分岐点) ──→ M4 ──→ M5 ──→ M6 �
 
 ## Validation evidence
 
-現行の検証正本は `node scripts/check-all.mjs`（静的10本一括。コミット前に毎回緑を確認する）。静的10本の直近全緑実測は 2026-07-30。fetch URL single-read＋browser-owned一致＋prototype drift lifecycle＋外部wrapperの再帰的委譲証明＋再評価closure再利用＋公開API probe隔離境界はfocused `verify-sync-hook.mjs` 204 checksをPASSした。PR #53 のexact merge commit `49a7c61` でもhook 101件と静的10本をPASSした。GitHub check rollupとbranch workflow runは各0件で、この変更のremote CI証跡はない。Chromium harness は同日のpolicy本体追加直後（fallback前child-exit制御の最終追加前）の通常 run が73 checksとcleanupを全緑。最終cleanup制御はforced exit 23をcleanup failureに集約して期待どおりexit 1とし、最終静的10本でも契約を確認した。各runで作成したprofileと対象 Chromium processは各0件だった。M1〜M7 期の個別コマンドのベースライン記録（2026-06-12/13）は、本ファイルの git 履歴旧版を参照。
+現行の検証正本は `node scripts/check-all.mjs`（静的10本一括。コミット前に毎回緑を確認する）。2026-08-01 のcurrent `main@d87c86e`で静的10本を10 / 10 PASS（1.5秒）。同SHAのGitHub check-runs 3件は自動Pagesのbuild / deploy / reportが各successで、code-test CIではないためlocal gateの代替にしない。fetch URL single-read＋browser-owned一致＋prototype drift lifecycle＋外部wrapperの再帰的委譲証明＋再評価closure再利用＋公開API probe隔離境界はfocused `verify-sync-hook.mjs` 204 checksをPASSした。PR #53 のexact merge commit `49a7c61` でもhook 101件と静的10本をPASSした。PR #53 merge時のGitHub check rollupとbranch workflow runは各0件で、同変更のremote CI証跡はない。Chromium harness は同日のpolicy本体追加直後（fallback前child-exit制御の最終追加前）の通常 run が73 checksとcleanupを全緑。最終cleanup制御はforced exit 23をcleanup failureに集約して期待どおりexit 1とし、最終静的10本でも契約を確認した。各runで作成したprofileと対象 Chromium processは各0件だった。M1〜M7 期の個別コマンドのベースライン記録（2026-06-12/13）は、本ファイルの git 履歴旧版を参照。
 
 ## Done criteria
 
