@@ -77,7 +77,7 @@ M1 ──→ M2 ──→ M3(分岐点) ──→ M4 ──→ M5 ──→ M6 �
 | TB-004 | Phase 2 source selection と production 実装 | skip: deferred / out of scope | done: M4 / M5（P2-007〜P2-014）として分解し、F1-A primary で実装済み。 |
 | TB-005 | F1-C X API / OAuth 連携の再検討 | skip: OAuth 等の承認が必要 | closed（不採用）。F1-A 精度方針の確定により再検討条件が消滅。F1-A insufficient 時も F1-B / F1-D を優先する。 |
 | TB-006 | Chrome Web Store / package / CI / distribution readiness | skip: distribution decision が必要 | done: M7（P2-017〜P2-021）として実施。Chrome Web Store は公開済み（公開ページ最終更新 2026-06-18、オーナー確認 2026-07-06）。 |
-| TB-007 | local stale branches の扱い確認 | done | done（4本は温存。merge / delete はしない） |
+| TB-007 | local stale branches の扱い確認 | done | done（カテゴリ名や固定本数を正本にせず開始時に再計測し、非祖先または由来未確定の tip は温存する。2026-08-01 再計測の `fix/claude-sync-scope` tip `aa63fb987ab80ebc81596320f825d05487deabae` は由来未確定 residue として merge / delete しない） |
 | TB-008 | Claude Code 引き継ぎ用 closeout 文書化 | done | done |
 
 ## Validation evidence

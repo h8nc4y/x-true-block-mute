@@ -93,7 +93,7 @@ content_scripts（宣言的・3 登録）:
 - 2026-07-30 実測で `node scripts/check-all.mjs` は静的10本 PASS。docs は現行資料と歴史資料（`docs/archive/`）を分離済みで、分類索引は `docs/README.md`。
 - プロダクト機能は完成し公開済み（本番同期・実DOM著者照合・reconcile・popup/options・プライバシーポリシー JA/EN・allowlist パッケージ）。以後は公開後運用（`docs/review-response-playbook.md` §3〜§4）と、`docs/requirements-v2-2026-07.md` §7 のオーナー未回答質問（Q3〜Q7: 公開範囲・告知・サポート窓口・費用・v1.2 優先度）への回答待ちが主戦場。CI workflow の追加・Chrome Web Store 操作・release/tag は §9 ゲート。
 - v1.2 候補（**実装しない・オーナー承認待ち＝§9④**）: 同期忘れ/鮮度切れの警告 UI（仕様は `docs/requirements-v2-2026-07.md` §5 に定義済み）、初回オンボーディング、Firefox 移植。
-- ブランチ: `main`（＋ `feature/*`・`research/*`・`backup/*` の旧ブランチは温存。merge/delete しない）。
+- ブランチ: `main`。旧ブランチ／作業 residue はカテゴリ名や固定本数を正本にせず、作業開始時に local ref、`origin/main` への祖先関係、worktree 参照を再計測する。非祖先または由来未確定の tip は merge/delete しない。2026-08-01 の再計測では `fix/claude-sync-scope`（tip `aa63fb987ab80ebc81596320f825d05487deabae`）に対応 PR がなく、`origin/main` の非祖先だったため、由来未確定 residue として温存する。
 
 ## 5. 自走ループ（毎タスクの手順）
 
@@ -176,7 +176,7 @@ foreach ($s in @('verify-phase1-static','verify-docs-consistency','audit-operati
 - 必ず `main` からブランチを切る。PR は `gh` で開き、本文は日本語で「背景・変更点・検証結果（check:all 結果＋Chromium 分の扱い）・§9該当の有無・未確認事項」を含める。
 - **merge 方針（オーナー確定・2026-06-19）**: check:all 緑＋セルフレビュー済みで **§9 ゲートに該当しない** PR は、あなたが `main` へ **self-merge してよい**（承認待ち不要＝自走）。**§9 ゲートに該当する変更を含む PR は merge せず PR で停止**し、オーナー承認を待つ。
   - 判定に迷う（ゲート該当か不明）場合は merge せず PR で停止し確認する。将来オーナーが「全 PR は人間が merge」へ切替えた場合のみ、その指示が本書より優先。
-- 旧ブランチ（`feature/*`・`research/*`・`backup/*`）は温存。勝手に merge/delete しない。
+- 旧ブランチ／作業 residue は、カテゴリ名や過去の固定本数だけで cleanup 可否を決めない。開始時に local ref と `origin/main` を再取得し、非祖先または由来未確定の tip は温存する。削除候補にできるのは、tip が `origin/main` の祖先、対応 worktree なし、統合 provenance 確認済み、の全条件を満たす local branch に限る。
 
 ---
 
